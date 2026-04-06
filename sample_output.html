@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Briefing — Friday, 28 February 2025</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --ink:          #1a1a1a;
+            --ink-light:    #666;
+            --paper:        #f5f2eb;
+            --paper-2:      #edeae0;
+            --rule:         #cdc8b5;
+            --accent:       #c0392b;
+            --white:        #ffffff;
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body:    'Source Sans 3', 'Helvetica Neue', sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+        body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; min-height: 100vh; }
+
+        /* ── MASTHEAD ── */
+        .masthead {
+            background: var(--ink);
+            color: var(--white);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: baseline;
+            gap: 1.25rem;
+            border-bottom: 3px solid var(--accent);
+            position: relative;
+            overflow: hidden;
+        }
+        .masthead::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.025) 19px, rgba(255,255,255,0.025) 20px);
+            pointer-events: none;
+        }
+        .masthead-title { font-family: var(--font-display); font-size: 1.9rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1; white-space: nowrap; position: relative; }
+        .masthead-date { font-family: var(--font-display); font-style: italic; font-size: 0.9rem; color: rgba(255,255,255,0.5); position: relative; }
+        .masthead-generated { margin-left: auto; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.25); white-space: nowrap; position: relative; }
+
+        /* ── TOP WIDGET BAR ── */
+        .widget-bar {
+            background: var(--paper-2);
+            border-bottom: 2px solid var(--rule);
+            padding: 0.55rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            min-height: 2.8rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .widget-bar::-webkit-scrollbar { display: none; }
+
+        .widget-slot {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--white);
+            border: 1px solid var(--rule);
+            border-radius: 3px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            color: var(--ink-light);
+            flex-shrink: 0;
+        }
+        .widget-slot-placeholder {
+            border-style: dashed;
+            background: transparent;
+            color: var(--rule);
+            font-style: italic;
+        }
+        .widget-slot .label { font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.6rem; color: var(--ink-light); }
+        .widget-slot .value { font-weight: 600; color: var(--ink); font-size: 0.78rem; }
+        .widget-slot .change.up   { color: #27ae60; }
+        .widget-slot .change.down { color: #c0392b; }
+        .widget-divider { width: 1px; height: 1.3rem; background: var(--rule); flex-shrink: 0; }
+
+        /* ── THREE-COLUMN LAYOUT ── */
+        .columns-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--rule);
+            min-height: calc(100vh - 8rem);
+        }
+
+        .briefing-column { background: var(--paper); display: flex; flex-direction: column; min-width: 0; }
+
+        .column-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 0.9rem 0.6rem;
+            background: var(--white);
+            border-bottom: 3px solid var(--section-color, var(--ink));
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .column-emoji { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+        .column-title { font-family: var(--font-display); font-size: 0.88rem; font-weight: 700; line-height: 1.2; flex: 1; min-width: 0; }
+        .story-count { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; flex-shrink: 0; }
+
+        /* ── STORY CARDS ── */
+        .stories-list { display: flex; flex-direction: column; gap: 1px; background: var(--rule); flex: 1; }
+
+        .story-card { background: var(--white); padding: 0.85rem 0.9rem; animation: fadeUp 0.35s ease both; animation-delay: var(--delay, 0s); transition: background 0.12s; }
+        .story-card:hover { background: #fdfcf9; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .story-meta { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+
+        .badge { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.12rem 0.4rem; border-radius: 2px; flex-shrink: 0; }
+        .badge-critical { background: #fde8e8; color: #c0392b; }
+        .badge-major    { background: #fef3e2; color: #d35400; }
+        .badge-notable  { background: #e8f4e8; color: #27ae60; }
+
+        .story-source { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .story-headline { font-family: var(--font-display); font-size: 0.87rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }
+        .story-headline a { color: var(--ink); text-decoration: none; }
+        .story-headline a:hover { color: var(--accent); text-decoration: underline; }
+
+        .story-summary { font-size: 0.77rem; color: #484848; line-height: 1.6; }
+
+        /* ── FOOTER ── */
+        footer { background: var(--ink); color: rgba(255,255,255,0.28); text-align: center; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 1.5rem; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 860px) {
+            .columns-wrapper { grid-template-columns: 1fr; }
+            .column-header { position: relative; }
+        }
+        /* ── EMAIL DIGEST PANEL ── */
+        .email-digest-panel { background: #edeae0; border-bottom: 2px solid #cdc8b5; padding: 0.6rem 1.5rem 0.7rem; }
+        .email-digest-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+        .email-digest-title { font-family: 'Source Sans 3', sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1a1a; }
+        .email-count { font-size: 0.68rem; color: #666; }
+        .email-count strong { color: #c0392b; }
+        .email-cards-row { display: flex; gap: 0.75rem; overflow-x: auto; scrollbar-width: thin; padding-bottom: 0.2rem; }
+        .email-card { background: #fff; border: 1px solid #cdc8b5; border-radius: 3px; padding: 0.6rem 0.8rem; min-width: 220px; max-width: 280px; flex-shrink: 0; }
+        .email-meta { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem; }
+        .email-from { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .email-subject { font-family: 'Playfair Display', serif; font-size: 0.8rem; font-weight: 700; line-height: 1.25; margin-bottom: 0.25rem; color: #1a1a1a; }
+        .email-summary { font-size: 0.72rem; color: #555; line-height: 1.5; }
+        .email-action { display: inline-block; margin-top: 0.3rem; font-size: 0.65rem; font-weight: 700; color: #c0392b; }
+
+        @media (max-width: 600px) {
+            .masthead { flex-wrap: wrap; gap: 0.35rem; }
+            .masthead-generated { margin-left: 0; width: 100%; }
+        }
+        @media print {
+            .widget-bar, footer { display: none; }
+            .columns-wrapper { gap: 0; background: none; }
+            .story-card { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="masthead">
+    <h1 class="masthead-title">Morning Brief</h1>
+    <span class="masthead-date">Friday, 28 February 2025</span>
+    <span class="masthead-generated">Generated 05:31 AEST</span>
+</header>
+
+<!-- ── TOP WIDGET BAR — market data, email digest, weather etc. will live here ── -->
+<div class="widget-bar">
+    <div class="widget-slot">
+        <span class="label">ASX 200</span>
+        <span class="value">7,912</span>
+        <span class="change down">▼ 1.1%</span>
+    </div>
+    <div class="widget-slot">
+        <span class="label">AUD/USD</span>
+        <span class="value">0.632</span>
+        <span class="change down">▼ 0.6%</span>
+    </div>
+    <div class="widget-slot">
+        <span class="label">S&amp;P 500</span>
+        <span class="value">5,144</span>
+        <span class="change down">▼ 1.4%</span>
+    </div>
+    <div class="widget-divider"></div>
+    <div class="widget-slot">
+        <span class="label">Iron Ore</span>
+        <span class="value">$103.20</span>
+        <span class="change up">▲ 0.4%</span>
+    </div>
+    <div class="widget-slot">
+        <span class="label">Gold</span>
+        <span class="value">$2,918</span>
+        <span class="change up">▲ 0.2%</span>
+    </div>
+    <div class="widget-slot">
+        <span class="label">Oil (Brent)</span>
+        <span class="value">$74.80</span>
+        <span class="change down">▼ 0.8%</span>
+    </div>
+    <div class="widget-divider"></div>
+    <div class="widget-slot widget-slot-placeholder">+ Email digest</div>
+    <div class="widget-slot widget-slot-placeholder">+ Weather</div>
+    <div class="widget-divider"></div>
+    <a href="topic_artificial-intelligence.html" class="widget-slot widget-topic-link" style="text-decoration:none">🤖 <span class="label" style="font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#666">Watch</span><span class="value" style="font-weight:600;font-size:0.78rem;color:#1a1a1a">Artificial Intelligence</span></a>
+    <a href="topic_climate-energy.html" class="widget-slot widget-topic-link" style="text-decoration:none">⚡ <span class="label" style="font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#666">Watch</span><span class="value" style="font-weight:600;font-size:0.78rem;color:#1a1a1a">Climate &amp; Energy</span></a>
+</div>
+
+<!-- ── EMAIL DIGEST PANEL ── -->
+<div class="email-digest-panel">
+    <div class="email-digest-header">
+        <span class="email-digest-title">📬 Email Digest</span>
+        <span class="email-count">6 items &mdash; <strong>2 need action</strong></span>
+    </div>
+    <div class="email-cards-row">
+        <div class="email-card">
+            <div class="email-meta"><span class="badge badge-critical" style="font-size:0.58rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.12rem 0.4rem;border-radius:2px;background:#fde8e8;color:#c0392b;">⚡ Action</span><span class="email-from">Sarah Chen</span></div>
+            <div class="email-subject">Q1 Board Report — approval needed by Friday</div>
+            <div class="email-summary">Sarah has circulated the draft Q1 board report and needs your sign-off before it goes to the full board on Friday afternoon.<span class="email-action">→ Review and approve</span></div>
+        </div>
+        <div class="email-card">
+            <div class="email-meta"><span class="badge badge-critical" style="font-size:0.58rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.12rem 0.4rem;border-radius:2px;background:#fde8e8;color:#c0392b;">⚡ Action</span><span class="email-from">James Whitmore</span></div>
+            <div class="email-subject">Revised term sheet — Henderson acquisition</div>
+            <div class="email-summary">Legal has revised the term sheet following yesterday's call. The key change is on the earn-out clause. James needs a response before the 3pm call.<span class="email-action">→ Review term sheet</span></div>
+        </div>
+        <div class="email-card">
+            <div class="email-meta"><span class="badge badge-major" style="font-size:0.58rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.12rem 0.4rem;border-radius:2px;background:#fef3e2;color:#d35400;">● Important</span><span class="email-from">ANZ Markets</span></div>
+            <div class="email-subject">Rate decision impact — client portfolio note</div>
+            <div class="email-summary">ANZ has issued a note on how yesterday's RBA language shift affects duration positioning in fixed income portfolios. Recommends reviewing hedges before EOD.</div>
+        </div>
+        <div class="email-card">
+            <div class="email-meta"><span class="badge badge-major" style="font-size:0.58rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.12rem 0.4rem;border-radius:2px;background:#fef3e2;color:#d35400;">● Important</span><span class="email-from">Tom Richards</span></div>
+            <div class="email-subject">Re: Singapore office lease renewal</div>
+            <div class="email-summary">The landlord has come back with a counter-proposal — 3-year term at $18,500/month vs our ask of $17,200. Tom flagged this needs a decision by end of next week.</div>
+        </div>
+        <div class="email-card">
+            <div class="email-meta"><span class="badge badge-notable" style="font-size:0.58rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.12rem 0.4rem;border-radius:2px;background:#e8f4e8;color:#27ae60;">◦ Info</span><span class="email-from">HR Team</span></div>
+            <div class="email-subject">March payroll processing confirmed</div>
+            <div class="email-summary">Payroll confirmed processed on schedule. No exceptions flagged this cycle.</div>
+        </div>
+        <div class="email-card">
+            <div class="email-meta"><span class="badge badge-notable" style="font-size:0.58rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.12rem 0.4rem;border-radius:2px;background:#e8f4e8;color:#27ae60;">◦ Info</span><span class="email-from">IT Helpdesk</span></div>
+            <div class="email-subject">Scheduled maintenance Sunday 2–4am</div>
+            <div class="email-summary">Routine server maintenance scheduled for Sunday morning. VPN and email may be intermittently unavailable during the window.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── THREE COLUMNS ── -->
+<div class="columns-wrapper">
+
+    <!-- COLUMN 1: International -->
+    <div class="briefing-column">
+        <div class="column-header" style="--section-color: #1a3a5c">
+            <span class="column-emoji">🌍</span>
+            <h2 class="column-title">International News</h2>
+            <span class="story-count">5</span>
+        </div>
+        <div class="stories-list">
+
+            <article class="story-card" style="--delay: 0s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">Reuters</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Ukraine ceasefire talks stall as Russia demands territorial concessions</a></h3>
+                <p class="story-summary">Negotiations in Geneva broke down overnight after Russia insisted on formal recognition of occupied territories as a precondition. Western mediators called the demands incompatible with international law, and the US threatened to expand weapons support to Kyiv. European leaders are convening an emergency session today.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.07s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">BBC World</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Federal Reserve signals two rate cuts now unlikely in 2025</a></h3>
+                <p class="story-summary">Fed chair Powell told Congress that persistent services inflation means the bank needs more evidence before easing. Markets sold off sharply, with the S&P 500 falling 1.4%. The first expected cut is now pushed to September at the earliest.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.14s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">The Guardian</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Taiwan Strait tensions rise after Chinese military exercises</a></h3>
+                <p class="story-summary">China's PLA conducted its largest exercises near Taiwan in eight months, deploying carrier groups and ballistic missile systems in what Taiwan's defence ministry described as a simulated blockade scenario. Washington condemned the move without direct military signalling.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.21s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Al Jazeera</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Gaza humanitarian corridor agreement reached by regional powers</a></h3>
+                <p class="story-summary">Egypt and Qatar brokered a deal allowing expanded aid delivery through a southern corridor, with the first convoy expected within 72 hours. The UN called it an "important but insufficient" step given ongoing civilian casualties.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.28s">
+                <div class="story-meta">
+                    <span class="badge badge-notable">◦ Notable</span>
+                    <span class="story-source">New York Times</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">EU announces landmark AI liability framework for 2026</a></h3>
+                <p class="story-summary">The European Commission finalised rules making AI developers legally liable for harms in high-risk categories including healthcare, employment, and law enforcement. US tech giants warned the framework will chill investment in European markets.</p>
+            </article>
+
+        </div>
+    </div>
+
+    <!-- COLUMN 2: Australian News -->
+    <div class="briefing-column">
+        <div class="column-header" style="--section-color: #1a4a2e">
+            <span class="column-emoji">🦘</span>
+            <h2 class="column-title">Australian News</h2>
+            <span class="story-count">5</span>
+        </div>
+        <div class="stories-list">
+
+            <article class="story-card" style="--delay: 0s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">ABC News</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Albanese government calls federal election for 3 May</a></h3>
+                <p class="story-summary">Prime Minister Albanese visited the Governor-General this morning to dissolve parliament, triggering a five-week campaign. Labor campaigns on cost-of-living and the energy transition; the Coalition on fiscal restraint and housing supply. Both parties sit within margin of error nationally.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.07s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Sydney Morning Herald</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">RBA holds cash rate at 4.1%, flags mid-year cut possible</a></h3>
+                <p class="story-summary">The Reserve Bank left rates unchanged for the fourth consecutive meeting but removed the phrase "further increases cannot be ruled out." Governor Bullock is watching wage growth and housing closely; economists now price in a 25bp cut in August.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.14s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">The Australian</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Housing crisis deepens as new build approvals fall to decade low</a></h3>
+                <p class="story-summary">ABS data shows dwelling approvals at their lowest in a decade, undermining the government's 1.2 million homes target. Builders cite rising labour costs, slow planning, and high financing costs. The HIA called the figures "a national emergency."</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.21s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Guardian Australia</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Queensland floods: 15,000 homes without power as cyclone weakens</a></h3>
+                <p class="story-summary">Ex-Tropical Cyclone Zara brought 320mm to Cairns in 24 hours. Fifteen thousand homes remain without power, the Bruce Highway is closed at three points, and evacuation orders cover eight communities. Flood watches remain current.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.28s">
+                <div class="story-meta">
+                    <span class="badge badge-notable">◦ Notable</span>
+                    <span class="story-source">Sky News Australia</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">AUKUS submarine deal faces Senate scrutiny over $18bn blowout</a></h3>
+                <p class="story-summary">A Senate estimates hearing heard that projected costs for the Virginia-class acquisition have risen by $18 billion since last year's announcement. Opposition senators called for an independent audit; the government defended the figures as within expected parameters.</p>
+            </article>
+
+        </div>
+    </div>
+
+    <!-- COLUMN 3: Finance -->
+    <div class="briefing-column">
+        <div class="column-header" style="--section-color: #3a1a4a">
+            <span class="column-emoji">📈</span>
+            <h2 class="column-title">Australian Finance &amp; Markets</h2>
+            <span class="story-count">5</span>
+        </div>
+        <div class="stories-list">
+
+            <article class="story-card" style="--delay: 0s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">AFR</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">ASX 200 sheds 1.1% on Wall Street selloff and RBA caution</a></h3>
+                <p class="story-summary">The benchmark fell 89 points to 7,912, led lower by the big four banks after the Fed's hawkish testimony overnight. Materials bucked the trend on higher iron ore. AUD fell 0.6¢ to US63.2¢.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.07s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">AFR</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">BHP delivers record iron ore output, cuts dividend guidance</a></h3>
+                <p class="story-summary">Pilbara output hit an all-time quarterly high of 68.6Mt but the interim dividend was cut from $0.89 to $0.72 per share, citing higher copper capex in South America. Shares fell 2.3% despite the cut being anticipated.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.14s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Business Insider AU</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">CBA lifts mortgage rates 20bp; others expected to follow</a></h3>
+                <p class="story-summary">Commonwealth Bank will raise variable mortgage rates by 0.20pp from 1 March — the first out-of-cycle hike since 2023. Westpac and NAB are expected to match within days, adding roughly $75/month to a $600,000 loan.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.21s">
+                <div class="story-meta">
+                    <span class="badge badge-notable">◦ Notable</span>
+                    <span class="story-source">SMH Money</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Superannuation balances hit record $3.9 trillion</a></h3>
+                <p class="story-summary">APRA data shows total super assets grew 11.2% over the past year, with balanced funds returning an average 9.8%. ASFA warned that higher inflation continues to erode real retirement savings for those near retirement.</p>
+            </article>
+
+            <article class="story-card" style="--delay: 0.28s">
+                <div class="story-meta">
+                    <span class="badge badge-notable">◦ Notable</span>
+                    <span class="story-source">AFR</span>
+                </div>
+                <h3 class="story-headline"><a href="#" target="_blank">Lithium stabilises after 18-month rout; Pilbara Minerals up 8%</a></h3>
+                <p class="story-summary">Spot lithium carbonate prices rose 4% on signs Chinese EV production is recovering, ending a prolonged bear market. Pilbara Minerals hit $3.21 — a six-month high — while Liontown and Core Lithium also gained.</p>
+            </article>
+
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    Morning Briefing &mdash; Generated automatically &mdash; Friday, 28 February 2025
+</footer>
+
+</body>
+</html>

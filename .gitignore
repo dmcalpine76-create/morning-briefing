@@ -1,0 +1,25 @@
+# Token cache files — NEVER commit these
+.outlook_token_cache.bin
+.gmail_token_cache.json
+
+# Environment variables
+.env
+
+# Generated output (goes to docs/ via GitHub Actions, not committed directly)
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,108 @@
+{
+  "_comment": "Your personal watch topics. Edit directly or use: py manage_topics.py",
+  "topics": [
+    {
+      "id": "artificial-intelligence",
+      "name": "Artificial Intelligence",
+      "emoji": "🤖",
+      "color": "#1a3050",
+      "keywords": [
+        "artificial intelligence",
+        "AI",
+        "machine learning",
+        "LLM",
+        "ChatGPT",
+        "Anthropic",
+        "OpenAI",
+        "generative AI",
+        "Gemini",
+        "Claude",
+        "GPT",
+        "deep learning",
+        "AI model"
+      ],
+      "added": "2025-03-17",
+      "active": true
+    },
+    {
+      "id": "energy-and-gas",
+      "name": "Energy & Gas",
+      "emoji": "⚡",
+      "color": "#1a4a2e",
+      "keywords": [
+        "energy",
+        "natural gas",
+        "LNG",
+        "oil price",
+        "renewable energy",
+        "solar",
+        "wind power",
+        "coal",
+        "electricity",
+        "gas market",
+        "energy transition",
+        "petroleum",
+        "ASX gas",
+        "gas exploration"
+      ],
+      "added": "2025-03-17",
+      "active": true
+    },
+    {
+      "id": "manchester-united",
+      "name": "Manchester United",
+      "emoji": "🔴",
+      "color": "#8a0000",
+      "keywords": [
+        "Manchester United",
+        "Man Utd",
+        "Man United",
+        "MUFC",
+        "Old Trafford",
+        "Ruben Amorim",
+        "United transfer",
+        "Premier League United",
+        "Red Devils"
+      ],
+      "added": "2025-03-17",
+      "active": true
+    },
+    {
+      "id": "ps5-games",
+      "name": "PS5 Game Reviews",
+      "emoji": "🎮",
+      "color": "#003087",
+      "keywords": [
+        "PS5",
+        "PlayStation 5",
+        "PS5 review",
+        "PS5 game",
+        "PlayStation game",
+        "new PS5",
+        "PS5 release",
+        "PlayStation exclusive",
+        "PS5 launch",
+        "PlayStation Plus"
+      ],
+      "added": "2025-03-17",
+      "active": true
+    },
+    {
+      "id": "crimson-desert",
+      "name": "Crimson Desert",
+      "emoji": "🏜️",
+      "color": "#7a3010",
+      "keywords": [
+        "Crimson Desert",
+        "Pearl Abyss",
+        "Crimson Desert game",
+        "Crimson Desert release",
+        "Crimson Desert news",
+        "Crimson Desert update",
+        "Crimson Desert gameplay"
+      ],
+      "added": "2025-03-17",
+      "active": true
+    }
+  ]
+}
