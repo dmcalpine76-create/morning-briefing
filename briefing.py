@@ -622,17 +622,21 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
         /* ── MASTHEAD TABS ── */
         .masthead {{ flex-wrap: wrap; gap: 0.5rem; padding: 0.65rem 1.25rem; }}
-        .masthead-left {{ display: flex; flex-direction: column; gap: 0.1rem; }}
-        .masthead-title {{ font-size: 1.3rem; }}
-        .masthead-date {{ font-family: var(--font-display); font-style: italic; font-size: 0.72rem; color: rgba(255,255,255,0.45); position: relative; }}
-        .masthead-tabs {{ display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; }}
+        .masthead-left {{ display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }}
+        .masthead-title {{ font-size: 1.05rem; white-space: nowrap; }}
+        .masthead-date {{ font-family: var(--font-display); font-style: italic; font-size: 0.68rem; color: rgba(255,255,255,0.45); position: relative; }}
+        .masthead-tabs {{ display: flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; }}
         .tab-btn {{
-            font-family: var(--font-body); font-size: 0.65rem; font-weight: 700;
-            letter-spacing: 0.04em; text-transform: uppercase;
-            padding: 0.25rem 0.6rem; border-radius: 3px; cursor: pointer;
+            font-family: var(--font-body); font-size: 0.62rem; font-weight: 700;
+            letter-spacing: 0.03em; text-transform: uppercase;
+            padding: 0.22rem 0.5rem; border-radius: 3px; cursor: pointer;
             border: 1px solid rgba(255,255,255,0.2);
             background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55);
             transition: all 0.15s; white-space: nowrap;
+        }}
+        @media (max-width: 600px) {{
+            .masthead-tabs {{ justify-content: flex-start; width: 100%; }}
+            .tab-btn {{ font-size: 0.58rem; padding: 0.2rem 0.4rem; }}
         }}
         .tab-btn:hover {{ background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.9); }}
         .tab-active {{ background: var(--accent) !important; color: var(--white) !important; border-color: var(--accent) !important; }}
@@ -674,7 +678,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         /* ── THREE-COLUMN LAYOUT ── */
         .columns-wrapper {{
             display: grid;
-            grid-template-columns: repeat({len(sections)}, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 1px; background: var(--rule);
             min-height: calc(100vh - 8rem);
         }}
@@ -726,15 +730,21 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             .column-header {{ position: relative; }}
         }}
 
-        /* ── TOPICS TAB — 5 columns desktop, single column on mobile ── */
+        /* ── TOPICS TAB — responsive columns ── */
         .topics-tab-grid {{
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(5, minmax(180px, 1fr));
             gap: 1px;
             background: var(--rule);
             min-height: calc(100vh - 8rem);
         }}
+        @media (max-width: 1200px) {{
+            .topics-tab-grid {{ grid-template-columns: repeat(3, 1fr); }}
+        }}
         @media (max-width: 860px) {{
+            .topics-tab-grid {{ grid-template-columns: repeat(2, 1fr); }}
+        }}
+        @media (max-width: 540px) {{
             .topics-tab-grid {{ grid-template-columns: 1fr; }}
             .topics-tab-grid .column-header {{ position: relative; top: auto; }}
         }}

@@ -25,7 +25,8 @@ load_dotenv()
 
 CLIENT_ID  = os.environ.get("OUTLOOK_CLIENT_ID", "")
 AUTHORITY  = "https://login.microsoftonline.com/" + os.environ.get("OUTLOOK_TENANT_ID", "consumers")
-SEND_TO    = os.environ.get("BRIEFING_EMAIL_TO", "")   # your email address
+SEND_TO    = os.environ.get("BRIEFING_EMAIL_TO", "")       # work email
+SEND_TO_GMAIL = os.environ.get("BRIEFING_EMAIL_GMAIL", "dmcalpine76@gmail.com")  # personal Gmail
 
 SCOPES     = ["Mail.Read", "Mail.Send", "User.Read"]
 CACHE_FILE = Path(__file__).parent / ".outlook_token_cache.bin"
@@ -308,6 +309,20 @@ EMAILS:
 # ─────────────────────────────────────────────
 
 def get_email_analysis(client: anthropic.Anthropic) -> dict:
+    # Diagnostic — print token file status
+    if CACHE_FILE.exists():
+        size = CACHE_FILE.stat().st_size
+        print(f"   📁  Token cache file: {CACHE_FILE} ({size} bytes)")
+        try:
+            content = CACHE_FILE.read_text(encoding="utf-8")
+            import json as _json
+            _json.loads(content)
+            print(f"   ✓   Token file is valid JSON")
+        except Exception as e:
+            print(f"   ⚠️  Token file JSON parse error: {e}")
+            print(f"   First 100 chars: {content[:100]!r}")
+    else:
+        print(f"   ⚠️  Token cache file not found: {CACHE_FILE}")
     if not CLIENT_ID:
         return {}
     try:
@@ -378,12 +393,23 @@ def _build_email_body(analysis: dict, sections: dict, generated_at: datetime.dat
     BADGE_STYLE = {"critical": S["badge_a"], "major": S["badge_b"], "notable": S["badge_c"]}
     BADGE_LABEL = {"critical": "⚡ Critical", "major": "● Major", "notable": "◦ Notable"}
 
+    onedrive_url = os.environ.get("BRIEFING_ONEDRIVE_URL", "")
+    onedrive_link = (
+        f'<p style="text-align:center;margin:16px 0 8px">' +
+        f'<a href="{onedrive_url}" style="display:inline-block;background:#c0392b;color:#fff;' +
+        f'padding:10px 24px;border-radius:4px;text-decoration:none;font-weight:700;font-size:14px;' +
+        f'letter-spacing:0.04em">🌐 Open Full Interactive Briefing</a></p>' +
+        f'<p style="text-align:center;font-size:11px;color:#aaa;margin:0 0 16px">' +
+        f'Opens in your browser with all tabs, topics and live data</p>'
+    ) if onedrive_url else ""
+
     html = f"""<div style="{S['body']}">
 <div style="{S['masthead']}">
   <h1 style="{S['title']}">Doug's Morning Briefing</h1>
   <p style="{S['date']}">{date_str} &mdash; Generated {time_str}</p>
 </div>
-<hr style="{S['rule']}">"""
+<hr style="{S['rule']}">
+{onedrive_link}"""
 
     # ── News sections ──
     for cat_name, stories in sections.items():
@@ -459,8 +485,9 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
       - HTML attachment: full interactive briefing (open in browser for tabs/links)
     Requires Mail.Send permission and BRIEFING_EMAIL_TO in .env
     """
-    if not SEND_TO:
-        print("  ⚠️  BRIEFING_EMAIL_TO not set in .env — skipping email send")
+    recipients = [a for a in [SEND_TO, SEND_TO_GMAIL] if a]
+    if not recipients:
+        print("  ⚠️  No recipient addresses set — skipping email send")
         return False
 
     try:
@@ -483,7 +510,7 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
                 "contentType": "HTML",
                 "content":     body_html,
             },
-            "toRecipients": [{"emailAddress": {"address": SEND_TO}}],
+            "toRecipients": [{"emailAddress": {"address": a}} for a in recipients],
             "attachments": [
                 {
                     "@odata.type":  "#microsoft.graph.fileAttachment",
@@ -502,7 +529,7 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
         )
 
         if resp.status_code == 202:
-            print(f"   ✉️   Emailed to {SEND_TO} — body + attachment ({filename})")
+            print(f"   ✉️   Emailed to: {', '.join(recipients)} — body + attachment ({filename})")
             return True
         else:
             print(f"   ⚠️  Email send failed: {resp.status_code} {resp.text[:200]}")

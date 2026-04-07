@@ -36,11 +36,23 @@ jobs:
           OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
         run: |
           if [ -n "$OUTLOOK_TOKEN_CACHE" ]; then
-            echo "$OUTLOOK_TOKEN_CACHE" > .outlook_token_cache.bin
-            echo "Token file written: $(wc -c < .outlook_token_cache.bin) bytes"
-            echo "First 50 chars: $(head -c 50 .outlook_token_cache.bin)"
+            python3 -c "
+import os, json
+raw = os.environ['OUTLOOK_TOKEN_CACHE']
+# Validate it's proper JSON before writing
+try:
+    parsed = json.loads(raw)
+    with open('.outlook_token_cache.bin', 'w') as f:
+        json.dump(parsed, f)
+    print('Outlook token written successfully (' + str(len(raw)) + ' chars)')
+except Exception as e:
+    print('Token JSON error:', e)
+    # Write raw anyway
+    with open('.outlook_token_cache.bin', 'w') as f:
+        f.write(raw)
+"
           else
-            echo "OUTLOOK_TOKEN_CACHE secret is empty or not set"
+            echo "OUTLOOK_TOKEN_CACHE not set - skipping"
           fi
 
       - name: Restore Gmail token
@@ -76,8 +88,8 @@ jobs:
           fi
           echo "Output folder: $OUTPUT"
           python wrap_password.py "${OUTPUT}briefing.html" docs/index.html "$BRIEFING_PASSWORD"
-          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
           touch docs/.nojekyll
+          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
