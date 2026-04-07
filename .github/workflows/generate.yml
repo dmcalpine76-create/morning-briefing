@@ -35,23 +35,21 @@ jobs:
         env:
           OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
         run: |
-          python3 - << 'PYEOF'
-          import os, json
-          raw = os.environ.get('OUTLOOK_TOKEN_CACHE', '')
-          if not raw:
-              print('OUTLOOK_TOKEN_CACHE not set - skipping')
-          else:
-              try:
-                  parsed = json.loads(raw)
-                  with open('.outlook_token_cache.bin', 'w', encoding='utf-8') as f:
-                      json.dump(parsed, f)
-                  print(f'Outlook token written ({len(raw)} chars, valid JSON)')
-              except Exception as e:
-                  print(f'Token JSON error: {e} - writing raw')
-                  with open('.outlook_token_cache.bin', 'w', encoding='utf-8') as f:
-                      f.write(raw)
-          PYEOF
-
+          python3 -c "
+import os, json
+raw = os.environ.get('OUTLOOK_TOKEN_CACHE', '')
+if not raw:
+    print('OUTLOOK_TOKEN_CACHE not set')
+else:
+    try:
+        parsed = json.loads(raw)
+        with open('.outlook_token_cache.bin', 'w') as f:
+            json.dump(parsed, f)
+        print('Token written OK - ' + str(len(raw)) + ' chars')
+    except Exception as e:
+        print('JSON error: ' + str(e))
+        open('.outlook_token_cache.bin', 'w').write(raw)
+      "
       - name: Restore Gmail token
         env:
           GMAIL_TOKEN_CACHE: ${{ secrets.GMAIL_TOKEN_CACHE }}
