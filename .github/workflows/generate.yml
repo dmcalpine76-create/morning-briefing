@@ -26,6 +26,8 @@ jobs:
       # ── 1. Check out the repo ──
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for pull/push
 
       # ── 2. Set up Python ──
       - name: Set up Python
@@ -69,6 +71,7 @@ jobs:
           OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
           OUTLOOK_TENANT_ID: ${{ secrets.OUTLOOK_TENANT_ID }}
           BRIEFING_EMAIL_TO: ${{ secrets.BRIEFING_EMAIL_TO }}
+          BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
         run: python briefing.py
@@ -93,11 +96,14 @@ jobs:
           # Update the run timestamp
           echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
 
-      # ── 8. Commit and push to trigger GitHub Pages ──
+      # ── 8. Commit and push — pull first to avoid conflicts ──
       - name: Commit and push
         run: |
           git config user.name  "Morning Briefing Bot"
           git config user.email "actions@github.com"
           git add docs/
-          git diff --staged --quiet && echo "No changes to commit" || git commit -m "Briefing: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git push
+          git diff --staged --quiet && echo "No changes to commit" || {
+            git commit -m "Briefing: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin main
+            git push origin main
+          }
