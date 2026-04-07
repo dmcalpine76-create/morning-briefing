@@ -102,8 +102,10 @@ jobs:
           git config user.name  "Morning Briefing Bot"
           git config user.email "actions@github.com"
           git add docs/
-          git diff --staged --quiet && echo "No changes to commit" || {
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
             git commit -m "Briefing: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git pull --rebase origin main
-            git push origin main
+            git push --force-with-lease origin main
+          fi
           }
