@@ -37,9 +37,10 @@ jobs:
         run: |
           if [ -n "$OUTLOOK_TOKEN_CACHE" ]; then
             echo "$OUTLOOK_TOKEN_CACHE" > .outlook_token_cache.bin
-            echo "Outlook token restored"
+            echo "Token file written: $(wc -c < .outlook_token_cache.bin) bytes"
+            echo "First 50 chars: $(head -c 50 .outlook_token_cache.bin)"
           else
-            echo "OUTLOOK_TOKEN_CACHE not set - skipping"
+            echo "OUTLOOK_TOKEN_CACHE secret is empty or not set"
           fi
 
       - name: Restore Gmail token
