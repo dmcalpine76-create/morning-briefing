@@ -1,11 +1,8 @@
 name: Generate Morning Briefing
 
 on:
-  # ── Scheduled run: 5:30am AEST = 7:30pm UTC (previous day) ──
   schedule:
     - cron: '30 19 * * *'
-
-  # ── Manual trigger from GitHub mobile app or web ──
   workflow_dispatch:
     inputs:
       reason:
@@ -13,7 +10,6 @@ on:
         required: false
         default: 'Manual trigger'
 
-# Allow writing to GitHub Pages (public repo, free tier)
 permissions:
   contents: write
 
@@ -23,48 +19,40 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # ── 1. Check out the repo ──
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # full history needed for pull/push
 
-      # ── 2. Set up Python ──
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      # ── 3. Install dependencies ──
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── 4. Restore Outlook token from GitHub Secret ──
       - name: Restore Outlook token
         env:
           OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
         run: |
           if [ -n "$OUTLOOK_TOKEN_CACHE" ]; then
             echo "$OUTLOOK_TOKEN_CACHE" > .outlook_token_cache.bin
-            echo "✅ Outlook token restored"
+            echo "Outlook token restored"
           else
-            echo "⚠️  OUTLOOK_TOKEN_CACHE secret not set — Outlook email will be skipped"
+            echo "OUTLOOK_TOKEN_CACHE not set - skipping"
           fi
 
-      # ── 5. Restore Gmail token from GitHub Secret ──
       - name: Restore Gmail token
         env:
           GMAIL_TOKEN_CACHE: ${{ secrets.GMAIL_TOKEN_CACHE }}
         run: |
           if [ -n "$GMAIL_TOKEN_CACHE" ]; then
             echo "$GMAIL_TOKEN_CACHE" > .gmail_token_cache.json
-            echo "✅ Gmail token restored"
+            echo "Gmail token restored"
           else
-            echo "⚠️  GMAIL_TOKEN_CACHE secret not set — Gmail will be skipped"
+            echo "GMAIL_TOKEN_CACHE not set - skipping"
           fi
 
-      # ── 6. Generate the briefing ──
       - name: Generate briefing
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -76,36 +64,6 @@ jobs:
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
         run: python briefing.py
 
-      # ── 7. Wrap briefing with password protection and publish ──
-      - name: Publish to GitHub Pages
+      - name: Wrap with password and deploy to docs
         env:
-          BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
-        run: |
-          # Find today's output folder
-          OUTPUT=$(ls -td output/*/  2>/dev/null | head -1)
-          if [ -z "$OUTPUT" ]; then
-            echo "❌ No output folder found"
-            exit 1
-          fi
-          echo "📁 Output folder: $OUTPUT"
-
-          # Inject password wrapper using Python
-          python wrap_password.py "${OUTPUT}briefing.html" docs/index.html "$BRIEFING_PASSWORD"
-          echo "✅ Password-protected briefing written to docs/index.html"
-
-          # Update the run timestamp
-          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
-
-      # ── 8. Commit and push — pull first to avoid conflicts ──
-      - name: Commit and push
-        run: |
-          git config user.name  "Morning Briefing Bot"
-          git config user.email "actions@github.com"
-          git add docs/
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Briefing: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push --force origin main
-          fi
-          }
+          BRIEFING_PASSW
