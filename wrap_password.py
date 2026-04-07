@@ -119,7 +119,7 @@ def wrap(input_path: str, output_path: str, password: str):
     <p class="error" id="err">Incorrect password</p>
 </div>
 
-<div id="briefing-container"></div>
+<!-- briefing loaded into iframe dynamically -->
 
 <script>
 const CORRECT_HASH = "{correct_hash}";
@@ -135,13 +135,16 @@ async function sha256(str) {{
 
 function showBriefing() {{
     document.getElementById('lock-screen').style.display = 'none';
-    const html = new TextDecoder().decode(
-        Uint8Array.from(atob(ENCODED), c => c.charCodeAt(0))
-    );
-    // Replace current page content with briefing
-    document.open();
-    document.write(html);
-    document.close();
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    document.body.style.overflow = 'hidden';
+    const bytes = Uint8Array.from(atob(ENCODED), c => c.charCodeAt(0));
+    const blob  = new Blob([bytes], {{type: 'text/html; charset=utf-8'}});
+    const url   = URL.createObjectURL(blob);
+    const frame = document.createElement('iframe');
+    frame.src   = url;
+    frame.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
+    document.body.appendChild(frame);
 }}
 
 async function unlock() {{
