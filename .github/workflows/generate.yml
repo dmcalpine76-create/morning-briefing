@@ -66,4 +66,21 @@ jobs:
 
       - name: Wrap with password and deploy to docs
         env:
-          BRIEFING_PASSW
+          BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
+        run: |
+          OUTPUT=$(ls -td output/*/ 2>/dev/null | head -1)
+          if [ -z "$OUTPUT" ]; then
+            echo "No output folder found"
+            exit 1
+          fi
+          echo "Output folder: $OUTPUT"
+          python wrap_password.py "${OUTPUT}briefing.html" docs/index.html "$BRIEFING_PASSWORD"
+          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+          force_orphan: true
