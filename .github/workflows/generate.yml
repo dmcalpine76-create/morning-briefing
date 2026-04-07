@@ -106,6 +106,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Briefing: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push --force-with-lease origin main
+            git push --force origin main
           fi
           }
