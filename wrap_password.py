@@ -46,7 +46,7 @@ def wrap(input_path: str, output_path: str, password: str):
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
             background: #1a1a1a;
             display: flex; align-items: center; justify-content: center;
-            min-height: 100vh; padding: 1rem;
+            min-height: 100vh; padding: 1rem; margin: 0;
         }}
         .lock-box {{
             background: #242424;
@@ -119,7 +119,7 @@ def wrap(input_path: str, output_path: str, password: str):
     <p class="error" id="err">Incorrect password</p>
 </div>
 
-<!-- briefing loaded into iframe dynamically -->
+<iframe id="briefing-frame" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;z-index:9999;background:#fff;" title="Morning Briefing"></iframe>
 
 <script>
 const CORRECT_HASH = "{correct_hash}";
@@ -135,16 +135,13 @@ async function sha256(str) {{
 
 function showBriefing() {{
     document.getElementById('lock-screen').style.display = 'none';
-    document.body.style.margin = '0';
-    document.body.style.padding = '0';
-    document.body.style.overflow = 'hidden';
+    document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;background:#fff;';
     const bytes = Uint8Array.from(atob(ENCODED), c => c.charCodeAt(0));
     const blob  = new Blob([bytes], {{type: 'text/html; charset=utf-8'}});
     const url   = URL.createObjectURL(blob);
-    const frame = document.createElement('iframe');
+    const frame = document.getElementById('briefing-frame');
     frame.src   = url;
-    frame.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
-    document.body.appendChild(frame);
+    frame.style.display = 'block';
 }}
 
 async function unlock() {{
