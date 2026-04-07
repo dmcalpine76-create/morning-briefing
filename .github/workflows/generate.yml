@@ -76,6 +76,7 @@ jobs:
           echo "Output folder: $OUTPUT"
           python wrap_password.py "${OUTPUT}briefing.html" docs/index.html "$BRIEFING_PASSWORD"
           echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
+          touch docs/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
