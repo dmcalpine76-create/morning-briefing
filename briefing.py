@@ -46,7 +46,7 @@ except ImportError:
 
 
 TOPICS_FILE = Path(__file__).parent / "topics.json"
-TOP_N_TOPIC_STORIES = 10   # stories per topic column
+TOP_N_TOPIC_STORIES = 5    # stories per topic column
 
 # ─────────────────────────────────────────────
 # CONFIG — edit feeds and story counts here
@@ -99,7 +99,7 @@ CATEGORIES = {
     },
 }
 
-TOP_N_STORIES = 10       # stories to summarise per category
+TOP_N_STORIES = 5        # stories to summarise per category
 MAX_FEED_ITEMS = 20      # fetch up to this many items per feed before filtering
 
 
@@ -174,23 +174,27 @@ NEWS ITEMS:
 
 def summarise_category(client: anthropic.Anthropic, category_name: str,
                         items: list[dict], top_n: int) -> list[dict]:
-    """Call the Anthropic API to select and summarise top stories."""
+    """Call the Anthropic API to select and summarise top stories. Retries on connection error."""
     if not items:
         return []
-    try:
-        prompt   = build_prompt(category_name, items, top_n)
-        message  = client.messages.create(
-            model      = "claude-opus-4-6",
-            max_tokens = 2048,
-            messages   = [{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
-        # Strip markdown fences just in case
-        raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        return json.loads(raw)
-    except Exception as e:
-        print(f"  ⚠️  Summarisation failed for {category_name}: {e}")
-        return []
+    import time
+    prompt = build_prompt(category_name, items, top_n)
+    for attempt in range(3):
+        try:
+            message = client.messages.create(
+                model      = "claude-opus-4-6",
+                max_tokens = 2048,
+                messages   = [{"role": "user", "content": prompt}],
+                timeout    = 120,
+            )
+            raw = message.content[0].text.strip()
+            raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            return json.loads(raw)
+        except Exception as e:
+            print(f"  ⚠️  Attempt {attempt+1}/3 failed for {category_name}: {e}")
+            if attempt < 2:
+                time.sleep(5)
+    return []
 
 
 
@@ -278,19 +282,22 @@ def fetch_asx_watchlist() -> list[dict]:
 
 
 def asx_watchlist_html(asx_data: list[dict]) -> str:
-    """Render ASX watchlist as widget-slot HTML."""
+    """Render ASX watchlist as widget-slot HTML with links to ASX company pages."""
     if not asx_data:
         return '<div class="widget-slot widget-slot-placeholder">📊 ASX stocks unavailable</div>'
     html = ""
     for s in asx_data:
         dir_class = "up" if s["up"] else "down"
         arrow     = "▲" if s["up"] else "▼"
+        # Strip .AX suffix for the ASX URL (e.g. GAS.AX -> GAS)
+        code = s["label"].upper()
+        url  = f"https://www.asx.com.au/markets/company/{code}"
         html += (
-            f'<div class="widget-slot">' +
+            f'<a href="{url}" target="_blank" rel="noopener" class="widget-slot widget-asx-link">' +
             f'<span class="label">{s["label"]}</span>' +
             f'<span class="value">{s["price"]}</span>' +
             f'<span class="change {dir_class}">{arrow} {s["change"].lstrip("+").lstrip("-")}</span>' +
-            f'</div>'
+            f'</a>'
         )
     return html
 
@@ -412,10 +419,9 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
             <div class="stories-list">{cards}{empty}</div>
         </div>"""
 
-    col_count = len(topics)
     return f"""
 <div id="view-topics" style="display:none">
-    <div class="columns-wrapper" style="grid-template-columns:repeat({col_count},1fr)">
+    <div class="topics-tab-grid">
         {columns}
     </div>
 </div>"""
@@ -605,6 +611,11 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .widget-slot .change.down {{ color: #c0392b; font-size: 0.62rem; }}
         .widget-divider {{ width: 1px; height: 1.1rem; background: var(--rule); flex-shrink: 0; align-self: center; }}
         .widget-topic-link {{ text-decoration: none; transition: border-color 0.12s, background 0.12s; }}
+        .widget-asx-link {{ text-decoration: none; transition: border-color 0.12s, background 0.12s; cursor: pointer; }}
+        .widget-asx-link:hover {{ background: var(--ink); border-color: var(--ink); }}
+        .widget-asx-link:hover .label {{ color: rgba(255,255,255,0.6); }}
+        .widget-asx-link:hover .value {{ color: var(--white); }}
+        .widget-asx-link:hover .change {{ opacity: 0.85; }}
         .widget-topic-link:hover {{ background: var(--ink); color: var(--white); border-color: var(--ink); }}
         .widget-topic-link:hover .label {{ color: rgba(255,255,255,0.6); }}
         .widget-topic-link:hover .value {{ color: var(--white); }}
@@ -713,6 +724,19 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         @media (max-width: 860px) {{
             .columns-wrapper {{ grid-template-columns: 1fr; }}
             .column-header {{ position: relative; }}
+        }}
+
+        /* ── TOPICS TAB — 5 columns desktop, single column on mobile ── */
+        .topics-tab-grid {{
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1px;
+            background: var(--rule);
+            min-height: calc(100vh - 8rem);
+        }}
+        @media (max-width: 860px) {{
+            .topics-tab-grid {{ grid-template-columns: 1fr; }}
+            .topics-tab-grid .column-header {{ position: relative; top: auto; }}
         }}
         @media (max-width: 600px) {{
             .masthead {{ flex-wrap: wrap; gap: 0.35rem; }}
@@ -1128,21 +1152,26 @@ def summarise_topic(client: anthropic.Anthropic, topic: dict,
     """Summarise top stories for a single watch topic."""
     if not items:
         return []
-    try:
-        prompt  = build_topic_prompt(
-            topic["name"], topic.get("keywords", []), items, TOP_N_TOPIC_STORIES
-        )
-        message = client.messages.create(
-            model      = "claude-opus-4-6",
-            max_tokens = 3000,
-            messages   = [{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
-        raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        return json.loads(raw)
-    except Exception as e:
-        print(f"  ⚠️  Summarisation failed for topic '{topic['name']}': {e}")
-        return []
+    import time
+    prompt = build_topic_prompt(
+        topic["name"], topic.get("keywords", []), items, TOP_N_TOPIC_STORIES
+    )
+    for attempt in range(3):
+        try:
+            message = client.messages.create(
+                model      = "claude-opus-4-6",
+                max_tokens = 3000,
+                messages   = [{"role": "user", "content": prompt}],
+                timeout    = 120,
+            )
+            raw = message.content[0].text.strip()
+            raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            return json.loads(raw)
+        except Exception as e:
+            print(f"  ⚠️  Attempt {attempt+1}/3 failed for topic '{topic['name']}': {e}")
+            if attempt < 2:
+                time.sleep(5)
+    return []
 
 
 # ─────────────────────────────────────────────
@@ -1219,12 +1248,12 @@ def generate_topics_page(topics: list[dict], all_stories: dict,
         .masthead-gen {{ font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.25); }}
 
         /* five-column grid */
+        /* ── TOPICS GRID — 5 columns desktop, stacks on mobile ── */
         .topics-grid {{
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 1px;
             background: var(--rule);
-            min-height: calc(100vh - 4rem);
         }}
 
         .t-column {{ background: var(--paper); display: flex; flex-direction: column; min-width: 0; }}
@@ -1260,9 +1289,11 @@ def generate_topics_page(topics: list[dict], all_stories: dict,
 
         footer {{ background: var(--ink); color: rgba(255,255,255,.28); text-align: center; font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; padding: .9rem 1.5rem; }}
 
-        @media (max-width: 1000px) {{ .topics-grid {{ grid-template-columns: repeat(3, 1fr); }} }}
-        @media (max-width: 700px)  {{ .topics-grid {{ grid-template-columns: repeat(2, 1fr); }} }}
-        @media (max-width: 450px)  {{ .topics-grid {{ grid-template-columns: 1fr; }} }}
+        /* ── Mobile responsive — stack topics vertically in portrait ── */
+        @media (max-width: 900px) {{
+            .topics-grid {{ grid-template-columns: 1fr; }}
+            .t-col-header {{ position: relative; top: auto; }}
+        }}
         @media print {{ .t-card {{ break-inside: avoid; }} }}
     </style>
 </head>
@@ -1368,6 +1399,7 @@ def main():
     if not api_key:
         raise SystemExit("❌  Set ANTHROPIC_API_KEY environment variable first.")
 
+    print(f"   API key loaded: {api_key[:12]}...{api_key[-4:]} ({len(api_key)} chars)")
     client      = anthropic.Anthropic(api_key=api_key)
     generated   = datetime.datetime.now()
     all_sections = {}
