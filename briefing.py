@@ -35,18 +35,75 @@ try:
     import outlook_email as _outlook
     _OUTLOOK_AVAILABLE = True
 except ImportError:
+    _outlook = None
     _OUTLOOK_AVAILABLE = False
 
-# Gmail personal inbox (optional — set GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET in .env)
 try:
-    import gmail_email as _gmail
-    _GMAIL_AVAILABLE = True
+    import outlook_calendar
+    CALENDAR_ENABLED = True
 except ImportError:
-    _GMAIL_AVAILABLE = False
+    CALENDAR_ENABLED = False
 
 
 TOPICS_FILE = Path(__file__).parent / "topics.json"
-TOP_N_TOPIC_STORIES = 5    # stories per topic column
+SETTINGS_FILE = Path(__file__).parent / "briefing_settings.json"
+TOP_N_TOPIC_STORIES = 5    # stories per topic column (overridden by settings file)
+
+# ─────────────────────────────────────────────
+# SETTINGS LOADER — reads briefing_settings.json
+# ─────────────────────────────────────────────
+
+def _load_settings():
+    """
+    Load briefing_settings.json if it exists and override the module-level
+    config variables (CATEGORIES, MARKET_TICKERS, ASX_WATCHLIST, story counts).
+    Called once at the bottom of the config block.
+    """
+    global CATEGORIES, MARKET_TICKERS, ASX_WATCHLIST
+    global TOP_N_STORIES, TOP_N_TOPIC_STORIES, MAX_FEED_ITEMS
+
+    if not SETTINGS_FILE.exists():
+        return   # no settings file — use hardcoded defaults
+
+    try:
+        s = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"  ⚠️  Could not read briefing_settings.json: {e}")
+        return
+
+    # Story counts
+    sc = s.get("story_counts", {})
+    if sc.get("top_n_stories"):       TOP_N_STORIES       = int(sc["top_n_stories"])
+    if sc.get("top_n_topic_stories"): TOP_N_TOPIC_STORIES = int(sc["top_n_topic_stories"])
+    if sc.get("max_feed_items"):      MAX_FEED_ITEMS      = int(sc["max_feed_items"])
+
+    # Categories (name → {emoji, color, feeds})
+    if s.get("categories"):
+        CATEGORIES = {
+            cat["name"]: {
+                "emoji": cat.get("emoji", "📰"),
+                "color": cat.get("color", "#1a1a1a"),
+                "feeds": [f for f in cat.get("feeds", []) if f.strip()],
+            }
+            for cat in s["categories"]
+            if cat.get("name") and cat.get("feeds")
+        }
+
+    # Market tickers
+    if s.get("market_tickers"):
+        MARKET_TICKERS = [
+            t for t in s["market_tickers"]
+            if t.get("sym") and t.get("label")
+        ]
+
+    # ASX watchlist
+    if s.get("asx_watchlist"):
+        ASX_WATCHLIST = [
+            t for t in s["asx_watchlist"]
+            if t.get("sym") and t.get("label")
+        ]
+
+
 
 # ─────────────────────────────────────────────
 # CONFIG — edit feeds and story counts here
@@ -101,6 +158,13 @@ CATEGORIES = {
 
 TOP_N_STORIES = 5        # stories to summarise per category
 MAX_FEED_ITEMS = 20      # fetch up to this many items per feed before filtering
+
+ASX_WATCHLIST = [
+    {"sym": "GAS.AX",  "label": "GAS"},
+    {"sym": "COI.AX",  "label": "COI"},
+    {"sym": "BPT.AX",  "label": "BPT"},
+    {"sym": "STO.AX",  "label": "STO"},
+]
 
 
 # ─────────────────────────────────────────────
@@ -211,74 +275,111 @@ MARKET_TICKERS = [
     {"sym": "^GSPC",    "label": "S&P 500",  "fmt": "index"},
 ]
 
-# ASX stocks of personal interest — shown separately in widget bar
-ASX_WATCHLIST = [
-    {"sym": "GAS.AX",  "label": "GAS"},
-    {"sym": "COI.AX",  "label": "COI"},
-    {"sym": "BPT.AX",  "label": "BPT"},
-    {"sym": "STO.AX",  "label": "STO"},
-]
+
+# Apply any overrides from briefing_settings.json (written by settings dashboard)
+# Called here so ALL defaults (CATEGORIES, MARKET_TICKERS, ASX_WATCHLIST) exist first
+_load_settings()
+
+
+
+def _yf_price_and_change(ticker_obj):
+    """
+    Extract (price, prev_close) from a yfinance Ticker object robustly.
+    Tries fast_info attribute names from both old and new yfinance versions,
+    then falls back to history() if fast_info returns nothing useful.
+    Returns (price, change_pct) or (None, None) on failure.
+    """
+    price, prev = None, None
+
+    # Try fast_info — attribute names vary across yfinance versions
+    try:
+        fi = ticker_obj.fast_info
+        for price_attr in ("last_price", "regularMarketPrice", "lastPrice"):
+            val = getattr(fi, price_attr, None)
+            if val:
+                price = float(val)
+                break
+        for prev_attr in ("previous_close", "regularMarketPreviousClose", "previousClose"):
+            val = getattr(fi, prev_attr, None)
+            if val:
+                prev = float(val)
+                break
+    except Exception:
+        pass
+
+    # Fall back to history() if fast_info gave nothing
+    if price is None:
+        try:
+            hist = ticker_obj.history(period="2d", auto_adjust=True)
+            if not hist.empty:
+                price = float(hist["Close"].iloc[-1])
+                if len(hist) >= 2:
+                    prev = float(hist["Close"].iloc[-2])
+        except Exception:
+            pass
+
+    if price is None:
+        return None, None
+
+    chg = ((price - prev) / prev * 100) if prev else 0.0
+    return price, chg
 
 
 def fetch_market_data() -> list[dict]:
     """Fetch market prices via yfinance library or fall back to empty list."""
     try:
         import yfinance as yf
-        results = []
-        for t in MARKET_TICKERS:
-            try:
-                ticker = yf.Ticker(t["sym"])
-                info   = ticker.fast_info
-                price  = getattr(info, "last_price", None) or getattr(info, "regularMarketPrice", None)
-                prev   = getattr(info, "previous_close", None) or getattr(info, "regularMarketPreviousClose", None)
-                if price is None:
-                    continue
-                chg     = ((price - prev) / prev * 100) if prev else 0
-                if t["fmt"] == "fx":
-                    fmt_price = f"{price:.4f}"
-                elif t["fmt"] == "index":
-                    fmt_price = f"{price:,.0f}"
-                else:
-                    fmt_price = f"${price:.2f}"
-                results.append({
-                    "label": t["label"],
-                    "price": fmt_price,
-                    "change": f"{chg:+.2f}%",
-                    "up": chg >= 0,
-                })
-            except Exception:
-                continue
-        return results
     except ImportError:
-        return []   # yfinance not installed — ticker will show placeholder
+        return []
+
+    results = []
+    for t in MARKET_TICKERS:
+        try:
+            price, chg = _yf_price_and_change(yf.Ticker(t["sym"]))
+            if price is None:
+                continue
+            if t["fmt"] == "fx":
+                fmt_price = f"{price:.4f}"
+            elif t["fmt"] == "index":
+                fmt_price = f"{price:,.0f}"
+            else:
+                fmt_price = f"${price:.2f}"
+            results.append({
+                "label":  t["label"],
+                "price":  fmt_price,
+                "change": f"{chg:+.2f}%",
+                "up":     chg >= 0,
+            })
+        except Exception as e:
+            print(f"  ⚠️  Ticker {t['sym']}: {e}")
+            continue
+    return results
 
 
 def fetch_asx_watchlist() -> list[dict]:
     """Fetch ASX watchlist stock prices via yfinance."""
     try:
         import yfinance as yf
-        results = []
-        for t in ASX_WATCHLIST:
-            try:
-                ticker = yf.Ticker(t["sym"])
-                info   = ticker.fast_info
-                price  = getattr(info, "last_price", None) or getattr(info, "regularMarketPrice", None)
-                prev   = getattr(info, "previous_close", None) or getattr(info, "regularMarketPreviousClose", None)
-                if price is None:
-                    continue
-                chg = ((price - prev) / prev * 100) if prev else 0
-                results.append({
-                    "label":  t["label"],
-                    "sym":    t["sym"],
-                    "price":  f"${price:.3f}",
-                    "change": f"{chg:+.2f}%",
-                    "up":     chg >= 0,
-                })
-            except Exception:
-                continue
-        return results
     except ImportError:
         return []
+
+    results = []
+    for t in ASX_WATCHLIST:
+        try:
+            price, chg = _yf_price_and_change(yf.Ticker(t["sym"]))
+            if price is None:
+                continue
+            results.append({
+                "label":  t["label"],
+                "sym":    t["sym"],
+                "price":  f"${price:.3f}",
+                "change": f"{chg:+.2f}%",
+                "up":     chg >= 0,
+            })
+        except Exception as e:
+            print(f"  ⚠️  ASX {t['sym']}: {e}")
+            continue
+    return results
 
 
 def asx_watchlist_html(asx_data: list[dict]) -> str:
@@ -321,8 +422,315 @@ def market_widgets_html(market_data: list[dict]) -> str:
 
 
 # ─────────────────────────────────────────────
-# HTML GENERATION
+# WEATHER  (Open-Meteo — no API key required)
 # ─────────────────────────────────────────────
+
+WEATHER_TZ = "Australia/Brisbane"
+
+LOCATIONS = {
+    "Brisbane":       {"lat": -27.4705, "lon": 153.0260, "days": 7},
+    "Sunshine Beach": {"lat": -26.3935, "lon": 153.0950, "days": 7},
+}
+
+# WMO weather interpretation code → (emoji, short label)
+WMO_ICONS = {
+    0:  ("☀️",  "Clear"),
+    1:  ("🌤️", "Mostly clear"),
+    2:  ("⛅",  "Part cloud"),
+    3:  ("☁️",  "Overcast"),
+    45: ("🌫️", "Fog"),
+    48: ("🌫️", "Icy fog"),
+    51: ("🌦️", "Light drizzle"),
+    53: ("🌦️", "Drizzle"),
+    55: ("🌧️", "Heavy drizzle"),
+    61: ("🌧️", "Light rain"),
+    63: ("🌧️", "Rain"),
+    65: ("🌧️", "Heavy rain"),
+    71: ("🌨️", "Light snow"),
+    73: ("🌨️", "Snow"),
+    75: ("❄️",  "Heavy snow"),
+    80: ("🌦️", "Showers"),
+    81: ("🌧️", "Rain showers"),
+    82: ("⛈️",  "Heavy showers"),
+    95: ("⛈️",  "Thunderstorm"),
+    96: ("⛈️",  "T-storm/hail"),
+    99: ("⛈️",  "T-storm/hail"),
+}
+
+
+def fetch_weather_for(name: str) -> list[dict]:
+    """
+    Fetch daily forecast for a named location from LOCATIONS dict.
+    Returns list of {day, date, icon, desc, high, low, rain_prob}.
+    """
+    loc = LOCATIONS.get(name)
+    if not loc:
+        return []
+    try:
+        url = (
+            "https://api.open-meteo.com/v1/forecast"
+            f"?latitude={loc['lat']}&longitude={loc['lon']}"
+            "&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+            f"&timezone={WEATHER_TZ}&forecast_days={loc['days']}"
+        )
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        data  = resp.json()
+        daily = data.get("daily", {})
+        dates = daily.get("time", [])
+        codes = daily.get("weathercode", [])
+        highs = daily.get("temperature_2m_max", [])
+        lows  = daily.get("temperature_2m_min", [])
+        probs = daily.get("precipitation_probability_max", [])
+        result = []
+        for i, date_str in enumerate(dates):
+            dt         = datetime.date.fromisoformat(date_str)
+            code       = int(codes[i]) if i < len(codes) else 0
+            icon, desc = WMO_ICONS.get(code, ("🌡️", "Unknown"))
+            result.append({
+                "day":       "Today" if i == 0 else dt.strftime("%a"),
+                "date":      f"{dt.day} {dt.strftime('%b')}",
+                "icon":      icon,
+                "desc":      desc,
+                "high":      round(highs[i]) if i < len(highs) and highs[i] is not None else None,
+                "low":       round(lows[i])  if i < len(lows)  and lows[i]  is not None else None,
+                "rain_prob": int(probs[i])   if i < len(probs) and probs[i] is not None else None,
+            })
+        return result
+    except Exception as e:
+        print(f"  ⚠️  Weather fetch failed ({name}): {e}")
+        return []
+
+
+def fetch_weather() -> list[dict]:
+    """Backward-compatible wrapper — returns Brisbane 7-day forecast."""
+    return fetch_weather_for("Brisbane")
+
+
+# ─────────────────────────────────────────────
+# EAST COAST GAS PRICE
+# ─────────────────────────────────────────────
+
+def fetch_au_gas_price() -> dict:
+    """
+    Fetch Australian East Coast STTM gas spot price from NEMweb.
+    Downloads CURRENTDAY.ZIP from www.nemweb.com.au/Reports/CURRENT/STTM/,
+    extracts the ex ante market price CSV, and returns the Brisbane hub price.
+    This is a public file updated daily around 6am AEST — no login required.
+    Returns dict: {price, unit, hub, date, source} or {} on failure.
+    """
+    import datetime, io, zipfile, csv
+
+    today = datetime.date.today().isoformat()
+    url = "http://www.nemweb.com.au/Reports/CURRENT/STTM/CURRENTDAY.ZIP"
+
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        })
+        resp.raise_for_status()
+
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            # Find the ex ante price file — named like int111_v4_exante_...csv
+            price_files = [n for n in z.namelist()
+                           if "exante" in n.lower() and n.lower().endswith(".csv")]
+            # Fallback to any price-related file
+            if not price_files:
+                price_files = [n for n in z.namelist()
+                               if "price" in n.lower() and n.lower().endswith(".csv")]
+            if not price_files:
+                return {}
+
+            with z.open(price_files[0]) as f:
+                # AEMO CSVs have a header structure: first row is "C,..." metadata,
+                # then "I,..." column headers, then "D,..." data rows
+                text = f.read().decode("utf-8", errors="replace")
+                lines = text.splitlines()
+
+                # Find column header row (starts with "I,")
+                header_row = None
+                data_rows = []
+                for line in lines:
+                    if line.startswith("I,"):
+                        header_row = line
+                    elif line.startswith("D,") and header_row:
+                        data_rows.append(line)
+
+                if not header_row or not data_rows:
+                    # Try plain CSV fallback
+                    reader = csv.DictReader(lines)
+                    rows = list(reader)
+                    if rows:
+                        r = rows[0]
+                        price_key = next((k for k in r if "price" in k.lower()), None)
+                        if price_key and r[price_key]:
+                            return {
+                                "price": round(float(r[price_key]), 2),
+                                "unit": "$/GJ", "hub": "STTM",
+                                "date": today, "source": "NEMweb STTM"
+                            }
+                    return {}
+
+                # Parse AEMO format: columns from header row, values from data rows
+                cols = [c.strip() for c in header_row.split(",")]
+                # Prefer Brisbane hub; fall back to any hub
+                brisbane_row = None
+                any_row = None
+                for line in data_rows:
+                    vals = [v.strip() for v in line.split(",")]
+                    row = dict(zip(cols, vals))
+                    hub_val = row.get("HUB_NAME", row.get("STTM_REGION", "")).upper()
+                    if any_row is None:
+                        any_row = row
+                    if "BRISBANE" in hub_val or "QLD" in hub_val:
+                        brisbane_row = row
+                        break
+
+                target = brisbane_row or any_row
+                if not target:
+                    return {}
+
+                price_key = next(
+                    (k for k in target if "price" in k.lower() and target.get(k, "").strip()),
+                    None
+                )
+                hub_key = next(
+                    (k for k in target if any(x in k.upper() for x in ["HUB", "REGION", "LOCATION"])),
+                    None
+                )
+                date_key = next(
+                    (k for k in target if "date" in k.lower() or "gasdate" in k.lower().replace("_","")),
+                    None
+                )
+
+                if price_key and target[price_key].strip():
+                    price_val = float(target[price_key].strip())
+                    hub_name  = target[hub_key].strip() if hub_key else "STTM"
+                    gas_date  = target[date_key].strip()[:10] if date_key else today
+                    return {
+                        "price":  round(price_val, 2),
+                        "unit":   "$/GJ",
+                        "hub":    hub_name or "STTM Brisbane",
+                        "date":   gas_date,
+                        "source": "NEMweb STTM",
+                    }
+
+    except Exception as e:
+        print(f"   ⚠️  NEMweb STTM fetch error: {e}")
+
+    return {}
+
+
+# Keep old name as alias for backwards compat
+def fetch_gas_price() -> dict:
+    return fetch_au_gas_price()
+
+
+
+def fetch_henry_hub_price() -> dict:
+    """
+    Fetch Henry Hub natural gas futures price via yfinance (NG=F).
+    Returns dict: {price, unit, hub, date, source} or {} on failure.
+    Unit is USD/MMBtu.
+    """
+    import datetime
+    try:
+        import yfinance as _yf
+        t = _yf.Ticker("NG=F")
+        fi = t.fast_info
+        price_val = getattr(fi, "last_price", None) or getattr(fi, "regularMarketPrice", None)
+        if price_val and float(price_val) > 0:
+            return {
+                "price":  round(float(price_val), 3),
+                "unit":   "USD/MMBtu",
+                "hub":    "Henry Hub",
+                "date":   datetime.date.today().isoformat(),
+                "source": "yfinance",
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def gas_price_html(au_gas: dict, hh_gas: dict = None) -> str:
+    """
+    Render gas price section: AU domestic spot + Henry Hub side by side.
+    au_gas  — from fetch_au_gas_price(), unit $/GJ
+    hh_gas  — from fetch_henry_hub_price(), unit USD/MMBtu
+    """
+    def _slot(label: str, price, unit: str, flag: str = "") -> str:
+        fmt = f"{flag}{price:.2f}" if price is not None else "—"
+        return f"""<div class="wx-slot wx-gas-slot">
+            <span class="wx-day">{label}</span>
+            <span class="wx-gas-price">{fmt}</span>
+            <span class="wx-rain">{unit}</span>
+        </div>"""
+
+    slots = ""
+
+    if au_gas and au_gas.get("price") is not None:
+        hub = au_gas.get("hub", "East Coast")
+        hub_short = hub.replace("Short Term Trading Market", "STTM").replace(" Hub", "").strip()
+        if not hub_short or len(hub_short) > 14:
+            hub_short = "AU East Coast"
+        slots += _slot(hub_short, au_gas["price"], "$/GJ")
+    else:
+        slots += _slot("AU East Coast", None, "$/GJ")
+
+    hh = hh_gas or {}
+    if hh.get("price") is not None:
+        slots += _slot("Henry Hub", hh["price"], "USD/MMBtu", "$")
+    else:
+        slots += _slot("Henry Hub", None, "USD/MMBtu")
+
+    return f'''<div class="wx-section-label">⛽ Gas</div>
+        {slots}'''  
+
+
+def weather_bar_html(brisbane: list[dict], sunshine: list[dict] = None,
+                     gas: dict = None, hh_gas: dict = None) -> str:
+    """
+    Render the combined info bar:
+      Brisbane 7-day | Sunshine Beach 7-day | East Coast Gas price
+    All three sections fill the full width with no blank gaps.
+    """
+    def slots_html(forecast, today_marker=True):
+        out = ""
+        for day in forecast:
+            high      = f"{day['high']}°" if day['high'] is not None else "—"
+            low       = f"{day['low']}°"  if day['low']  is not None else "—"
+            rain      = f"{day['rain_prob']}%" if day['rain_prob'] is not None else ""
+            rain_html = f'<span class="wx-rain">{rain}</span>' if rain else '<span class="wx-rain">&nbsp;</span>'
+            today_cls = " wx-today" if (today_marker and day["day"] == "Today") else ""
+            out += f"""<div class="wx-slot{today_cls}">
+                <span class="wx-day">{day['day']}</span>
+                <span class="wx-icon">{day['icon']}</span>
+                <span class="wx-temps"><span class="wx-high">{high}</span><span class="wx-low">{low}</span></span>
+                {rain_html}
+            </div>"""
+        return out
+
+    brisbane_slots  = slots_html(brisbane) if brisbane else '<span class="weather-unavailable">Unavailable</span>'
+    sunshine_slots  = slots_html(sunshine or []) if sunshine else '<span class="weather-unavailable">Unavailable</span>'
+    gas_block       = gas_price_html(gas or {}, hh_gas or {})
+
+    return f"""<div class="weather-bar" id="weather-bar">
+    <div class="wx-section">
+        <div class="wx-section-label">🌆 Brisbane</div>
+        <div class="wx-slots">{brisbane_slots}</div>
+    </div>
+    <div class="wx-divider"></div>
+    <div class="wx-section">
+        <div class="wx-section-label">🏖️ Sunshine Beach</div>
+        <div class="wx-slots">{sunshine_slots}</div>
+    </div>
+    <div class="wx-divider"></div>
+    <div class="wx-section wx-section-gas">
+        {gas_block}
+    </div>
+</div>"""
+
+
 
 SIGNIFICANCE_BADGE = {
     "critical": '<span class="badge badge-critical">⚡ Critical</span>',
@@ -428,7 +836,20 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 
 
 def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
-    """Build the email tab HTML to embed inside briefing.html."""
+    """
+    Build the email tab HTML to embed inside briefing.html.
+
+    Each action and people card has two ways to add to Microsoft To Do:
+      1. 📋 deep-link button — opens To Do with the task pre-filled.
+         Works anywhere the HTML is opened: Gmail, phone, any device.
+         No server or auth required.
+      2. Checkbox + sticky footer Push button — bulk-pushes selected tasks
+         via the local server (/push endpoint).  Local machine only.
+    The digest column remains read-only.
+    """
+    import json as _json
+    import html as _html
+
     digest  = analysis.get("digest", [])
     actions = analysis.get("actions", [])
     people  = analysis.get("people", [])
@@ -444,10 +865,41 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
         "normal": '<span class="badge badge-notable">◦ Normal</span>',
     }
 
-    # Digest cards
+    # ── Build pushable task list (embedded as JSON) ──────────────────────────
+    # Each entry becomes one Microsoft To Do task if the user ticks it.
+    task_data = []
+
+    for i, item in enumerate(actions):
+        task_data.append({
+            "id":       f"action_{i}",
+            "title":    item.get("action", ""),
+            "detail":   item.get("context", ""),
+            "due":      datetime.date.today().isoformat(),   # due today by default
+            "priority": item.get("priority", "normal"),
+        })
+
+    for i, item in enumerate(people):
+        act   = item.get("action", "contact")
+        label = {"schedule-meeting": "Schedule meeting",
+                 "follow-up":        "Follow up",
+                 "contact":          "Contact"}.get(act, act)
+        name  = item.get("name", "")
+        title = f"{label}: {name}" if name else label
+        task_data.append({
+            "id":       f"person_{i}",
+            "title":    title,
+            "detail":   item.get("reason", ""),
+            "due":      datetime.date.today().isoformat(),
+            "priority": "normal",
+        })
+
+    tasks_json = _json.dumps(task_data).replace("</script>", "<\\/script>")
+    total_pushable = len(task_data)
+
+    # ── Digest cards (read-only) ─────────────────────────────────────────────
     digest_html = ""
     for item in digest:
-        badge    = PRIORITY_BADGE.get(item.get("priority","informational"), PRIORITY_BADGE["informational"])
+        badge    = PRIORITY_BADGE.get(item.get("priority", "informational"), PRIORITY_BADGE["informational"])
         is_read  = item.get("is_read", True)
         is_sent  = item.get("is_sent", False)
         action   = item.get("action", "")
@@ -459,71 +911,152 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
         digest_html += f"""
         <div class="ep-card{unread}">
             <div class="ep-meta">{badge}{sent_tag}{fold_tag}</div>
-            <div class="ep-from">{item.get("from_name","")}</div>
-            <div class="ep-subject">{item.get("subject","")}</div>
-            <div class="ep-summary">{item.get("summary","")}</div>
+            <div class="ep-from">{_html.escape(item.get("from_name",""))}</div>
+            <div class="ep-subject">{_html.escape(item.get("subject",""))}</div>
+            <div class="ep-summary">{_html.escape(item.get("summary",""))}</div>
             {act_tag}
         </div>"""
 
-    # Action rows
+    # ── Helper: build a Microsoft To Do deep-link for a task ────────────────
+    def _todo_link(title: str, detail: str = "") -> str:
+        """
+        Returns a web URL that opens Microsoft To Do (web or app) with the
+        task pre-filled. Uses the https://to-do.microsoft.com/tasks/add
+        endpoint which works in any browser on any device — desktop, mobile,
+        or the GitHub Pages briefing — with no app or protocol handler needed.
+        """
+        from urllib.parse import quote
+        today = datetime.date.today().isoformat()
+        # Append a trimmed context note to the body if available
+        full_title = title[:255]
+        params = f"title={quote(full_title)}&dueDate={today}"
+        if detail:
+            body_text = detail[:500].rstrip()
+            params += f"&body={quote(body_text)}"
+        return f"https://to-do.microsoft.com/tasks/add?{params}"
+
+    # ── Action rows (with checkboxes + deep link) ────────────────────────────
     actions_html = ""
     for i, item in enumerate(actions):
-        badge    = URGENCY_BADGE.get(item.get("priority","normal"), URGENCY_BADGE["normal"])
-        deadline = item.get("deadline","")
+        badge    = URGENCY_BADGE.get(item.get("priority", "normal"), URGENCY_BADGE["normal"])
+        deadline = item.get("deadline", "")
         dl_tag   = f'<span class="ep-deadline">⏰ {deadline}</span>' if deadline else ""
-        ref      = item.get("from_email","")
+        ref      = item.get("from_email", "")
+        tid      = f"action_{i}"
+        title    = item.get("action", "")
+        detail   = item.get("context", "")
+        todo_url = _todo_link(title, detail)
         actions_html += f"""
-        <div class="ep-action-row">
-            <div class="ep-action-num">{i+1}</div>
-            <div>
-                <div class="ep-action-title">{badge} {item.get("action","")} {dl_tag}</div>
-                <div class="ep-action-context">{item.get("context","")}</div>
-                {f'<div class="ep-action-ref">Re: {ref}</div>' if ref else ""}
+        <div class="ep-todo-card" id="card-{tid}">
+            <label class="ep-todo-check">
+                <input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()">
+            </label>
+            <div class="ep-todo-body">
+                <div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>
+                <div class="ep-action-context">{_html.escape(detail)}</div>
+                {f'<div class="ep-action-ref">Re: {_html.escape(ref)}</div>' if ref else ""}
+            </div>
+            <div class="ep-todo-result" id="result-{tid}">
+                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to To Do (works in email / any device)">📋</a>
             </div>
         </div>"""
 
-    # People cards
+    # ── People cards (with checkboxes + deep link) ───────────────────────────
     people_html = ""
-    for item in people:
-        act   = item.get("action","contact")
+    for i, item in enumerate(people):
+        act   = item.get("action", "contact")
         icon  = "📅" if act == "schedule-meeting" else ("🔄" if act == "follow-up" else "💬")
-        label = {"schedule-meeting":"Schedule meeting","follow-up":"Follow up","contact":"Contact"}.get(act,act)
-        timing  = item.get("suggested_timing","")
-        context = item.get("context","")
-        email_addr = item.get("email","")
+        label = {"schedule-meeting": "Schedule meeting",
+                 "follow-up":        "Follow up",
+                 "contact":          "Contact"}.get(act, act)
+        timing     = item.get("suggested_timing", "")
+        context    = item.get("context", "")
+        email_addr = item.get("email", "")
+        name       = item.get("name", "")
+        tid        = f"person_{i}"
+        p_title    = f"{label}: {name}" if name else label
+        p_detail   = item.get("reason", "")
+        todo_url   = _todo_link(p_title, p_detail)
         people_html += f"""
-        <div class="ep-person">
-            <div class="ep-person-icon">{icon}</div>
-            <div>
-                <div class="ep-person-name">{item.get("name","")} <span class="ep-person-act">{label}</span></div>
-                {f'<div class="ep-person-email">{email_addr}</div>' if email_addr else ""}
-                <div class="ep-person-reason">{item.get("reason","")}</div>
-                {f'<div class="ep-person-timing">⏰ {timing}</div>' if timing else ""}
-                {f'<div class="ep-person-context">Re: {context}</div>' if context else ""}
+        <div class="ep-todo-card" id="card-{tid}">
+            <label class="ep-todo-check">
+                <input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()">
+            </label>
+            <div class="ep-todo-body">
+                <div class="ep-person-name">
+                    <span class="ep-person-icon">{icon}</span>
+                    {_html.escape(name)}
+                    <span class="ep-person-act">{label}</span>
+                </div>
+                {f'<div class="ep-person-email">{_html.escape(email_addr)}</div>' if email_addr else ""}
+                <div class="ep-person-reason">{_html.escape(p_detail)}</div>
+                {f'<div class="ep-person-timing">⏰ {_html.escape(timing)}</div>' if timing else ""}
+                {f'<div class="ep-person-context">Re: {_html.escape(context)}</div>' if context else ""}
+            </div>
+            <div class="ep-todo-result" id="result-{tid}">
+                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to To Do (works in email / any device)">📋</a>
             </div>
         </div>"""
 
     if not digest and not actions and not people:
         return f'<div style="padding:3rem;text-align:center;color:#888">{empty_msg}</div>'
 
-    return f"""<div class="email-view">
+    # ── Select-all helpers ───────────────────────────────────────────────────
+    sel_actions_btn = (
+        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'action\',this.checked)"> '
+        'Select all</label>'
+    ) if actions else ""
+    sel_people_btn = (
+        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'person\',this.checked)"> '
+        'Select all</label>'
+    ) if people else ""
+
+    return f"""
+<!-- Task data for To Do push -->
+<script>
+const BRIEFING_TASKS = {tasks_json};
+</script>
+
+<div class="email-view">
     <section>
         <div class="ep-panel-title">📧 Priority Digest <span class="ep-count">{len(digest)}</span></div>
         {digest_html or '<p class="ep-empty">No priority emails found.</p>'}
     </section>
     <section>
-        <div class="ep-panel-title">✅ Actions for Today <span class="ep-count">{len(actions)}</span></div>
+        <div class="ep-panel-title">
+            ✅ Actions for Today
+            <span class="ep-count">{len(actions)}</span>
+            {sel_actions_btn}
+        </div>
         {actions_html or '<p class="ep-empty">No actions identified.</p>'}
     </section>
     <section>
-        <div class="ep-panel-title">👥 People &amp; Meetings <span class="ep-count">{len(people)}</span></div>
+        <div class="ep-panel-title">
+            👥 People &amp; Meetings
+            <span class="ep-count">{len(people)}</span>
+            {sel_people_btn}
+        </div>
         {people_html or '<p class="ep-empty">No contacts or meetings identified.</p>'}
     </section>
+</div>
+
+<!-- ── Sticky To Do push footer (only visible on email tab) ── -->
+<div class="todo-footer" id="todo-footer">
+    <span class="todo-footer-info" id="todo-footer-info">
+        <strong id="todo-sel-count">0</strong> of <strong>{total_pushable}</strong> tasks selected
+    </span>
+    <div class="todo-footer-actions">
+        <button class="todo-push-btn" id="todo-push-btn" onclick="pushToTodo()" disabled>
+            ☑ Push to Microsoft To Do
+        </button>
+    </div>
 </div>"""
 
 def generate_html(sections: dict, generated_at: datetime.datetime,
                    active_topics=None, email_analysis=None, market_data=None,
-                   topic_stories=None, gmail_analysis=None, asx_data=None) -> str:
+                   topic_stories=None, asx_data=None, weather_data=None,
+                   sunshine_data=None, gas_data=None, hh_gas_data=None,
+                   calendar_data=None) -> str:
     date_str      = generated_at.strftime("%A, %#d %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     columns       = "".join(
@@ -533,12 +1066,17 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     )
     market_html    = market_widgets_html(market_data or [])
     asx_html       = asx_watchlist_html(asx_data or [])
+    weather_html   = weather_bar_html(weather_data or [], sunshine_data or [], gas_data or {}, hh_gas_data or {})
     email_count    = len((email_analysis or {}).get('digest', []))
     action_count   = len((email_analysis or {}).get('actions', []))
     email_tab_html  = _build_email_tab(email_analysis or {})
-    gmail_count     = len((gmail_analysis or {}).get('digest', []))
-    gmail_actions   = len((gmail_analysis or {}).get('actions', []))
-    gmail_tab_html  = _build_email_tab(gmail_analysis or {}, empty_msg='No Gmail data. Add GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET to .env then run: py gmail_email.py setup')
+    # Calendar tab — built from pre-fetched calendar_data dict
+    _cal = calendar_data or {}
+    calendar_tab_html = _cal.get("_html", "") if _cal else ""
+    cal_yest_count    = len(_cal.get("yesterday", []))
+    cal_today_count   = len(_cal.get("today", []))
+    cal_tmrw_count    = len(_cal.get("tomorrow", []))
+    cal_total         = cal_yest_count + cal_today_count + cal_tmrw_count
     topic_tabs_html = _build_topic_tab_views_with_stories(active_topics or [], topic_stories or {})
     # topic_tabs_html produces a single #view-topics div
     # Build topic tab buttons for masthead
@@ -596,8 +1134,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             background: var(--paper-2); border-bottom: 2px solid var(--rule);
             padding: 0.3rem 1rem; display: flex; align-items: center;
             gap: 0.3rem; min-height: 2.2rem;
-            flex-wrap: wrap;       /* wrap to second line if needed */
-            overflow: visible;
+            overflow-x: auto; overflow-y: visible;
+            flex-wrap: nowrap;
         }}
         .widget-slot {{
             display: flex; align-items: center; gap: 0.3rem;
@@ -619,6 +1157,57 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .widget-topic-link:hover {{ background: var(--ink); color: var(--white); border-color: var(--ink); }}
         .widget-topic-link:hover .label {{ color: rgba(255,255,255,0.6); }}
         .widget-topic-link:hover .value {{ color: var(--white); }}
+
+        /* ── WEATHER / INFO BAR ── */
+        .weather-bar {{
+            background: var(--paper-2); border-bottom: 2px solid var(--rule);
+            display: flex; align-items: stretch;
+            min-height: 3.4rem; overflow: hidden;
+        }}
+        .wx-section {{
+            display: flex; align-items: center; gap: 0;
+            flex: 1; overflow: hidden; padding: 0 0.5rem;
+        }}
+        .wx-section-gas {{
+            flex: 0 0 auto; min-width: 7rem;
+            justify-content: center;
+        }}
+        .wx-divider {{
+            width: 1px; background: var(--rule); flex-shrink: 0; align-self: stretch;
+        }}
+        .wx-section-label {{
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--ink-light);
+            writing-mode: vertical-rl; text-orientation: mixed;
+            transform: rotate(180deg);
+            padding: 0.4rem 0.3rem; flex-shrink: 0;
+            border-right: 1px solid var(--rule); margin-right: 0.35rem;
+        }}
+        .wx-slots {{
+            display: flex; align-items: center; gap: 0; overflow-x: auto;
+            scrollbar-width: none; flex: 1;
+        }}
+        .wx-slots::-webkit-scrollbar {{ display: none; }}
+        .wx-slot {{
+            display: flex; flex-direction: column; align-items: center;
+            gap: 0.05rem; padding: 0.2rem 0.6rem;
+            border-right: 1px solid var(--rule); flex-shrink: 0; min-width: 52px;
+        }}
+        .wx-slot:last-child {{ border-right: none; }}
+        .wx-today {{ background: rgba(192,57,43,0.06); border-radius: 2px; }}
+        .wx-day {{
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.07em;
+            text-transform: uppercase; color: var(--ink-light); line-height: 1;
+        }}
+        .wx-today .wx-day {{ color: var(--accent); }}
+        .wx-icon {{ font-size: 1.05rem; line-height: 1.3; }}
+        .wx-temps {{ display: flex; gap: 0.25rem; align-items: baseline; }}
+        .wx-high {{ font-size: 0.7rem; font-weight: 700; color: var(--ink); }}
+        .wx-low  {{ font-size: 0.62rem; color: var(--ink-light); }}
+        .wx-rain {{ font-size: 0.55rem; color: #2980b9; font-weight: 600; line-height: 1; min-height: 0.75rem; }}
+        .wx-gas-slot {{ border-right: none; min-width: auto; padding: 0.3rem 0.5rem; }}
+        .wx-gas-price {{ font-size: 1.05rem; font-weight: 700; color: var(--ink); line-height: 1.2; }}
+        .weather-unavailable {{ font-size: 0.7rem; color: var(--ink-light); font-style: italic; padding: 0.3rem; }}
 
         /* ── MASTHEAD TABS ── */
         .masthead {{ flex-wrap: wrap; gap: 0.5rem; padding: 0.65rem 1.25rem; }}
@@ -675,6 +1264,64 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .ep-empty {{ font-size: 0.85rem; color: var(--ink-light); padding: 1rem 0; }}
         @media (max-width: 900px) {{ .email-view {{ grid-template-columns: 1fr; }} }}
 
+        /* ── TO DO CHECKBOX CARDS ── */
+        .ep-todo-card {{
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            background: var(--white); border: 1px solid var(--rule); border-radius: 3px;
+            padding: 0.75rem 0.9rem; margin-bottom: 0.5rem;
+            transition: border-color 0.12s, background 0.12s;
+        }}
+        .ep-todo-card:has(.todo-cb:checked) {{
+            border-color: #2980b9; background: #f0f7ff;
+        }}
+        .ep-todo-check {{ padding-top: 0.15rem; flex-shrink: 0; }}
+        .ep-todo-check input[type="checkbox"] {{
+            width: 1rem; height: 1rem; cursor: pointer; accent-color: #2980b9;
+        }}
+        .ep-todo-body {{ flex: 1; min-width: 0; }}
+        .ep-todo-result {{
+            font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+            padding-top: 0.15rem; flex-shrink: 0; text-align: right;
+        }}
+        .ep-todo-result .result-ok   {{ color: #27ae60; }}
+        .ep-todo-result .result-fail {{ color: #c0392b; }}
+        .ep-todo-deeplink {{
+            font-size: 0.95rem; text-decoration: none; opacity: 0.45;
+            transition: opacity 0.15s; display: block; line-height: 1;
+            padding: 0.1rem;
+        }}
+        .ep-todo-deeplink:hover {{ opacity: 1; }}
+        .ep-sel-all {{
+            font-size: 0.65rem; color: var(--ink-light); cursor: pointer;
+            display: flex; align-items: center; gap: 0.3rem;
+            margin-left: auto; font-weight: 600; letter-spacing: 0.03em;
+            white-space: nowrap;
+        }}
+        .ep-sel-all input {{ width: 0.8rem; height: 0.8rem; cursor: pointer; accent-color: #2980b9; }}
+
+        /* ── STICKY TO DO FOOTER ── */
+        .todo-footer {{
+            display: none;   /* shown only when email tab is active */
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--white); border-top: 2px solid var(--rule);
+            padding: 0.7rem 1.5rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 200;
+            justify-content: space-between; align-items: center;
+            gap: 1rem;
+        }}
+        .todo-footer-info {{ font-size: 0.8rem; color: var(--ink-light); }}
+        .todo-footer-info strong {{ color: var(--ink); }}
+        .todo-push-btn {{
+            background: #2980b9; color: #fff; border: none;
+            border-radius: 5px; padding: 0.5rem 1.2rem;
+            font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            letter-spacing: 0.03em; transition: background 0.15s, opacity 0.15s;
+        }}
+        .todo-push-btn:hover   {{ background: #1f6391; }}
+        .todo-push-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
+        .todo-push-btn.done    {{ background: #27ae60; }}
+
         /* ── THREE-COLUMN LAYOUT ── */
         .columns-wrapper {{
             display: grid;
@@ -720,6 +1367,127 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             font-family: var(--font-display); font-size: 1rem; font-weight: 700;
         }}
         .topic-tab-count {{ font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }}
+
+
+        /* ── CALENDAR TAB ── */
+        .cal-view {{ padding: 0; }}
+        .cal-day-section {{ margin-bottom: 0; border-bottom: 1px solid var(--rule); }}
+        .cal-day-header {{
+            display: flex; align-items: baseline; gap: 0.75rem;
+            padding: 0.65rem 1.25rem;
+            background: var(--paper-2);
+            border-bottom: 1px solid var(--rule);
+            position: sticky; top: 0; z-index: 10;
+        }}
+        .cal-day-label {{
+            font-family: var(--font-display); font-size: 0.75rem;
+            font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--ink);
+        }}
+        .cal-day-date {{ font-size: 0.78rem; color: var(--ink-light); }}
+        .cal-day-count {{
+            margin-left: auto; font-size: 0.62rem; font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--ink-light); background: var(--white);
+            border: 1px solid var(--rule); padding: 0.12rem 0.5rem;
+            border-radius: 2rem;
+        }}
+        .cal-events {{ padding: 0.5rem 0; }}
+        .cal-event {{
+            display: flex; gap: 1rem; align-items: flex-start;
+            padding: 0.7rem 1.25rem;
+            border-bottom: 1px solid var(--rule);
+            transition: background 0.15s;
+        }}
+        .cal-event:last-child {{ border-bottom: none; }}
+        .cal-event:hover {{ background: var(--paper-2); }}
+        .cal-event-past {{ opacity: 0.45; }}
+        .cal-event-time {{
+            min-width: 90px; flex-shrink: 0;
+            display: flex; flex-direction: column; gap: 2px;
+            padding-top: 1px;
+        }}
+        .cal-start {{ font-size: 0.82rem; font-weight: 700; color: var(--ink); }}
+        .cal-end   {{ font-size: 0.72rem; color: var(--ink-light); }}
+        .cal-dur   {{
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--ink-light);
+            background: var(--paper-2); border: 1px solid var(--rule);
+            padding: 0.08rem 0.35rem; border-radius: 3px; align-self: flex-start;
+            margin-top: 2px;
+        }}
+        .cal-all-day {{
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--ink-light);
+        }}
+        .cal-event-body  {{ flex: 1; min-width: 0; }}
+        .cal-event-subject {{
+            font-size: 0.88rem; font-weight: 700; color: var(--ink);
+            line-height: 1.3; margin-bottom: 4px;
+        }}
+        .cal-event-meta {{
+            font-size: 0.75rem; color: var(--ink-light); margin-bottom: 3px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }}
+        .cal-join-link {{ color: #2980b9; text-decoration: none; font-weight: 600; }}
+        .cal-join-link:hover {{ text-decoration: underline; }}
+        .cal-event-preview {{
+            font-size: 0.74rem; color: var(--ink-light);
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+            margin-top: 3px; line-height: 1.4;
+        }}
+        .cal-badge {{
+            display: inline-block; font-size: 0.58rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            padding: 0.1rem 0.4rem; border-radius: 3px;
+            vertical-align: middle; margin-left: 5px;
+        }}
+        .cal-badge-accepted  {{ background: #eafaf1; color: #27ae60; border: 1px solid #a9dfbf; }}
+        .cal-badge-declined  {{ background: #fdecea; color: #c0392b; border: 1px solid #f1948a; }}
+        .cal-badge-tentative {{ background: #fef9e7; color: #b7770d; border: 1px solid #f9e79f; }}
+        .cal-badge-pending   {{ background: var(--paper-2); color: var(--ink-light); border: 1px solid var(--rule); }}
+        .cal-badge-organizer {{ background: #eaf2ff; color: #2471a3; border: 1px solid #aed6f1; }}
+        .cal-empty {{
+            padding: 1.5rem 1.25rem; font-size: 0.82rem;
+            color: var(--ink-light); font-style: italic;
+        }}
+        .cal-error {{ padding: 1.5rem 1.25rem; color: #c0392b; font-size: 0.85rem; }}
+        .cal-error-hint {{ color: var(--ink-light); font-size: 0.8rem; margin-top: 0.5rem; }}
+        .cal-error code {{
+            background: var(--paper-2); padding: 0.1rem 0.3rem;
+            border-radius: 3px; font-family: monospace; font-size: 0.85em;
+        }}
+        /* ── AI Briefing column ── */
+        .cal-brief-col {{
+            flex-shrink: 0; width: 240px;
+            border-left: 2px solid var(--rule);
+            padding: 0 0 0 0.9rem;
+            align-self: stretch;
+            display: flex; flex-direction: column; gap: 0.3rem;
+        }}
+        .cal-brief-label {{
+            font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--ink-light);
+            margin-bottom: 0.2rem;
+        }}
+        .cal-brief-list {{
+            margin: 0; padding: 0 0 0 1rem; list-style: disc;
+        }}
+        .cal-brief-bullet {{
+            font-size: 0.74rem; color: var(--ink); line-height: 1.45;
+            margin-bottom: 0.25rem;
+        }}
+        .cal-brief-bullet:last-child {{ margin-bottom: 0; }}
+        @media (max-width: 900px) {{
+            .cal-brief-col {{ width: 100%; border-left: none;
+                border-top: 1px solid var(--rule); padding: 0.6rem 0 0 0; }}
+        }}
+
+        @media (max-width: 700px) {{
+            .cal-event {{ flex-direction: column; gap: 0.3rem; }}
+            .cal-event-time {{ min-width: unset; flex-direction: row; align-items: center; gap: 0.5rem; }}
+        }}
 
         /* ── FOOTER ── */
         footer {{ background: var(--ink); color: rgba(255,255,255,0.28); text-align: center; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 1.5rem; }}
@@ -769,7 +1537,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     <nav class="masthead-tabs">
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
         <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions{"" if not email_count else f" ({email_count})"}</button>
-        <button class="tab-btn" onclick="showTab('gmail')" id="tab-gmail">📬 Personal Actions{"" if not gmail_count else f" ({gmail_count})"}</button>
+        <button class="tab-btn" onclick="showTab('calendar')" id="tab-calendar">📅 Calendar{"" if not cal_total else f" ({cal_today_count}✦{cal_tmrw_count})"}</button>
         {topic_tab_btns}
     </nav>
 </header>
@@ -780,6 +1548,9 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     <div class="widget-divider"></div>
     {asx_html}
 </div>
+
+<!-- ── WEATHER BAR ── -->
+{weather_html}
 
 <!-- ── NEWS TAB ── -->
 <div id="view-news">
@@ -793,11 +1564,11 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 {email_tab_html}
 </div>
 
-
-<!-- ── GMAIL TAB ── -->
-<div id="view-gmail" style="display:none">
-{gmail_tab_html}
+<!-- ── CALENDAR TAB ── -->
+<div id="view-calendar" style="display:none">
+{calendar_tab_html}
 </div>
+
 
 <!-- ── TOPIC TABS ── -->
 {topic_tabs_html}
@@ -810,14 +1581,12 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 // ── Tab switching ──
 function showTab(tab) {{
     // Hide all views
-    ['view-news','view-email'].forEach(id => {{
+    ['view-news','view-email','view-calendar'].forEach(id => {{
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     }});
     const topicsView = document.getElementById('view-topics');
     if (topicsView) topicsView.style.display = 'none';
-    const gmailView = document.getElementById('view-gmail');
-    if (gmailView) gmailView.style.display = 'none';
     // Deactivate all tab buttons
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
     // Show selected view and activate button
@@ -825,6 +1594,77 @@ function showTab(tab) {{
     if (view) view.style.display = '';
     const btn = document.getElementById('tab-' + tab);
     if (btn) btn.classList.add('tab-active');
+    // Show To Do footer only on email tab
+    const footer = document.getElementById('todo-footer');
+    if (footer) footer.style.display = (tab === 'email') ? 'flex' : 'none';
+}}
+
+// ── To Do push helpers ──
+function updateTodoCount() {{
+    const n   = document.querySelectorAll('.todo-cb:checked').length;
+    const el  = document.getElementById('todo-sel-count');
+    const btn = document.getElementById('todo-push-btn');
+    if (el)  el.textContent = n;
+    if (btn) btn.disabled = (n === 0);
+}}
+
+function toggleGroup(prefix, checked) {{
+    document.querySelectorAll('.todo-cb[data-id^="' + prefix + '_"]')
+        .forEach(cb => {{ cb.checked = checked; }});
+    updateTodoCount();
+}}
+
+async function pushToTodo() {{
+    const checked = [...document.querySelectorAll('.todo-cb:checked')];
+    if (!checked.length) return;
+
+    const btn = document.getElementById('todo-push-btn');
+    btn.disabled = true;
+    btn.textContent = 'Pushing\u2026';
+
+    const ids   = checked.map(cb => cb.dataset.id);
+    const tasks = (typeof BRIEFING_TASKS !== 'undefined' ? BRIEFING_TASKS : [])
+                    .filter(t => ids.includes(t.id));
+    try {{
+        const resp = await fetch('/push', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify({{tasks}}),
+        }});
+        const data = await resp.json();
+        let ok = data.ok_count ?? 0;
+        let fail = data.fail_count ?? 0;
+
+        (data.results || []).forEach(res => {{
+            const el = document.getElementById('result-' + res.id);
+            if (el) {{
+                el.innerHTML = res.success
+                    ? '<span class="result-ok">\u2713 Added</span>'
+                    : '<span class="result-fail">\u2717 Failed</span>';
+            }}
+        }});
+
+        const footer = document.getElementById('todo-footer');
+        if (fail === 0) {{
+            // All good — show done banner then close
+            btn.textContent = '\u2705 ' + ok + ' task' + (ok !== 1 ? 's' : '') + ' added to To Do';
+            btn.classList.add('done');
+            if (footer) {{
+                footer.style.background = '#f0fff4';
+                footer.style.borderTopColor = '#27ae60';
+                const info = document.getElementById('todo-footer-info');
+                if (info) info.textContent = 'Done! This tab will close in a moment\u2026';
+            }}
+            setTimeout(() => window.close(), 2200);
+        }} else {{
+            btn.textContent = ok + ' added, ' + fail + ' failed \u2014 server still running';
+            btn.disabled = false;
+            btn.style.background = '#d97706';
+        }}
+    }} catch(e) {{
+        btn.textContent = 'Error \u2014 check terminal';
+        btn.disabled = false;
+    }}
 }}
 
 // All market and stock data embedded at generation time
@@ -1090,6 +1930,26 @@ TOPIC_SEARCH_FEEDS = [
     "https://www.gamespot.com/feeds/mashup/",
     "https://www.pcgamer.com/rss/",
     "https://www.rockpapershotgun.com/feed",
+    # Australian energy & resources
+    "https://www.energymagazine.com.au/feed/",
+    "https://www.naturalgasworld.com/rss",
+    "https://www.upstreamonline.com/rss",
+    "https://oilprice.com/rss/main",
+    "https://feeds.reuters.com/reuters/energy",
+    "https://www.theguardian.com/environment/energy/rss",
+    "https://www.abc.net.au/news/business/rss.xml",
+    # ASX & Australian markets
+    "https://www.proactiveinvestors.com.au/rss/articles/latest.rss",
+    "https://stockhead.com.au/feed/",
+    "https://www.miningweekly.com/rss",
+    "https://www.resourceworld.com/feed/",
+    "https://au.investing.com/rss/news_285.rss",    # Investing.com AU energy
+    "https://au.investing.com/rss/news_25.rss",     # Investing.com AU metals/mining
+    # Queensland & Australian business
+    "https://www.brisbanetimes.com.au/rss/feed.xml",
+    "https://www.couriermail.com.au/feed",
+    "https://www.theaustralian.com.au/feed",
+    "https://www.businessnews.com.au/rssfeed/latest",
 ]
 
 
@@ -1401,8 +2261,166 @@ def topics_widget_html(topics: list[dict]) -> str:
 
 
 # ─────────────────────────────────────────────
-# MAIN
+# LOCAL REVIEW SERVER  (briefing.py review)
 # ─────────────────────────────────────────────
+
+def serve_briefing(out_dir: Path):
+    """
+    Serve the briefing on localhost and handle /push requests to create
+    tasks in Microsoft To Do.  Called automatically after generation, and
+    also by `py briefing.py review` to re-open a previous briefing.
+
+    Requires outlook_email.py to be available and authenticated with
+    Tasks.ReadWrite scope.  Stays open until Ctrl+C or the Close link.
+    """
+    import threading
+    import webbrowser
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    briefing_file = out_dir / "briefing.html"
+    if not briefing_file.exists():
+        raise SystemExit(f"❌  No briefing found at {briefing_file}\n"
+                         f"    Run briefing.py first to generate one.")
+
+    if not _OUTLOOK_AVAILABLE:
+        raise SystemExit("❌  outlook_email.py not found — needed for To Do push.")
+
+    try:
+        token = _outlook.get_access_token()
+    except RuntimeError as e:
+        raise SystemExit(f"❌  Outlook auth error: {e}\n"
+                         f"    Run: py outlook_email.py setup")
+
+    # Resolve To Do default list
+    try:
+        lists_data = _outlook._graph_get(token, "/me/todo/lists")
+        todo_list  = next(
+            (l for l in lists_data.get("value", [])
+             if l.get("wellknownListName") == "defaultList"),
+            (lists_data.get("value") or [None])[0],
+        )
+        if not todo_list:
+            raise RuntimeError("No To Do lists found.")
+        list_id = todo_list["id"]
+        print(f"   📋  To Do list: {todo_list.get('displayName', list_id)}")
+    except Exception as e:
+        raise SystemExit(f"❌  Could not retrieve To Do lists: {e}\n"
+                         f"    Ensure Tasks.ReadWrite is granted and re-run: py outlook_email.py setup")
+
+    briefing_html = briefing_file.read_text(encoding="utf-8")
+    shutdown_event = threading.Event()
+
+    def _create_task(title: str, detail: str, due: str, priority: str) -> bool:
+        importance = {"high": "high", "urgent": "high",
+                      "normal": "normal", "low": "low"}.get(priority, "normal")
+        body = {
+            "title":      title,
+            "importance": importance,
+            "body":       {"contentType": "text", "content": detail},
+            "dueDateTime": {"dateTime": f"{due}T00:00:00", "timeZone": "UTC"},
+        }
+        try:
+            resp = requests.post(
+                f"https://graph.microsoft.com/v1.0/me/todo/lists/{list_id}/tasks",
+                headers={"Authorization": f"Bearer {token}",
+                         "Content-Type": "application/json"},
+                json=body,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            return bool(resp.json().get("id"))
+        except Exception as e:
+            print(f"   ⚠️  Task create failed '{title[:50]}': {e}")
+            return False
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/":
+                body = briefing_html.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/shutdown":
+                body = b"Closing..."
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                shutdown_event.set()
+            else:
+                self.send_response(404); self.end_headers()
+
+        def do_POST(self):
+            if self.path == "/push":
+                import json as _json
+                length  = int(self.headers.get("Content-Length", 0))
+                payload = _json.loads(self.rfile.read(length))
+                tasks   = payload.get("tasks", [])
+                results = []
+                for t in tasks:
+                    ok = _create_task(
+                        t.get("title", ""),
+                        t.get("detail", ""),
+                        t.get("due", str(datetime.date.today())),
+                        t.get("priority", "normal"),
+                    )
+                    results.append({"id": t["id"], "success": ok})
+                    print(f"   {chr(10003) if ok else chr(10007)}  {t.get('title','')[:60]}")
+
+                ok_count   = sum(1 for r in results if r["success"])
+                fail_count = len(results) - ok_count
+                resp = _json.dumps({
+                    "results":    results,
+                    "ok_count":   ok_count,
+                    "fail_count": fail_count,
+                }).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(resp)))
+                self.end_headers()
+                self.wfile.write(resp)
+
+                # Shut down cleanly after response reaches the browser
+                if fail_count == 0:
+                    print(f"\n   \u2705  {ok_count} task(s) pushed to To Do \u2014 shutting down.")
+                    threading.Timer(1.5, shutdown_event.set).start()
+                else:
+                    print(f"\n   \u26a0\ufe0f  {ok_count} pushed, {fail_count} failed \u2014 server still running.")
+            else:
+                self.send_response(404); self.end_headers()
+
+        def log_message(self, fmt, *args):
+            pass   # suppress HTTP log noise
+
+    for port in (8765, 8766, 8767):
+        try:
+            server = HTTPServer(("localhost", port), Handler)
+            break
+        except OSError:
+            continue
+    else:
+        raise SystemExit("❌  No free port found (tried 8765–8767).")
+
+    url = f"http://localhost:{port}"
+    print(f"\n   \U0001f310  Opening briefing at {url}")
+    print(f"       Go to the Work Actions tab, tick tasks, then click Push to To Do.")
+    print(f"       The server will close automatically once tasks are pushed.\n")
+    threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+
+    try:
+        while not shutdown_event.is_set():
+            server.handle_request()
+    except KeyboardInterrupt:
+        print("\n   Cancelled.")
+    finally:
+        server.server_close()
+        print("   Server closed. Returning to command prompt.\n")
+
+
+
 
 def main():
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -1450,15 +2468,6 @@ def main():
             stories = []
         all_topic_stories[topic["id"]] = stories
 
-    # ── Gmail personal inbox analysis ──
-    gmail_analysis = {}
-    if _GMAIL_AVAILABLE and os.environ.get('GMAIL_CLIENT_ID'):
-        print('\n📨  Fetching Gmail personal inbox analysis…')
-        try:
-            gmail_analysis = _gmail.get_gmail_analysis(client)
-        except Exception as e:
-            print(f'   ⚠️  Gmail skipped: {e}')
-
     # ── Outlook full email analysis ──
     email_analysis = {}
     if _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID"):
@@ -1481,26 +2490,129 @@ def main():
     market_data = fetch_market_data()
     asx_data    = fetch_asx_watchlist()
     if market_data:
-        print(f"   ✓ {len(market_data)} market instruments")
+        print(f"   ✓ {len(market_data)}/{len(MARKET_TICKERS)} market instruments: "
+              f"{', '.join(m['label'] + ' ' + m['price'] for m in market_data)}")
+    else:
+        print("   ⚠️  No market data — check yfinance is installed and up to date:")
+        print("       py -m pip install --upgrade yfinance")
     if asx_data:
-        print(f"   ✓ {len(asx_data)} ASX stocks: {', '.join(s['label'] for s in asx_data)}")
-    if not market_data and not asx_data:
-        print("   ⚠️  yfinance not installed — run: py -m pip install yfinance")
+        print(f"   ✓ {len(asx_data)}/{len(ASX_WATCHLIST)} ASX stocks: "
+              f"{', '.join(s['label'] + ' ' + s['price'] for s in asx_data)}")
+    elif market_data is not None:
+        print(f"   ⚠️  No ASX watchlist data ({len(ASX_WATCHLIST)} stocks tried)")
+
+    # ── Weather ──
+    print("\n🌤️   Fetching weather forecasts…")
+    weather_data  = fetch_weather_for("Brisbane")
+    sunshine_data = fetch_weather_for("Sunshine Beach")
+    if weather_data:
+        t = weather_data[0]
+        print(f"   ✓ Brisbane: {t['icon']} {t['desc']} {t['high']}°/{t['low']}°")
+    if sunshine_data:
+        t = sunshine_data[0]
+        print(f"   ✓ Sunshine Beach: {t['icon']} {t['desc']} {t['high']}°/{t['low']}°")
+
+    # ── Gas price ──
+    print("\n⛽   Fetching east coast gas price…")
+    gas_data = fetch_au_gas_price()
+    if gas_data:
+        print(f"   ✓ AU gas: {gas_data.get('hub','East Coast')} ${gas_data['price']:.2f} {gas_data.get('unit','$/GJ')}")
+    else:
+        print("   ⚠️  AU gas price unavailable")
+
+    hh_gas_data = fetch_henry_hub_price()
+    if hh_gas_data:
+        print(f"   ✓ Henry Hub: ${hh_gas_data['price']:.3f} {hh_gas_data.get('unit','USD/MMBtu')}")
+    else:
+        print("   ⚠️  Henry Hub price unavailable")
+
+    # ── Calendar ──
+    calendar_data = {}
+    if CALENDAR_ENABLED:
+        print("\n📅  Fetching calendar events…")
+        try:
+            cal = outlook_calendar.fetch_calendar_events()
+            t_count  = len(cal.get("today", []))
+            tm_count = len(cal.get("tomorrow", []))
+            if cal.get("error"):
+                print(f"   ⚠️  Calendar: {cal['error']}")
+            else:
+                print(f"   ✓ Calendar: {t_count} today, {tm_count} tomorrow")
+
+            # AI briefings — cross-reference events against fetched emails
+            all_events = cal.get("today", []) + cal.get("tomorrow", [])  # yesterday excluded from briefings
+            briefings  = {}
+            if all_events:
+                print("   🤖  Generating calendar briefings…")
+                # Pass full raw email list for richer cross-referencing
+                # email_analysis["_raw_emails"] is set by get_email_analysis if available,
+                # otherwise fall back to building context from digest + actions
+                raw_emails = email_analysis.get("_raw_emails", []) if email_analysis else []
+                if not raw_emails and email_analysis:
+                    for d in email_analysis.get("digest", []):
+                        subj = d.get("subject", "")
+                        if subj:
+                            raw_emails.append({
+                                "subject":      subj,
+                                "from":         d.get("from_name", d.get("from_email", "")),
+                                "body_preview": d.get("summary", d.get("action", "")),
+                            })
+                    for a in email_analysis.get("actions", []):
+                        raw_emails.append({
+                            "subject":      a.get("action", ""),
+                            "from":         a.get("from_email", ""),
+                            "body_preview": a.get("context", ""),
+                        })
+                briefings = outlook_calendar.analyse_calendar_events(all_events, raw_emails)
+                if briefings.get("_error"):
+                    print(f"   ⚠️  Briefing error: {briefings['_error']}")
+                else:
+                    print(f"   ✓ Briefings generated for {len(briefings)} events")
+
+            cal["_html"] = outlook_calendar.build_calendar_tab_html(cal, briefings)
+            calendar_data = cal
+        except Exception as e:
+            print(f"   ⚠️  Calendar error: {e}")
+            calendar_data = {"_html": f'<div class="cal-error">Calendar unavailable: {e}</div>'}
+    else:
+        print("\n📅  Calendar: outlook_calendar.py not found — skipping")
 
     # ── Main briefing page ──
     print("\n✍️  Generating main briefing page…")
-    html = generate_html(all_sections, generated, active_topics, email_analysis, market_data, all_topic_stories, gmail_analysis, asx_data)
+    html = generate_html(all_sections, generated, active_topics, email_analysis,
+                         market_data, all_topic_stories, asx_data,
+                         weather_data, sunshine_data, gas_data, hh_gas_data,
+                         calendar_data=calendar_data)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
-    print(f"\n✅  All files saved to: {out_dir.resolve()}")
+    print(f"\n✅  Briefing saved to: {out_dir.resolve()}")
 
     # ── Email briefing to yourself ──
     if _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID") and os.environ.get("BRIEFING_EMAIL_TO"):
         print("\n✉️   Sending briefing email…")
         _outlook.send_briefing_email(html, out_dir.name, generated, all_sections, email_analysis)
 
-    print(f"\nServe with:  py -m http.server 8080 --directory {out_dir}")
-    print(f"Then open:   http://localhost:8080/briefing.html")
+    # ── Serve immediately so the Push to To Do button works ──
+    # The server stays open until you press Ctrl+C or click Close in the page.
+    # Running in CI (GitHub Actions) skips this — no interactive session there.
+    if not os.environ.get("CI"):
+        serve_briefing(out_dir)
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "review":
+        # Re-open a previously generated briefing without re-running the pipeline.
+        output_root = Path("output")
+        if not output_root.exists():
+            raise SystemExit("❌  No output/ folder found. Run briefing.py first.")
+        folders = sorted(
+            [d for d in output_root.iterdir() if d.is_dir()],
+            reverse=True,
+        )
+        if not folders:
+            raise SystemExit("❌  No generated briefings found in output/.")
+        latest = folders[0]
+        print(f"\n📂  Re-opening briefing from: {latest}")
+        serve_briefing(latest)
+    else:
+        main()
