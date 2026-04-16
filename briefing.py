@@ -2429,7 +2429,7 @@ def main():
 
     print(f"   API key loaded: {api_key[:12]}...{api_key[-4:]} ({len(api_key)} chars)")
     client      = anthropic.Anthropic(api_key=api_key)
-    generated   = datetime.datetime.now()
+    generated   = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=10)))  # AEST
     all_sections = {}
 
     print(f"\n📰 Morning Briefing Generator — {generated.strftime('%A %#d %B %Y')}")
