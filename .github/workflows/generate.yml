@@ -35,31 +35,22 @@ jobs:
         env:
           OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
         run: |
-          python3 -c "
-import os, json
-raw = os.environ.get('OUTLOOK_TOKEN_CACHE', '')
-if not raw:
-    print('OUTLOOK_TOKEN_CACHE not set')
-else:
-    try:
-        parsed = json.loads(raw)
-        with open('.outlook_token_cache.bin', 'w') as f:
-            json.dump(parsed, f)
-        print('Token written OK - ' + str(len(raw)) + ' chars')
-    except Exception as e:
-        print('JSON error: ' + str(e))
-        open('.outlook_token_cache.bin', 'w').write(raw)
-      "
-      - name: Restore Gmail token
-        env:
-          GMAIL_TOKEN_CACHE: ${{ secrets.GMAIL_TOKEN_CACHE }}
-        run: |
-          if [ -n "$GMAIL_TOKEN_CACHE" ]; then
-            echo "$GMAIL_TOKEN_CACHE" > .gmail_token_cache.json
-            echo "Gmail token restored"
-          else
-            echo "GMAIL_TOKEN_CACHE not set - skipping"
-          fi
+          python3 << 'PYEOF'
+          import os, json, sys
+          raw = os.environ.get('OUTLOOK_TOKEN_CACHE', '')
+          if not raw:
+              print('OUTLOOK_TOKEN_CACHE not set — skipping')
+              sys.exit(0)
+          try:
+              parsed = json.loads(raw)
+              with open('.outlook_token_cache.bin', 'w') as f:
+                  json.dump(parsed, f)
+              print('Token written OK — ' + str(len(raw)) + ' chars')
+          except Exception as e:
+              print('JSON error: ' + str(e) + ' — writing raw')
+              with open('.outlook_token_cache.bin', 'w') as f:
+                  f.write(raw)
+          PYEOF
 
       - name: Generate briefing
         env:
@@ -68,8 +59,7 @@ else:
           OUTLOOK_TENANT_ID: ${{ secrets.OUTLOOK_TENANT_ID }}
           BRIEFING_EMAIL_TO: ${{ secrets.BRIEFING_EMAIL_TO }}
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
-          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
         run: python briefing.py
 
       - name: Wrap with password and publish
