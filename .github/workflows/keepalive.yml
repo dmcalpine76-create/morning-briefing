@@ -1,0 +1,27 @@
+name: Keepalive
+
+on:
+  schedule:
+    # Runs every Sunday at 12:00 UTC — just enough activity to prevent
+    # GitHub disabling the scheduled briefing workflow after 60 days
+    - cron: '0 12 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Keep repository active
+        run: |
+          git config user.name "Keepalive Bot"
+          git config user.email "actions@github.com"
+          echo "Last keepalive: $(date -u '+%Y-%m-%d %H:%M UTC')" > .keepalive
+          git add .keepalive
+          git commit -m "chore: keepalive $(date -u '+%Y-%m-%d')" || echo "Nothing to commit"
+          git push
