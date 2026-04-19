@@ -948,16 +948,13 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
         todo_url = _todo_link(title, detail)
         actions_html += f"""
         <div class="ep-todo-card" id="card-{tid}">
-            <label class="ep-todo-check">
-                <input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()">
-            </label>
             <div class="ep-todo-body">
                 <div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>
                 <div class="ep-action-context">{_html.escape(detail)}</div>
                 {f'<div class="ep-action-ref">Re: {_html.escape(ref)}</div>' if ref else ""}
             </div>
-            <div class="ep-todo-result" id="result-{tid}">
-                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to To Do (works in email / any device)">📋</a>
+            <div class="ep-todo-result">
+                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to Microsoft To Do">📋</a>
             </div>
         </div>"""
 
@@ -979,9 +976,6 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
         todo_url   = _todo_link(p_title, p_detail)
         people_html += f"""
         <div class="ep-todo-card" id="card-{tid}">
-            <label class="ep-todo-check">
-                <input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()">
-            </label>
             <div class="ep-todo-body">
                 <div class="ep-person-name">
                     <span class="ep-person-icon">{icon}</span>
@@ -993,30 +987,15 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
                 {f'<div class="ep-person-timing">⏰ {_html.escape(timing)}</div>' if timing else ""}
                 {f'<div class="ep-person-context">Re: {_html.escape(context)}</div>' if context else ""}
             </div>
-            <div class="ep-todo-result" id="result-{tid}">
-                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to To Do (works in email / any device)">📋</a>
+            <div class="ep-todo-result">
+                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to Microsoft To Do">📋</a>
             </div>
         </div>"""
 
     if not digest and not actions and not people:
         return f'<div style="padding:3rem;text-align:center;color:#888">{empty_msg}</div>'
 
-    # ── Select-all helpers ───────────────────────────────────────────────────
-    sel_actions_btn = (
-        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'action\',this.checked)"> '
-        'Select all</label>'
-    ) if actions else ""
-    sel_people_btn = (
-        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'person\',this.checked)"> '
-        'Select all</label>'
-    ) if people else ""
-
     return f"""
-<!-- Task data for To Do push -->
-<script>
-const BRIEFING_TASKS = {tasks_json};
-</script>
-
 <div class="email-view">
     <section>
         <div class="ep-panel-title">📧 Priority Digest <span class="ep-count">{len(digest)}</span></div>
@@ -1026,7 +1005,6 @@ const BRIEFING_TASKS = {tasks_json};
         <div class="ep-panel-title">
             ✅ Actions for Today
             <span class="ep-count">{len(actions)}</span>
-            {sel_actions_btn}
         </div>
         {actions_html or '<p class="ep-empty">No actions identified.</p>'}
     </section>
@@ -1034,22 +1012,9 @@ const BRIEFING_TASKS = {tasks_json};
         <div class="ep-panel-title">
             👥 People &amp; Meetings
             <span class="ep-count">{len(people)}</span>
-            {sel_people_btn}
         </div>
         {people_html or '<p class="ep-empty">No contacts or meetings identified.</p>'}
     </section>
-</div>
-
-<!-- ── Sticky To Do push footer (only visible on email tab) ── -->
-<div class="todo-footer" id="todo-footer">
-    <span class="todo-footer-info" id="todo-footer-info">
-        <strong id="todo-sel-count">0</strong> of <strong>{total_pushable}</strong> tasks selected
-    </span>
-    <div class="todo-footer-actions">
-        <button class="todo-push-btn" id="todo-push-btn" onclick="pushToTodo()" disabled>
-            ☑ Push to Microsoft To Do
-        </button>
-    </div>
 </div>"""
 
 def generate_html(sections: dict, generated_at: datetime.datetime,
@@ -1271,13 +1236,6 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             padding: 0.75rem 0.9rem; margin-bottom: 0.5rem;
             transition: border-color 0.12s, background 0.12s;
         }}
-        .ep-todo-card:has(.todo-cb:checked) {{
-            border-color: #2980b9; background: #f0f7ff;
-        }}
-        .ep-todo-check {{ padding-top: 0.15rem; flex-shrink: 0; }}
-        .ep-todo-check input[type="checkbox"] {{
-            width: 1rem; height: 1rem; cursor: pointer; accent-color: #2980b9;
-        }}
         .ep-todo-body {{ flex: 1; min-width: 0; }}
         .ep-todo-result {{
             font-size: 0.72rem; font-weight: 700; white-space: nowrap;
@@ -1291,36 +1249,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             padding: 0.1rem;
         }}
         .ep-todo-deeplink:hover {{ opacity: 1; }}
-        .ep-sel-all {{
-            font-size: 0.65rem; color: var(--ink-light); cursor: pointer;
-            display: flex; align-items: center; gap: 0.3rem;
-            margin-left: auto; font-weight: 600; letter-spacing: 0.03em;
-            white-space: nowrap;
-        }}
-        .ep-sel-all input {{ width: 0.8rem; height: 0.8rem; cursor: pointer; accent-color: #2980b9; }}
 
-        /* ── STICKY TO DO FOOTER ── */
-        .todo-footer {{
-            display: none;   /* shown only when email tab is active */
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: var(--white); border-top: 2px solid var(--rule);
-            padding: 0.7rem 1.5rem;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
-            z-index: 200;
-            justify-content: space-between; align-items: center;
-            gap: 1rem;
-        }}
-        .todo-footer-info {{ font-size: 0.8rem; color: var(--ink-light); }}
-        .todo-footer-info strong {{ color: var(--ink); }}
-        .todo-push-btn {{
-            background: #2980b9; color: #fff; border: none;
-            border-radius: 5px; padding: 0.5rem 1.2rem;
-            font-size: 0.8rem; font-weight: 700; cursor: pointer;
-            letter-spacing: 0.03em; transition: background 0.15s, opacity 0.15s;
-        }}
-        .todo-push-btn:hover   {{ background: #1f6391; }}
-        .todo-push-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
-        .todo-push-btn.done    {{ background: #27ae60; }}
 
         /* ── THREE-COLUMN LAYOUT ── */
         .columns-wrapper {{
@@ -1578,6 +1507,29 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 </footer>
 
 <script>
+// ── Detect whether the local review server is running ──
+// The /push endpoint only exists at localhost:8765-8767.
+// Everywhere else (Gmail, GitHub Pages, phone, file://) hide the
+// bulk Push footer and checkboxes — use the per-item 📋 deep links instead.
+(function() {{
+    var h = window.location.hostname, p = window.location.port;
+    var isReviewServer = (h === 'localhost' || h === '127.0.0.1') &&
+                         (p === '8765' || p === '8766' || p === '8767');
+    if (!isReviewServer) {{
+        function hidePush() {{
+            var f = document.getElementById('todo-footer');
+            if (f) f.style.display = 'none';
+            [].forEach.call(document.querySelectorAll('.ep-todo-check'), function(el) {{ el.style.display='none'; }});
+            [].forEach.call(document.querySelectorAll('.ep-sel-all'),    function(el) {{ el.style.display='none'; }});
+        }}
+        if (document.readyState === 'loading') {{
+            document.addEventListener('DOMContentLoaded', hidePush);
+        }} else {{
+            hidePush();
+        }}
+    }}
+}})();
+
 // ── Tab switching ──
 function showTab(tab) {{
     // Hide all views
@@ -1594,78 +1546,14 @@ function showTab(tab) {{
     if (view) view.style.display = '';
     const btn = document.getElementById('tab-' + tab);
     if (btn) btn.classList.add('tab-active');
-    // Show To Do footer only on email tab
+    // Show To Do footer only on email tab AND only on local review server
+    var h = window.location.hostname, p = window.location.port;
+    var isReviewServer = (h === 'localhost' || h === '127.0.0.1') &&
+                         (p === '8765' || p === '8766' || p === '8767');
     const footer = document.getElementById('todo-footer');
-    if (footer) footer.style.display = (tab === 'email') ? 'flex' : 'none';
+    if (footer) footer.style.display = (tab === 'email' && isReviewServer) ? 'flex' : 'none';
 }}
 
-// ── To Do push helpers ──
-function updateTodoCount() {{
-    const n   = document.querySelectorAll('.todo-cb:checked').length;
-    const el  = document.getElementById('todo-sel-count');
-    const btn = document.getElementById('todo-push-btn');
-    if (el)  el.textContent = n;
-    if (btn) btn.disabled = (n === 0);
-}}
-
-function toggleGroup(prefix, checked) {{
-    document.querySelectorAll('.todo-cb[data-id^="' + prefix + '_"]')
-        .forEach(cb => {{ cb.checked = checked; }});
-    updateTodoCount();
-}}
-
-async function pushToTodo() {{
-    const checked = [...document.querySelectorAll('.todo-cb:checked')];
-    if (!checked.length) return;
-
-    const btn = document.getElementById('todo-push-btn');
-    btn.disabled = true;
-    btn.textContent = 'Pushing\u2026';
-
-    const ids   = checked.map(cb => cb.dataset.id);
-    const tasks = (typeof BRIEFING_TASKS !== 'undefined' ? BRIEFING_TASKS : [])
-                    .filter(t => ids.includes(t.id));
-    try {{
-        const resp = await fetch('/push', {{
-            method: 'POST',
-            headers: {{'Content-Type': 'application/json'}},
-            body: JSON.stringify({{tasks}}),
-        }});
-        const data = await resp.json();
-        let ok = data.ok_count ?? 0;
-        let fail = data.fail_count ?? 0;
-
-        (data.results || []).forEach(res => {{
-            const el = document.getElementById('result-' + res.id);
-            if (el) {{
-                el.innerHTML = res.success
-                    ? '<span class="result-ok">\u2713 Added</span>'
-                    : '<span class="result-fail">\u2717 Failed</span>';
-            }}
-        }});
-
-        const footer = document.getElementById('todo-footer');
-        if (fail === 0) {{
-            // All good — show done banner then close
-            btn.textContent = '\u2705 ' + ok + ' task' + (ok !== 1 ? 's' : '') + ' added to To Do';
-            btn.classList.add('done');
-            if (footer) {{
-                footer.style.background = '#f0fff4';
-                footer.style.borderTopColor = '#27ae60';
-                const info = document.getElementById('todo-footer-info');
-                if (info) info.textContent = 'Done! This tab will close in a moment\u2026';
-            }}
-            setTimeout(() => window.close(), 2200);
-        }} else {{
-            btn.textContent = ok + ' added, ' + fail + ' failed \u2014 server still running';
-            btn.disabled = false;
-            btn.style.background = '#d97706';
-        }}
-    }} catch(e) {{
-        btn.textContent = 'Error \u2014 check terminal';
-        btn.disabled = false;
-    }}
-}}
 
 // All market and stock data embedded at generation time
 </script>
