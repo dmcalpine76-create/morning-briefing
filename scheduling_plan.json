@@ -1,366 +1,62 @@
 {
-  "generated_at": "Monday 27 April 2026, 08:54 AEST",
+  "generated_at": "Monday 27 April 2026, 14:13 AEST",
   "scheduled": [
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM2vSPoAAA=",
-        "title": "CBA ABA File Payroll ",
-        "body": "",
-        "due_date": "2026-04-22",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-27",
-      "start_time": "13:00",
-      "end_time": "13:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf CBA ABA File Payroll ",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-22)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM2vSPoAAA=/details",
-      "reason": "Admin task for payroll setup fits afternoon slot"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM2vSPmAAA=",
-        "title": "State GAS Ltd (GAS) \u2013 Introductory Call",
-        "body": "",
-        "due_date": "2026-04-22",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-27",
-      "start_time": "15:00",
-      "end_time": "15:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf State GAS Ltd (GAS) \u2013 Introductory Call",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-22)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM2vSPmAAA=/details",
-      "reason": "Introductory call fits afternoon slot for phone calls"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM0cQ-6AAA=",
-        "title": "DETSI response.",
-        "body": "",
-        "due_date": "2026-04-22",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-28",
-      "start_time": "09:00",
-      "end_time": "10:30",
-      "estimated_mins": 90,
-      "title": "\ud83c\udfaf DETSI response.",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-22)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM0cQ-6AAA=/details",
-      "reason": "DETSI regulatory response requires deep work window"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMyJZxyAAA=",
-        "title": "Timesheet & Missing Receipts ",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-28",
-      "start_time": "13:00",
-      "end_time": "13:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf Timesheet & Missing Receipts ",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-23)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMyJZxyAAA=/details",
-      "reason": "Timesheet admin task fits afternoon slot"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMv8d-JAAA=",
-        "title": "State Gas Update",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-28",
-      "start_time": "15:00",
-      "end_time": "15:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf State Gas Update",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-23)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMv8d-JAAA=/details",
-      "reason": "State Gas update call fits afternoon slot"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMyJZx3AAA=",
-        "title": "Novus Engagement Agreement - State Gas",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-29",
-      "start_time": "09:00",
-      "end_time": "11:00",
-      "estimated_mins": 120,
-      "title": "\ud83c\udfaf Novus Engagement Agreement - State Gas",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-23)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMyJZx3AAA=/details",
-      "reason": "Contract agreement review requires deep work window"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM2vSzXAAA=",
-        "title": "Contact: Logan Leatch",
-        "body": "Logan offered to come in today for the R&D platform discussion and is awaiting confirmation. Time-sensitive.",
-        "due_date": "2026-04-23",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "date": "2026-04-29",
-      "start_time": "13:00",
-      "end_time": "14:00",
-      "estimated_mins": 60,
-      "title": "\ud83c\udfaf Contact: Logan Leatch",
-      "description": "Logan offered to come in today for the R&D platform discussion and is awaiting confirmation. Time-sensitive.\n\u26a0\ufe0f OVERDUE (was due 2026-04-23)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM2vSzXAAA=/details",
-      "reason": "Time-sensitive contact coordination fits afternoon slot"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM4fOo0AAA=",
-        "title": "ACCC Gas Inquiry - S95ZK Notice - 1 April 2026 - State Gas Limited [SEC=OFFICIAL]",
-        "body": "",
-        "due_date": "2026-04-25",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "date": "2026-04-30",
-      "start_time": "09:00",
-      "end_time": "11:00",
-      "estimated_mins": 120,
-      "title": "\ud83c\udfaf ACCC Gas Inquiry - S95ZK Notice - 1 April 2026 - State Gas Limited [SEC=OFFICIAL]",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-25)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM4fOo0AAA=/details",
-      "reason": "Urgent ACCC regulatory compliance requires deep work window"
-    },
     {
       "task": {
         "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCxyAAA=",
         "title": "Draft first version of the Mizuho flyer with deeper unconventional targets content",
         "body": "Sho Kawachi is awaiting Doug's first draft incorporating new prospectivity work on PL 231 and ATP 2062.",
-        "due_date": "2026-04-24",
-        "priority": "high",
+        "due_date": "2026-04-26",
+        "priority": "urgent",
         "list_name": "Tasks",
         "is_overdue": true,
         "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
       },
-      "date": "2026-05-01",
+      "date": "2026-04-28",
       "start_time": "09:00",
-      "end_time": "11:00",
-      "estimated_mins": 120,
+      "end_time": "10:30",
+      "estimated_mins": 90,
       "title": "\ud83c\udfaf Draft first version of the Mizuho flyer with deeper unconventional targets content",
-      "description": "Sho Kawachi is awaiting Doug's first draft incorporating new prospectivity work on PL 231 and ATP 2062.\n\u26a0\ufe0f OVERDUE (was due 2026-04-24)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCxyAAA=/details",
-      "reason": "Draft document preparation requires deep work window"
+      "description": "Sho Kawachi is awaiting Doug's first draft incorporating new prospectivity work on PL 231 and ATP 2062.\n\u26a0\ufe0f OVERDUE (was due 2026-04-26)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCxyAAA=/details",
+      "reason": "Document drafting requires deep work focus and S2 provides 90min in morning deep work window"
     },
     {
       "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCxzAAA=",
-        "title": "Schedule meeting: Prasham Doshi",
-        "body": "Vitti Capital has expressed interest in State Gas after conducting their own research and wants an introductory call. Potential new investor.",
-        "due_date": "2026-04-24",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "date": "2026-05-01",
-      "start_time": "13:00",
-      "end_time": "13:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf Schedule meeting: Prasham Doshi",
-      "description": "Vitti Capital has expressed interest in State Gas after conducting their own research and wants an introductory call. Potential new investor.\n\u26a0\ufe0f OVERDUE (was due 2026-04-24)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCxzAAA=/details",
-      "reason": "Schedule investor call fits afternoon admin slot"
-    }
-  ],
-  "unscheduled": [
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM2vSPnAAA=",
-        "title": "Payments Report",
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM0cZibAAA=",
+        "title": "Quarterly CF",
         "body": "",
-        "due_date": "2026-04-22",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM2vSPlAAA=",
-        "title": "RRSJ Interim Tax Invoice - J E O'Neill - Unauthorised Access by State Gas - 20240982",
-        "body": "",
-        "due_date": "2026-04-22",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMeqRaFAAA=",
-        "title": "State Gas || Wildhorse incident",
-        "body": "",
-        "due_date": "2026-04-22",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM3KFNxAAA=",
-        "title": "Site Visit",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMjY47RAAA=",
-        "title": "Statement of Issues and Notice of Examination [SEC=OFFICIAL:Sensitive]",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMioVFpAAA=",
-        "title": "State Gas - Background Information ",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMdbBTfAAA=",
-        "title": "ICA Natural Resources Introduction",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAMda-LZAAA=",
-        "title": "Update website",
-        "body": "",
-        "due_date": "2026-04-23",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCx0AAA=",
-        "title": "Follow up: Bahay Ozcakmak",
-        "body": "Sent an EOI for collaboration with attachment, building on a prior discussion. Should acknowledge and review when bandwidth allows.",
-        "due_date": "2026-04-24",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM3KCxxAAA=",
-        "title": "Prepare and submit the overdue ACCC 95ZK information notice response immediately",
-        "body": "State Gas is currently non-compliant \u2014 the response was due 21 April and the ACCC has sent a formal follow-up.",
-        "due_date": "2026-04-24",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM33YteAAA=",
-        "title": "Prepare and submit the overdue ACCC S95ZK Gas Inquiry response",
-        "body": "ACCC has flagged State Gas as non-compliant \u2014 the response was due 21 April and is now overdue.",
-        "due_date": "2026-04-25",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM4yMQLAAA=",
-        "title": "Check for a response from Ray Johnson to the favour request",
-        "body": "Doug asked Ray for help articulating compression solution challenges, likely for an upcoming pitch or presentation.",
         "due_date": "2026-04-26",
         "priority": "urgent",
         "list_name": "Tasks",
         "is_overdue": true,
         "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
       },
-      "reason": "no suitable slot available"
+      "date": "2026-04-30",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "estimated_mins": 60,
+      "title": "\ud83c\udfaf Quarterly CF",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-26)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM0cZibAAA=/details",
+      "reason": "Financial quarterly cashflow review needs deep work concentration and S8 has 120min available in morning"
     },
     {
       "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM4yMQKAAA=",
-        "title": "Track the Land Court proceeding MER338-25 extension deadline for compensation statement response",
-        "body": "An extension was granted to Isabelle Delabbio; need to diarise the new deadline to ensure compliance.",
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAMpWMOFAAA=",
+        "title": "Promo deck",
+        "body": "",
         "due_date": "2026-04-26",
         "priority": "urgent",
         "list_name": "Tasks",
         "is_overdue": true,
         "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
       },
-      "reason": "no suitable slot available"
+      "date": "2026-04-27",
+      "start_time": "14:30",
+      "end_time": "16:00",
+      "estimated_mins": 90,
+      "title": "\ud83c\udfaf Promo deck",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-26)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAMpWMOFAAA=/details",
+      "reason": "Presentation document preparation fits the 90min afternoon slot and allows focus time"
     },
     {
       "task": {
@@ -373,61 +69,16 @@
         "is_overdue": true,
         "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
       },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMv8d-DAAA=",
-        "title": "Kala / State Gas",
-        "body": "",
-        "due_date": "2026-04-26",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAMpV215AAA=",
-        "title": "ACCC Gas Inquiry - S95ZK Notice - 1 April 2026 - State Gas Limited [SEC=OFFICIAL]",
-        "body": "",
-        "due_date": "2026-04-26",
-        "priority": "urgent",
-        "list_name": "Flagged Emails",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM4yMQJAAA=",
-        "title": "Prepare and submit the overdue ACCC S95ZK notice response",
-        "body": "State Gas is non-compliant with the ACCC gas inquiry notice that was due 21 April \u2014 this is a regulatory obligation requiring immediate attention.",
-        "due_date": "2026-04-26",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "reason": "no suitable slot available"
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAMx24mjAAA=",
-        "title": "Follow up with Aaron Alcock on insurance claim for legal costs to commence dialogue with insurer",
-        "body": "Doug sent a request to Aaron on 14 April asking him to chase the insurance claim; needs to confirm progress.",
-        "due_date": "2026-04-26",
-        "priority": "high",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAAESAAA="
-      },
-      "reason": "no suitable slot available"
+      "date": "2026-04-28",
+      "start_time": "13:00",
+      "end_time": "14:00",
+      "estimated_mins": 60,
+      "title": "\ud83c\udfaf R&D Platform intro: Logan from Marshyl and Doug from State Gas",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-04-26)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAAM0cQ-zAAA=/details",
+      "reason": "Platform introduction meeting prep requires focused preparation time in available afternoon slot"
     }
   ],
+  "unscheduled": [],
   "flagged": [],
   "error": null
 }

@@ -1,19 +1,40 @@
 {
-  "generated_at": "2026-04-26T22:26:56.700106",
+  "generated_at": "2026-04-27T20:00:00.565747",
   "actions": [
     {
-      "action": "Review Cascades strata management quotes and water damage issue",
-      "context": "Mrs Balderstone (No 7) forwarded strata quotes and flagged 5-year unresolved rain penetration on southern wall \u2014 sent to all owners for response",
+      "action": "Reply to 74 Glenlyon Drive security quote \u2014 confirm go-ahead with Emma",
+      "context": "Turner's CD sent $6,754 security quote. You said 'high but not out of market' and asked about glass break sensors. Emma replied she's happy to spend the money \u2014 need to confirm with agent to proceed",
+      "priority": "high",
+      "deadline": "",
+      "from_email": "kye@turnerscd.com"
+    },
+    {
+      "action": "Handle Enoggera routine inspection \u2014 Emma can't attend, arrange access or attend yourself",
+      "context": "Emma forwarded Keith Brady Real Estate routine inspection notice for 100 Edith St, Enoggera and said 'Crap, I can't do this' \u2014 needs someone to arrange access or attend",
+      "priority": "high",
+      "deadline": "",
+      "from_email": "emma.selwood8@gmail.com"
+    },
+    {
+      "action": "Review Cascades strata quotes and respond on 5-year water penetration issue at No 7",
+      "context": "Mrs Balderstone (No 7) forwarded strata management quotes to all owners and flagged 5 years of unresolved rain penetration on southern wall \u2014 owners committee response needed",
       "priority": "high",
       "deadline": "",
       "from_email": "cascades720@gmail.com"
     },
     {
-      "action": "Respond to Joseph Wallace (Managing Director) on LinkedIn",
-      "context": "Joseph Wallace has been waiting for a response to his LinkedIn message",
+      "action": "Review Villanova Mothers Night and Sports Lunch \u2014 buy tickets or decline",
+      "context": "Villanova College sent reminder about upcoming Mothers Night and Sports Lunch events \u2014 ticket purchase decision needed",
       "priority": "normal",
       "deadline": "",
-      "from_email": "messages-noreply@linkedin.com"
+      "from_email": "villa@vnc.qld.edu.au"
+    },
+    {
+      "action": "Note son's football training schedule for remainder of season",
+      "context": "Villanova football coach sent season schedule \u2014 Mon 3:45\u20135:15pm training, Wed 3:45\u20134:30pm training at Villa Park",
+      "priority": "normal",
+      "deadline": "",
+      "from_email": "bec.bailey@vnc.qld.edu.au"
     }
   ]
 }

@@ -1703,10 +1703,9 @@ async function pushToTodo() {{
                     'Content-Type':  'application/json',
                 }},
                 body: JSON.stringify({{
-                    title:       task.title,
-                    importance:  task.priority === 'urgent' || task.priority === 'high' ? 'high' : 'normal',
-                    body:        {{ contentType: 'text', content: task.detail || '' }},
-                    dueDateTime: {{ dateTime: today + 'T00:00:00', timeZone: 'UTC' }},
+                    title:      task.title,
+                    importance: 'high',
+                    body:       {{ contentType: 'text', content: task.detail || '' }},
                 }}),
             }});
             if (tr.ok) {{
@@ -2402,13 +2401,10 @@ def serve_briefing(out_dir: Path):
     shutdown_event = threading.Event()
 
     def _create_task(title: str, detail: str, due: str, priority: str) -> bool:
-        importance = {"high": "high", "urgent": "high",
-                      "normal": "normal", "low": "low"}.get(priority, "normal")
         body = {
             "title":      title,
-            "importance": importance,
+            "importance": "high",
             "body":       {"contentType": "text", "content": detail},
-            "dueDateTime": {"dateTime": f"{due}T00:00:00", "timeZone": "UTC"},
         }
         try:
             resp = requests.post(

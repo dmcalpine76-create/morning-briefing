@@ -65,7 +65,7 @@ def run_command(key: str):
             encoding="utf-8",
             errors="replace",
             bufsize=1,
-            env={**os.environ, "PYTHONUNBUFFERED": "1"},
+            env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"},
         )
 
         for line in proc.stdout:
