@@ -2514,6 +2514,13 @@ def serve_briefing(out_dir: Path):
 
 
 def main():
+    # Ensure stdout can handle UTF-8 on Windows
+    import sys
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise SystemExit("❌  Set ANTHROPIC_API_KEY environment variable first.")
@@ -2523,12 +2530,12 @@ def main():
     generated   = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=10)))  # AEST
     all_sections = {}
 
-    print(f"\n📰 Morning Briefing Generator — {generated.strftime('%A %#d %B %Y')}")
+    print(f"\nMorning Briefing Generator — {generated.strftime('%A %#d %B %Y')}")
     print("=" * 55)
 
     # ── Standard categories ──
     for category_name, meta in CATEGORIES.items():
-        print(f"\n{meta['emoji']}  Fetching: {category_name}")
+        print(f"\n  Fetching: {category_name}")
         items = fetch_category_items(meta["feeds"])
         print(f"   {len(items)} stories fetched")
 
@@ -2544,7 +2551,7 @@ def main():
     # ── Watch topics ──
     active_topics = load_topics()
     if active_topics:
-        print(f"\n🔍  Processing {len(active_topics)} watch topic(s)…")
+        print(f"\n  Processing {len(active_topics)} watch topic(s)…")
 
     all_topic_stories = {}
     for topic in active_topics:
@@ -2586,7 +2593,7 @@ def main():
     else:
         out_dir = Path("output") / generated.strftime("%Y-%m-%d_%H-%M")
     out_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\n📁  Output folder: {out_dir.resolve()}")
+    print(f"\n  Output folder: {out_dir.resolve()}")
 
     # ── Market data ──
     print("\n📈  Fetching market data…")
@@ -2740,7 +2747,7 @@ def main():
                          graph_token=_graph_token,
                          todo_list_id=_todo_list_id)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
-    print(f"\n✅  Briefing saved to: {out_dir.resolve()}")
+    print(f"\n  Briefing saved to: {out_dir.resolve()}")
 
     # ── Email briefing to yourself ──
     if _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID") and os.environ.get("BRIEFING_EMAIL_TO"):
