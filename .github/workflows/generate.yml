@@ -2,9 +2,10 @@ name: Generate Morning Briefing
 
 on:
   schedule:
-    # 3:00 AM AEST (UTC+10) = 5:00 PM UTC (previous day)
+    # 3:17 AM AEST (UTC+10) = 5:17 PM UTC (previous day)
+    # Avoiding top-of-hour — GitHub drops queued jobs during peak load at :00
     # Runs Sunday–Thursday UTC = Monday–Friday AEST
-    - cron: '0 17 * * 0-4'
+    - cron: '17 17 * * 0-4'
   workflow_dispatch:
     inputs:
       reason:
