@@ -1,0 +1,263 @@
+{
+  "global": {
+    "global_start": "09:00",
+    "global_end": "16:00",
+    "deep_start": "09:00",
+    "deep_end": "12:00",
+    "buffer_after": 15,
+    "snap_to": 30,
+    "max_blocks": 4,
+    "max_hours": 3,
+    "days_ahead": 5,
+    "min_block": 30,
+    "show_plan_first": true,
+    "mark_as_free": true,
+    "work_days_only": true
+  },
+  "weeks": {
+    "a": {
+      "mon": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Drop Kids to School 7:15–8:45am — no tasks before 9am"
+      },
+      "tue": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": ""
+      },
+      "wed": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Doug Gym 7:30–8:30am — no tasks before 9am"
+      },
+      "thu": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": ""
+      },
+      "fri": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": ""
+      },
+      "sat": {
+        "enabled": false,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Family — Henry Swimming 7–8am, Fred Swimming 9–10:30am, Henry New Swimming 11am–12pm. No work tasks."
+      },
+      "sun": {
+        "enabled": false,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Family day. No work tasks."
+      }
+    },
+    "b": {
+      "mon": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Doug Gym 7:30–8:30am — no tasks before 9am"
+      },
+      "tue": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Doug Gym 7:30–8:30am — no tasks before 9am"
+      },
+      "wed": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Drop Kids to School 7:15–8:45am. Pickup Boys from Villa Fields 4:30–6:30pm — hard stop 4pm."
+      },
+      "thu": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Drop Kids to School 7:15–8:45am. Pickup Boys from School 2:30–4pm — hard stop 4pm."
+      },
+      "fri": {
+        "enabled": true,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": ""
+      },
+      "sat": {
+        "enabled": false,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Family — Henry Swimming 7–8am, Fred Swimming 9–10:30am, Henry New Swimming 11am–12pm. No work tasks."
+      },
+      "sun": {
+        "enabled": false,
+        "start_time": "09:00",
+        "end_time": "16:00",
+        "notes": "Family day. No work tasks."
+      }
+    }
+  },
+  "protected_times": [
+    {
+      "label": "Morning briefing read",
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri"
+      ],
+      "start": "06:30",
+      "end": "07:30"
+    },
+    {
+      "label": "Lunch break",
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri"
+      ],
+      "start": "12:00",
+      "end": "13:00"
+    },
+    {
+      "label": "Em Work Calls (Week A Mon & Tue)",
+      "days": [
+        "mon",
+        "tue"
+      ],
+      "start": "17:00",
+      "end": "20:00"
+    },
+    {
+      "label": "Doug Gym (Week A Wed, Week B Mon & Tue)",
+      "days": [
+        "mon",
+        "tue",
+        "wed"
+      ],
+      "start": "07:30",
+      "end": "08:30"
+    },
+    {
+      "label": "Drop Kids to School (Week A Mon, Week B Wed & Thu)",
+      "days": [
+        "mon",
+        "wed",
+        "thu"
+      ],
+      "start": "07:15",
+      "end": "08:45"
+    },
+    {
+      "label": "Pickup Boys from Villa Fields (Week B Wed)",
+      "days": [
+        "wed"
+      ],
+      "start": "16:30",
+      "end": "18:30"
+    },
+    {
+      "label": "Pickup Boys from School (Week B Thu)",
+      "days": [
+        "thu"
+      ],
+      "start": "14:30",
+      "end": "16:00"
+    },
+    {
+      "label": "Saturday kids sport",
+      "days": [
+        "sat"
+      ],
+      "start": "07:00",
+      "end": "12:00"
+    }
+  ],
+  "task_types": [
+    {
+      "category": "Contract / deed review",
+      "keywords": "contract,agreement,deed,review,execute,sign",
+      "duration": 120,
+      "time_pref": "deep_work",
+      "type": "work"
+    },
+    {
+      "category": "Financial review",
+      "keywords": "financial,budget,invoice,payment,cash,call,atp,royalty",
+      "duration": 60,
+      "time_pref": "deep_work",
+      "type": "work"
+    },
+    {
+      "category": "Report / document prep",
+      "keywords": "report,document,prepare,write,draft,submission",
+      "duration": 90,
+      "time_pref": "deep_work",
+      "type": "work"
+    },
+    {
+      "category": "Meeting preparation",
+      "keywords": "prep,prepare,briefing,agenda,board,workshop",
+      "duration": 45,
+      "time_pref": "deep_work",
+      "type": "work"
+    },
+    {
+      "category": "Email reply / correspondence",
+      "keywords": "reply,respond,email,response,letter,follow",
+      "duration": 30,
+      "time_pref": "afternoon",
+      "type": "work"
+    },
+    {
+      "category": "Phone / video call",
+      "keywords": "call,phone,ring,speak,zoom,teams,catch",
+      "duration": 30,
+      "time_pref": "afternoon",
+      "type": "work"
+    },
+    {
+      "category": "Admin / misc",
+      "keywords": "admin,misc,arrange,organise,book,sign,approve,form",
+      "duration": 30,
+      "time_pref": "afternoon",
+      "type": "work"
+    },
+    {
+      "category": "Regulatory / compliance",
+      "keywords": "ato,ircsr,regulatory,compliance,return,lodgement,tax",
+      "duration": 60,
+      "time_pref": "deep_work",
+      "type": "work"
+    },
+    {
+      "category": "Personal errand",
+      "keywords": "personal,errand,appointment,gym,school,kids",
+      "duration": 60,
+      "time_pref": "afternoon",
+      "type": "personal"
+    }
+  ],
+  "scheduling": {
+    "priority_order": "deadline",
+    "empty_day_pref": "morning_heavy",
+    "extra_instructions": "Hard stop at 4:00pm every day — never schedule past this. Deep work (contracts, financials, documents, regulatory) must go in the 9am–12pm window. Admin tasks (emails, calls, misc) go in afternoon 12pm–4pm slots. Santos and QPME-related tasks are high priority. My schedule runs on a fortnightly cycle — check the notes on each day profile for fixed commitments. Never schedule over Em Work Calls (Mon/Tue 5–8pm). Leave at least 30 minutes free after each scheduled task block."
+  },
+  "calendar_blocks": {
+    "block_prefix": "🎯 ",
+    "block_show_as": "free",
+    "block_reminder": 10,
+    "include_detail": true,
+    "add_todo_link": true
+  }
+}

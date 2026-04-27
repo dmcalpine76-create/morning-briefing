@@ -44,6 +44,21 @@ try:
 except ImportError:
     CALENDAR_ENABLED = False
 
+try:
+    import outlook_scheduler
+    SCHEDULER_ENABLED = True
+except ImportError:
+    SCHEDULER_ENABLED = False
+
+try:
+    import gmail_email as _gmail
+    _GMAIL_AVAILABLE = True
+except ImportError:
+    _gmail = None
+    _GMAIL_AVAILABLE = False
+
+
+
 
 TOPICS_FILE = Path(__file__).parent / "topics.json"
 SETTINGS_FILE = Path(__file__).parent / "briefing_settings.json"
@@ -835,24 +850,17 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 </div>"""
 
 
-def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
+def _build_email_tab(analysis: dict, gmail_analysis: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
     """
-    Build the email tab HTML to embed inside briefing.html.
-
-    Each action and people card has two ways to add to Microsoft To Do:
-      1. 📋 deep-link button — opens To Do with the task pre-filled.
-         Works anywhere the HTML is opened: Gmail, phone, any device.
-         No server or auth required.
-      2. Checkbox + sticky footer Push button — bulk-pushes selected tasks
-         via the local server (/push endpoint).  Local machine only.
-    The digest column remains read-only.
+    Build the Work Actions email tab.
+    Two columns: Priority Digest (read-only) | Actions for Today (checkboxes + Push).
+    Push button calls Graph API directly — works on PC and mobile.
     """
     import json as _json
     import html as _html
 
     digest  = analysis.get("digest", [])
     actions = analysis.get("actions", [])
-    people  = analysis.get("people", [])
 
     PRIORITY_BADGE = {
         "action-required": '<span class="badge badge-critical">⚡ Action</span>',
@@ -865,35 +873,27 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
         "normal": '<span class="badge badge-notable">◦ Normal</span>',
     }
 
-    # ── Build pushable task list (embedded as JSON) ──────────────────────────
-    # Each entry becomes one Microsoft To Do task if the user ticks it.
+    # ── Build task list for Push button ──────────────────────────────────────
+    _gmail_actions = (gmail_analysis or {}).get("actions", [])
     task_data = []
-
     for i, item in enumerate(actions):
         task_data.append({
             "id":       f"action_{i}",
             "title":    item.get("action", ""),
             "detail":   item.get("context", ""),
-            "due":      datetime.date.today().isoformat(),   # due today by default
+            "due":      datetime.date.today().isoformat(),
+            "priority": item.get("priority", "normal"),
+        })
+    for i, item in enumerate(_gmail_actions):
+        task_data.append({
+            "id":       f"gmail_{i}",
+            "title":    item.get("action", ""),
+            "detail":   item.get("context", ""),
+            "due":      datetime.date.today().isoformat(),
             "priority": item.get("priority", "normal"),
         })
 
-    for i, item in enumerate(people):
-        act   = item.get("action", "contact")
-        label = {"schedule-meeting": "Schedule meeting",
-                 "follow-up":        "Follow up",
-                 "contact":          "Contact"}.get(act, act)
-        name  = item.get("name", "")
-        title = f"{label}: {name}" if name else label
-        task_data.append({
-            "id":       f"person_{i}",
-            "title":    title,
-            "detail":   item.get("reason", ""),
-            "due":      datetime.date.today().isoformat(),
-            "priority": "normal",
-        })
-
-    tasks_json = _json.dumps(task_data).replace("</script>", "<\\/script>")
+    tasks_json     = _json.dumps(task_data).replace("</script>", "<\\/script>")
     total_pushable = len(task_data)
 
     # ── Digest cards (read-only) ─────────────────────────────────────────────
@@ -917,25 +917,7 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
             {act_tag}
         </div>"""
 
-    # ── Helper: build a Microsoft To Do deep-link for a task ────────────────
-    def _todo_link(title: str, detail: str = "") -> str:
-        """
-        Returns a web URL that opens Microsoft To Do (web or app) with the
-        task pre-filled. Uses the https://to-do.microsoft.com/tasks/add
-        endpoint which works in any browser on any device — desktop, mobile,
-        or the GitHub Pages briefing — with no app or protocol handler needed.
-        """
-        from urllib.parse import quote
-        today = datetime.date.today().isoformat()
-        # Append a trimmed context note to the body if available
-        full_title = title[:255]
-        params = f"title={quote(full_title)}&dueDate={today}"
-        if detail:
-            body_text = detail[:500].rstrip()
-            params += f"&body={quote(body_text)}"
-        return f"https://to-do.microsoft.com/tasks/add?{params}"
-
-    # ── Action rows (with checkboxes + deep link) ────────────────────────────
+    # ── Action cards (checkboxes) ─────────────────────────────────────────────
     actions_html = ""
     for i, item in enumerate(actions):
         badge    = URGENCY_BADGE.get(item.get("priority", "normal"), URGENCY_BADGE["normal"])
@@ -945,83 +927,109 @@ def _build_email_tab(analysis: dict, empty_msg: str = "No email data available. 
         tid      = f"action_{i}"
         title    = item.get("action", "")
         detail   = item.get("context", "")
-        todo_url = _todo_link(title, detail)
         actions_html += f"""
         <div class="ep-todo-card" id="card-{tid}">
+            <label class="ep-todo-check">
+                <input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()">
+            </label>
             <div class="ep-todo-body">
                 <div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>
                 <div class="ep-action-context">{_html.escape(detail)}</div>
                 {f'<div class="ep-action-ref">Re: {_html.escape(ref)}</div>' if ref else ""}
             </div>
-            <div class="ep-todo-result">
-                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to Microsoft To Do">📋</a>
-            </div>
+            <div class="ep-todo-result" id="result-{tid}"></div>
         </div>"""
 
-    # ── People cards (with checkboxes + deep link) ───────────────────────────
-    people_html = ""
-    for i, item in enumerate(people):
-        act   = item.get("action", "contact")
-        icon  = "📅" if act == "schedule-meeting" else ("🔄" if act == "follow-up" else "💬")
-        label = {"schedule-meeting": "Schedule meeting",
-                 "follow-up":        "Follow up",
-                 "contact":          "Contact"}.get(act, act)
-        timing     = item.get("suggested_timing", "")
-        context    = item.get("context", "")
-        email_addr = item.get("email", "")
-        name       = item.get("name", "")
-        tid        = f"person_{i}"
-        p_title    = f"{label}: {name}" if name else label
-        p_detail   = item.get("reason", "")
-        todo_url   = _todo_link(p_title, p_detail)
-        people_html += f"""
-        <div class="ep-todo-card" id="card-{tid}">
-            <div class="ep-todo-body">
-                <div class="ep-person-name">
-                    <span class="ep-person-icon">{icon}</span>
-                    {_html.escape(name)}
-                    <span class="ep-person-act">{label}</span>
-                </div>
-                {f'<div class="ep-person-email">{_html.escape(email_addr)}</div>' if email_addr else ""}
-                <div class="ep-person-reason">{_html.escape(p_detail)}</div>
-                {f'<div class="ep-person-timing">⏰ {_html.escape(timing)}</div>' if timing else ""}
-                {f'<div class="ep-person-context">Re: {_html.escape(context)}</div>' if context else ""}
-            </div>
-            <div class="ep-todo-result">
-                <a class="ep-todo-deeplink" href="{todo_url}" target="_blank" rel="noopener" title="Add to Microsoft To Do">📋</a>
-            </div>
-        </div>"""
-
-    if not digest and not actions and not people:
+    if not digest and not actions and not _gmail_actions:
         return f'<div style="padding:3rem;text-align:center;color:#888">{empty_msg}</div>'
 
+    sel_actions_btn = (
+        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'action\',this.checked)"> '
+        'Select all</label>'
+    ) if actions else ""
+    sel_gmail_btn = (
+        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'gmail\',this.checked)"> '
+        'Select all</label>'
+    ) if _gmail_actions else ""
+
+    # Gmail action cards
+    _gmail_error = (gmail_analysis or {}).get("error", "")
+    gmail_html = ""
+    for i, item in enumerate(_gmail_actions):
+        badge    = URGENCY_BADGE.get(item.get("priority", "normal"), URGENCY_BADGE["normal"])
+        deadline = item.get("deadline", "")
+        dl_tag   = f'<span class="ep-deadline">{deadline}</span>' if deadline else ""
+        ref      = item.get("from_email", "")
+        tid      = f"gmail_{i}"
+        title    = item.get("action", "")
+        detail   = item.get("context", "")
+        gmail_html += (
+            f'<div class="ep-todo-card" id="card-{tid}">'
+            f'<label class="ep-todo-check">'
+            f'<input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()"></label>'
+            f'<div class="ep-todo-body">'
+            f'<div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>'
+            f'<div class="ep-action-context">{_html.escape(detail)}</div>'
+            + (f'<div class="ep-action-ref">Re: {_html.escape(ref)}</div>' if ref else '')
+            + f'</div><div class="ep-todo-result" id="result-{tid}"></div></div>'
+        )
+
+    gmail_body = (
+        gmail_html if gmail_html else (
+            f'<p class="ep-empty" style="color:var(--ink-light);font-style:italic">{_gmail_error}</p>'
+            if _gmail_error else
+            '<p class="ep-empty">No Gmail actions found.</p>'
+        )
+    )
+
     return f"""
+<!-- Task data for To Do push -->
+<script>
+const BRIEFING_TASKS = {tasks_json};
+const GRAPH_TOKEN   = {graph_token_js};
+const TODO_LIST_ID  = {todo_list_id_js};
+</script>
+
 <div class="email-view">
     <section>
-        <div class="ep-panel-title">📧 Priority Digest <span class="ep-count">{len(digest)}</span></div>
+        <div class="ep-panel-title">\U0001f4e7 Priority Digest <span class="ep-count">{len(digest)}</span></div>
         {digest_html or '<p class="ep-empty">No priority emails found.</p>'}
     </section>
     <section>
         <div class="ep-panel-title">
-            ✅ Actions for Today
+            \u2705 Outlook Actions
             <span class="ep-count">{len(actions)}</span>
+            {sel_actions_btn}
         </div>
         {actions_html or '<p class="ep-empty">No actions identified.</p>'}
     </section>
     <section>
         <div class="ep-panel-title">
-            👥 People &amp; Meetings
-            <span class="ep-count">{len(people)}</span>
+            \U0001f4ec Gmail Actions
+            <span class="ep-count">{len(_gmail_actions)}</span>
+            {sel_gmail_btn}
         </div>
-        {people_html or '<p class="ep-empty">No contacts or meetings identified.</p>'}
+        {gmail_body}
     </section>
+</div>
+
+<!-- ── Sticky To Do push footer ── -->
+<div class="todo-footer" id="todo-footer">
+    <span class="todo-footer-info" id="todo-footer-info">
+        <strong id="todo-sel-count">0</strong> of <strong>{total_pushable}</strong> tasks selected
+    </span>
+    <div class="todo-footer-actions">
+        <button class="todo-push-btn" id="todo-push-btn" onclick="pushToTodo()" disabled>
+            \u2611 Push to Microsoft To Do
+        </button>
+    </div>
 </div>"""
 
 def generate_html(sections: dict, generated_at: datetime.datetime,
-                   active_topics=None, email_analysis=None, market_data=None,
+                   active_topics=None, email_analysis=None, gmail_analysis=None, market_data=None,
                    topic_stories=None, asx_data=None, weather_data=None,
                    sunshine_data=None, gas_data=None, hh_gas_data=None,
-                   calendar_data=None) -> str:
+                   calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None) -> str:
     date_str      = generated_at.strftime("%A, %#d %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     columns       = "".join(
@@ -1034,14 +1042,25 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     weather_html   = weather_bar_html(weather_data or [], sunshine_data or [], gas_data or {}, hh_gas_data or {})
     email_count    = len((email_analysis or {}).get('digest', []))
     action_count   = len((email_analysis or {}).get('actions', []))
-    email_tab_html  = _build_email_tab(email_analysis or {})
+    gmail_count    = len((gmail_analysis or {}).get('actions', []))
+    # Embed Graph token for direct mobile push (token is short-lived ~1hr)
+    import json as _json2
+    graph_token_js   = _json2.dumps(graph_token or "")
+    todo_list_id_js  = _json2.dumps(todo_list_id or "")  # embedded at generation time
+    email_tab_html  = _build_email_tab(email_analysis or {}, gmail_analysis=gmail_analysis or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js)
     # Calendar tab — built from pre-fetched calendar_data dict
     _cal = calendar_data or {}
     calendar_tab_html = _cal.get("_html", "") if _cal else ""
+
     cal_yest_count    = len(_cal.get("yesterday", []))
     cal_today_count   = len(_cal.get("today", []))
     cal_tmrw_count    = len(_cal.get("tomorrow", []))
     cal_total         = cal_yest_count + cal_today_count + cal_tmrw_count
+    # Schedule tab
+    _sched        = schedule_result or {}
+    schedule_html = _sched.get("html_summary", "")
+    sched_count   = _sched.get("ok_count", len(_sched.get("scheduled", [])))
+    sched_flagged = len(_sched.get("flagged", []))
     topic_tabs_html = _build_topic_tab_views_with_stories(active_topics or [], topic_stories or {})
     # topic_tabs_html produces a single #view-topics div
     # Build topic tab buttons for masthead
@@ -1076,7 +1095,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         }}
 
         html {{ scroll-behavior: smooth; }}
-        body {{ background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; min-height: 100vh; }}
+        body {{ background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; min-height: 100vh; }}
 
         /* ── MASTHEAD ── */
         .masthead {{
@@ -1206,15 +1225,15 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .ep-meta {{ display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; flex-wrap: wrap; }}
         .ep-from {{ font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-light); margin-bottom: 0.2rem; }}
         .ep-subject {{ font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
-        .ep-summary {{ font-size: 0.78rem; color: #444; line-height: 1.6; }}
+        .ep-summary {{ font-size: 0.84rem; color: #444; line-height: 1.6; }}
         .ep-action-tag {{ margin-top: 0.4rem; font-size: 0.68rem; font-weight: 700; color: var(--accent); }}
         .ep-folder-tag {{ font-size: 0.58rem; color: var(--ink-light); background: var(--paper-2); padding: 0.1rem 0.35rem; border-radius: 2px; margin-left: auto; }}
         .ep-sent-tag {{ font-size: 0.6rem; font-weight: 700; color: #888; background: #f0f0f0; padding: 0.1rem 0.35rem; border-radius: 2px; }}
         /* action rows */
         .ep-action-row {{ display: flex; gap: 0.75rem; padding: 0.75rem 0.9rem; background: var(--white); border: 1px solid var(--rule); border-radius: 3px; margin-bottom: 0.5rem; }}
         .ep-action-num {{ font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; color: var(--rule); line-height: 1; padding-top: 0.1rem; flex-shrink: 0; width: 1.2rem; text-align: center; }}
-        .ep-action-title {{ font-size: 0.85rem; font-weight: 600; line-height: 1.35; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }}
-        .ep-action-context {{ font-size: 0.75rem; color: #555; line-height: 1.55; }}
+        .ep-action-title {{ font-size: 0.91rem; font-weight: 600; line-height: 1.35; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }}
+        .ep-action-context {{ font-size: 0.81rem; color: #555; line-height: 1.55; }}
         .ep-action-ref {{ font-size: 0.65rem; color: var(--ink-light); margin-top: 0.2rem; font-style: italic; }}
         .ep-deadline {{ font-size: 0.6rem; font-weight: 700; color: #c0392b; background: #fde8e8; padding: 0.1rem 0.4rem; border-radius: 2px; }}
         /* people cards */
@@ -1236,6 +1255,13 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             padding: 0.75rem 0.9rem; margin-bottom: 0.5rem;
             transition: border-color 0.12s, background 0.12s;
         }}
+        .ep-todo-card:has(.todo-cb:checked) {{
+            border-color: #2980b9; background: #f0f7ff;
+        }}
+        .ep-todo-check {{ padding-top: 0.15rem; flex-shrink: 0; }}
+        .ep-todo-check input[type="checkbox"] {{
+            width: 1rem; height: 1rem; cursor: pointer; accent-color: #2980b9;
+        }}
         .ep-todo-body {{ flex: 1; min-width: 0; }}
         .ep-todo-result {{
             font-size: 0.72rem; font-weight: 700; white-space: nowrap;
@@ -1249,7 +1275,36 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             padding: 0.1rem;
         }}
         .ep-todo-deeplink:hover {{ opacity: 1; }}
+        .ep-sel-all {{
+            font-size: 0.65rem; color: var(--ink-light); cursor: pointer;
+            display: flex; align-items: center; gap: 0.3rem;
+            margin-left: auto; font-weight: 600; letter-spacing: 0.03em;
+            white-space: nowrap;
+        }}
+        .ep-sel-all input {{ width: 0.8rem; height: 0.8rem; cursor: pointer; accent-color: #2980b9; }}
 
+        /* ── STICKY TO DO FOOTER ── */
+        .todo-footer {{
+            display: none;   /* shown only when email tab is active */
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--white); border-top: 2px solid var(--rule);
+            padding: 0.7rem 1.5rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 200;
+            justify-content: space-between; align-items: center;
+            gap: 1rem;
+        }}
+        .todo-footer-info {{ font-size: 0.8rem; color: var(--ink-light); }}
+        .todo-footer-info strong {{ color: var(--ink); }}
+        .todo-push-btn {{
+            background: #2980b9; color: #fff; border: none;
+            border-radius: 5px; padding: 0.5rem 1.2rem;
+            font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            letter-spacing: 0.03em; transition: background 0.15s, opacity 0.15s;
+        }}
+        .todo-push-btn:hover   {{ background: #1f6391; }}
+        .todo-push-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
+        .todo-push-btn.done    {{ background: #27ae60; }}
 
         /* ── THREE-COLUMN LAYOUT ── */
         .columns-wrapper {{
@@ -1283,10 +1338,10 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .badge-major    {{ background: #fef3e2; color: #d35400; }}
         .badge-notable  {{ background: #e8f4e8; color: #27ae60; }}
         .story-source {{ font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-        .story-headline {{ font-family: var(--font-display); font-size: 0.87rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
+        .story-headline {{ font-family: var(--font-display); font-size: 0.93rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
         .story-headline a {{ color: var(--ink); text-decoration: none; }}
         .story-headline a:hover {{ color: var(--accent); text-decoration: underline; }}
-        .story-summary {{ font-size: 0.77rem; color: #484848; line-height: 1.6; }}
+        .story-summary {{ font-size: 0.83rem; color: #484848; line-height: 1.6; }}
 
         /* ── TOPIC TAB HEADER ── */
         .topic-tab-header {{
@@ -1313,7 +1368,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
             color: var(--ink);
         }}
-        .cal-day-date {{ font-size: 0.78rem; color: var(--ink-light); }}
+        .cal-day-date {{ font-size: 0.84rem; color: var(--ink-light); }}
         .cal-day-count {{
             margin-left: auto; font-size: 0.62rem; font-weight: 700;
             letter-spacing: 0.1em; text-transform: uppercase;
@@ -1351,17 +1406,17 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         }}
         .cal-event-body  {{ flex: 1; min-width: 0; }}
         .cal-event-subject {{
-            font-size: 0.88rem; font-weight: 700; color: var(--ink);
+            font-size: 0.94rem; font-weight: 700; color: var(--ink);
             line-height: 1.3; margin-bottom: 4px;
         }}
         .cal-event-meta {{
-            font-size: 0.75rem; color: var(--ink-light); margin-bottom: 3px;
+            font-size: 0.81rem; color: var(--ink-light); margin-bottom: 3px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }}
         .cal-join-link {{ color: #2980b9; text-decoration: none; font-weight: 600; }}
         .cal-join-link:hover {{ text-decoration: underline; }}
         .cal-event-preview {{
-            font-size: 0.74rem; color: var(--ink-light);
+            font-size: 0.80rem; color: var(--ink-light);
             display: -webkit-box; -webkit-line-clamp: 2;
             -webkit-box-orient: vertical; overflow: hidden;
             margin-top: 3px; line-height: 1.4;
@@ -1404,7 +1459,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             margin: 0; padding: 0 0 0 1rem; list-style: disc;
         }}
         .cal-brief-bullet {{
-            font-size: 0.74rem; color: var(--ink); line-height: 1.45;
+            font-size: 0.80rem; color: var(--ink); line-height: 1.45;
             margin-bottom: 0.25rem;
         }}
         .cal-brief-bullet:last-child {{ margin-bottom: 0; }}
@@ -1467,6 +1522,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
         <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions{"" if not email_count else f" ({email_count})"}</button>
         <button class="tab-btn" onclick="showTab('calendar')" id="tab-calendar">📅 Calendar{"" if not cal_total else f" ({cal_today_count}✦{cal_tmrw_count})"}</button>
+        <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
         {topic_tab_btns}
     </nav>
 </header>
@@ -1498,6 +1554,14 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 {calendar_tab_html}
 </div>
 
+<!-- ── SCHEDULE TAB ── -->
+<div id="view-schedule" style="display:none">
+    <div style="max-width:800px;margin:0 auto;padding:1.5rem">
+        <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:3px solid var(--ink)">🗓️ Today's Scheduled Work Blocks</div>
+        {schedule_html if schedule_html else '<div style="padding:2rem;text-align:center;color:var(--ink-light);font-style:italic">No scheduled blocks yet — add tasks to your Daily Priorities To Do list to get started.</div>'}
+    </div>
+</div>
+
 
 <!-- ── TOPIC TABS ── -->
 {topic_tabs_html}
@@ -1507,33 +1571,10 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 </footer>
 
 <script>
-// ── Detect whether the local review server is running ──
-// The /push endpoint only exists at localhost:8765-8767.
-// Everywhere else (Gmail, GitHub Pages, phone, file://) hide the
-// bulk Push footer and checkboxes — use the per-item 📋 deep links instead.
-(function() {{
-    var h = window.location.hostname, p = window.location.port;
-    var isReviewServer = (h === 'localhost' || h === '127.0.0.1') &&
-                         (p === '8765' || p === '8766' || p === '8767');
-    if (!isReviewServer) {{
-        function hidePush() {{
-            var f = document.getElementById('todo-footer');
-            if (f) f.style.display = 'none';
-            [].forEach.call(document.querySelectorAll('.ep-todo-check'), function(el) {{ el.style.display='none'; }});
-            [].forEach.call(document.querySelectorAll('.ep-sel-all'),    function(el) {{ el.style.display='none'; }});
-        }}
-        if (document.readyState === 'loading') {{
-            document.addEventListener('DOMContentLoaded', hidePush);
-        }} else {{
-            hidePush();
-        }}
-    }}
-}})();
-
 // ── Tab switching ──
 function showTab(tab) {{
     // Hide all views
-    ['view-news','view-email','view-calendar'].forEach(id => {{
+    ['view-news','view-email','view-calendar','view-schedule'].forEach(id => {{
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     }});
@@ -1547,13 +1588,163 @@ function showTab(tab) {{
     const btn = document.getElementById('tab-' + tab);
     if (btn) btn.classList.add('tab-active');
     // Show To Do footer only on email tab AND only on local review server
-    var h = window.location.hostname, p = window.location.port;
-    var isReviewServer = (h === 'localhost' || h === '127.0.0.1') &&
-                         (p === '8765' || p === '8766' || p === '8767');
+    var _h = window.location.hostname, _p = window.location.port;
+    var _isReview = window.__REVIEW_SERVER__ === true ||
+                    ((_h === 'localhost' || _h === '127.0.0.1') &&
+                     (_p === '8765' || _p === '8766' || _p === '8767'));
     const footer = document.getElementById('todo-footer');
-    if (footer) footer.style.display = (tab === 'email' && isReviewServer) ? 'flex' : 'none';
+    var _hasToken = (typeof GRAPH_TOKEN !== 'undefined') && GRAPH_TOKEN && GRAPH_TOKEN.length > 10;
+    var _showPush = tab === 'email' && (_isReview || _hasToken);
+    if (footer) footer.style.display = _showPush ? 'flex' : 'none';
 }}
 
+// ── To Do push helpers ──
+function updateTodoCount() {{
+    const n   = document.querySelectorAll('.todo-cb:checked').length;
+    const el  = document.getElementById('todo-sel-count');
+    const btn = document.getElementById('todo-push-btn');
+    if (el)  el.textContent = n;
+    if (btn) btn.disabled = (n === 0);
+}}
+
+function toggleGroup(prefix, checked) {{
+    document.querySelectorAll('.todo-cb[data-id^="' + prefix + '_"]')
+        .forEach(cb => {{ cb.checked = checked; }});
+    updateTodoCount();
+}}
+
+async function pushToTodo() {{
+    const checked = [...document.querySelectorAll('.todo-cb:checked')];
+    if (!checked.length) return;
+
+    const btn  = document.getElementById('todo-push-btn');
+    const info = document.getElementById('todo-footer-info');
+    btn.disabled = true;
+    btn.textContent = 'Pushing\u2026';
+
+    const ids   = checked.map(cb => cb.dataset.id);
+    const tasks = (typeof BRIEFING_TASKS !== 'undefined' ? BRIEFING_TASKS : [])
+                    .filter(t => ids.includes(t.id));
+
+    // ── Path 1: local review server (PC) ────────────────────────────────
+    try {{
+        const resp = await fetch('/push', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify({{tasks}}),
+            signal: AbortSignal.timeout(3000),
+        }});
+        const data = await resp.json();
+        _handlePushResults(data.results || [], data.ok_count ?? 0, data.fail_count ?? 0, btn, info);
+        return;
+    }} catch(e) {{
+        // Not on review server — continue to Graph API path
+    }}
+
+    // ── Path 2: direct Graph API call (mobile / GitHub Pages) ───────────
+    const token = (typeof GRAPH_TOKEN !== 'undefined') ? GRAPH_TOKEN : '';
+    if (!token) {{
+        btn.textContent = 'Error — no token';
+        btn.disabled = false;
+        if (info) info.textContent = 'Regenerate briefing to refresh token, or use PC.';
+        return;
+    }}
+
+    // Resolve To Do list ID — use embedded value or fetch default list
+    let listId = (typeof TODO_LIST_ID !== 'undefined' && TODO_LIST_ID) ? TODO_LIST_ID : null;
+    if (!listId) {{
+        try {{
+            const lr = await fetch('https://graph.microsoft.com/v1.0/me/todo/lists',
+                {{ headers: {{ 'Authorization': 'Bearer ' + token }} }});
+            const ld = await lr.json();
+            if (!lr.ok) {{
+                const msg = (ld.error && ld.error.message) || ('Error ' + lr.status);
+                btn.textContent = msg.slice(0, 60);
+                btn.disabled = false;
+                return;
+            }}
+            const lists = ld.value || [];
+            const def = lists.find(l => l.wellknownListName === 'defaultList') || lists[0];
+            listId = def ? def.id : null;
+        }} catch(e) {{
+            btn.textContent = 'Network error: ' + e.message.slice(0,40);
+            btn.disabled = false;
+            return;
+        }}
+    }}
+    if (!listId) {{
+        btn.textContent = 'No To Do list found — try regenerating briefing';
+        btn.disabled = false;
+        return;
+    }}
+
+    // Push tasks via Graph API
+    const endpoint = 'https://graph.microsoft.com/v1.0/me/todo/lists/' + listId + '/tasks';
+    let ok = 0, fail = 0;
+    const results = [];
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const task of tasks) {{
+        try {{
+            const tr = await fetch(endpoint, {{
+                method: 'POST',
+                headers: {{
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type':  'application/json',
+                }},
+                body: JSON.stringify({{
+                    title:       task.title,
+                    importance:  task.priority === 'urgent' || task.priority === 'high' ? 'high' : 'normal',
+                    body:        {{ contentType: 'text', content: task.detail || '' }},
+                    dueDateTime: {{ dateTime: today + 'T00:00:00', timeZone: 'UTC' }},
+                }}),
+            }});
+            if (tr.ok) {{
+                ok++; results.push({{ id: task.id, success: true }});
+            }} else {{
+                fail++;
+                const errData = await tr.json().catch(() => ({{}}));
+                const errMsg  = (errData.error && errData.error.message) || ('HTTP ' + tr.status);
+                // Show actual error on the card so we can diagnose
+                const el = document.getElementById('result-' + task.id);
+                if (el) el.innerHTML = '<span class="result-fail" style="font-size:0.65rem;white-space:normal">' + errMsg.slice(0,80) + '</span>';
+                results.push({{ id: task.id, success: false }});
+            }}
+        }} catch(e) {{
+            fail++;
+            const el = document.getElementById('result-' + task.id);
+            if (el) el.innerHTML = '<span class="result-fail" style="font-size:0.65rem">' + e.message.slice(0,60) + '</span>';
+            results.push({{ id: task.id, success: false }});
+        }}
+    }}
+
+    _handlePushResults(results, ok, fail, btn, info);
+}}
+
+function _handlePushResults(results, ok, fail, btn, info) {{
+    results.forEach(res => {{
+        const el = document.getElementById('result-' + res.id);
+        if (el) {{
+            el.innerHTML = res.success
+                ? '<span class="result-ok">\u2713 Added</span>'
+                : '<span class="result-fail">\u2717 Failed</span>';
+        }}
+    }});
+    const footer = document.getElementById('todo-footer');
+    if (fail === 0) {{
+        btn.textContent = '\u2705 ' + ok + ' task' + (ok !== 1 ? 's' : '') + ' added to To Do';
+        btn.classList.add('done');
+        if (footer) {{
+            footer.style.background = '#f0fff4';
+            footer.style.borderTopColor = '#27ae60';
+        }}
+        if (info) info.textContent = 'Done!';
+    }} else {{
+        btn.textContent = ok + ' added, ' + fail + ' failed';
+        btn.disabled = false;
+        btn.style.background = '#d97706';
+    }}
+}}
 
 // All market and stock data embedded at generation time
 </script>
@@ -2042,7 +2233,7 @@ def generate_topics_page(topics: list[dict], all_stories: dict,
         .t-headline {{ font-family: var(--font-display); font-size: .82rem; font-weight: 700; line-height: 1.3; margin-bottom: .25rem; }}
         .t-headline a {{ color: var(--ink); text-decoration: none; }}
         .t-headline a:hover {{ color: var(--accent); text-decoration: underline; }}
-        .t-summary {{ font-size: .73rem; color: #484848; line-height: 1.55; }}
+        .t-summary {{ font-size: 0.79rem; color: #484848; line-height: 1.55; }}
         .t-empty {{ padding: 1.5rem .85rem; font-size: .75rem; color: var(--ink-light); font-style: italic; }}
 
         footer {{ background: var(--ink); color: rgba(255,255,255,.28); text-align: center; font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; padding: .9rem 1.5rem; }}
@@ -2195,7 +2386,9 @@ def serve_briefing(out_dir: Path):
         raise SystemExit(f"❌  Could not retrieve To Do lists: {e}\n"
                          f"    Ensure Tasks.ReadWrite is granted and re-run: py outlook_email.py setup")
 
-    briefing_html = briefing_file.read_text(encoding="utf-8")
+    briefing_html_raw = briefing_file.read_text(encoding="utf-8")
+    inject = '<script>window.__REVIEW_SERVER__ = true;</script>'
+    briefing_html = briefing_html_raw.replace('</head>', inject + '</head>', 1)
     shutdown_event = threading.Event()
 
     def _create_task(title: str, detail: str, due: str, priority: str) -> bool:
@@ -2362,6 +2555,18 @@ def main():
         print("\n📬  Fetching Outlook email analysis…")
         email_analysis = _outlook.get_email_analysis(client)
 
+    # ── Gmail actions (read from gmail_actions.json written by Claude.ai session) ──
+    gmail_analysis = {}
+    if _GMAIL_AVAILABLE:
+        gmail_analysis = _gmail.get_gmail_analysis()
+        if gmail_analysis.get("error"):
+            print(f"   📬  Gmail: {gmail_analysis['error']}")
+        else:
+            print(f"   ✓ Gmail: {len(gmail_analysis.get('actions', []))} actions loaded from gmail_actions.json")
+
+    # ── Gmail actions analysis ──
+
+
 
     # ── Create output directory ──
     # In GitHub Actions (CI=true), use a fixed path the workflow can find
@@ -2432,11 +2637,9 @@ def main():
             briefings  = {}
             if all_events:
                 print("   🤖  Generating calendar briefings…")
-                # Pass full raw email list for richer cross-referencing
-                # email_analysis["_raw_emails"] is set by get_email_analysis if available,
-                # otherwise fall back to building context from digest + actions
-                raw_emails = email_analysis.get("_raw_emails", []) if email_analysis else []
-                if not raw_emails and email_analysis:
+                # Build email context from digest items for cross-referencing
+                raw_emails = []
+                if email_analysis:
                     for d in email_analysis.get("digest", []):
                         subj = d.get("subject", "")
                         if subj:
@@ -2458,6 +2661,7 @@ def main():
                     print(f"   ✓ Briefings generated for {len(briefings)} events")
 
             cal["_html"] = outlook_calendar.build_calendar_tab_html(cal, briefings)
+            cal["_briefings"] = briefings
             calendar_data = cal
         except Exception as e:
             print(f"   ⚠️  Calendar error: {e}")
@@ -2465,12 +2669,66 @@ def main():
     else:
         print("\n📅  Calendar: outlook_calendar.py not found — skipping")
 
+
+    # ── Scheduler ──
+    schedule_result = {}
+    if SCHEDULER_ENABLED and _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID"):
+        api_key_val = os.environ.get("ANTHROPIC_API_KEY", "")
+        if api_key_val:
+            print("\n🗓️   Running diary scheduler…")
+            try:
+                schedule_result = outlook_scheduler.run_scheduler(
+                    api_key=api_key_val,
+                    dry_run=True,   # plan only — push via scheduling dashboard
+                    verbose=True,
+                )
+                if schedule_result.get("error"):
+                    print(f"   ⚠️  Scheduler: {schedule_result['error']}")
+                else:
+                    print(f"   ✓ Scheduler: plan saved ({len(schedule_result.get('scheduled',[]))} tasks)")
+            except Exception as e:
+                print(f"   ⚠️  Scheduler error: {e}")
+                schedule_result = {}
+    else:
+        if not SCHEDULER_ENABLED:
+            print("\n🗓️   Scheduler: outlook_scheduler.py not found — skipping")
+
     # ── Main briefing page ──
     print("\n✍️  Generating main briefing page…")
+    # Fetch a fresh Graph token + default To Do list ID for mobile push
+    _graph_token   = ""
+    _todo_list_id  = ""
+    if _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID"):
+        try:
+            _graph_token = _outlook.get_access_token()
+            # Resolve default To Do list ID at generation time
+            try:
+                import requests as _req
+                _lists = _req.get(
+                    "https://graph.microsoft.com/v1.0/me/todo/lists",
+                    headers={"Authorization": f"Bearer {_graph_token}"},
+                    timeout=10,
+                ).json()
+                _all_lists = _lists.get("value", [])
+                _default = next(
+                    (l for l in _all_lists if l.get("wellknownListName") == "defaultList"),
+                    _all_lists[0] if _all_lists else None
+                )
+                if _default:
+                    _todo_list_id = _default["id"]
+                    print(f"   ✓ To Do list resolved: {_default.get('displayName', _todo_list_id[:8])}")
+            except Exception as _le:
+                print(f"   ⚠️  Could not resolve To Do list ID: {_le}")
+        except Exception:
+            pass
+
     html = generate_html(all_sections, generated, active_topics, email_analysis,
-                         market_data, all_topic_stories, asx_data,
+                         gmail_analysis, market_data, all_topic_stories, asx_data,
                          weather_data, sunshine_data, gas_data, hh_gas_data,
-                         calendar_data=calendar_data)
+                         calendar_data=calendar_data,
+                         schedule_result=schedule_result,
+                         graph_token=_graph_token,
+                         todo_list_id=_todo_list_id)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
     print(f"\n✅  Briefing saved to: {out_dir.resolve()}")
 

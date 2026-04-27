@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-04-26T22:26:56.700106",
+  "actions": [
+    {
+      "action": "Review Cascades strata management quotes and water damage issue",
+      "context": "Mrs Balderstone (No 7) forwarded strata quotes and flagged 5-year unresolved rain penetration on southern wall \u2014 sent to all owners for response",
+      "priority": "high",
+      "deadline": "",
+      "from_email": "cascades720@gmail.com"
+    },
+    {
+      "action": "Respond to Joseph Wallace (Managing Director) on LinkedIn",
+      "context": "Joseph Wallace has been waiting for a response to his LinkedIn message",
+      "priority": "normal",
+      "deadline": "",
+      "from_email": "messages-noreply@linkedin.com"
+    }
+  ]
+}

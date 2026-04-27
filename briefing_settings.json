@@ -1,0 +1,102 @@
+{
+  "story_counts": {
+    "top_n_stories": 5,
+    "top_n_topic_stories": 5,
+    "max_feed_items": 20
+  },
+  "categories": [
+    {
+      "name": "International News",
+      "emoji": "🌍",
+      "color": "#1a3a5c",
+      "feeds": [
+        "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+        "https://www.theguardian.com/world/rss",
+        "https://feeds.reuters.com/reuters/worldNews",
+        "https://www.aljazeera.com/xml/rss/all.xml"
+      ]
+    },
+    {
+      "name": "Australian News",
+      "emoji": "🦘",
+      "color": "#1a4a2e",
+      "feeds": [
+        "https://www.abc.net.au/news/feed/2942460/rss.xml",
+        "https://www.smh.com.au/rss/feed.xml",
+        "https://www.theaustralian.com.au/feed",
+        "https://feeds.skynews.com.au/feeds/news.xml",
+        "https://www.theguardian.com/australia-news/rss"
+      ]
+    },
+    {
+      "name": "Australian Finance & Markets",
+      "emoji": "📈",
+      "color": "#3a1a4a",
+      "feeds": [
+        "https://www.abc.net.au/news/business/rss.xml",
+        "https://www.theage.com.au/rss/business.xml",
+        "https://www.news.com.au/content-feeds/latest-news-finance/",
+        "https://financialnewswire.com.au/feed",
+        "https://afndaily.com.au/feed",
+        "https://www.rba.gov.au/rss/media-releases.xml",
+        "https://au.investing.com/rss/news.rss",
+        "https://www.asx.com.au/asx/1/news/rss"
+      ]
+    }
+  ],
+  "market_tickers": [
+    {
+      "sym": "^AXJO",
+      "label": "ASX 200",
+      "fmt": "index"
+    },
+    {
+      "sym": "AUDUSD=X",
+      "label": "AUD/USD",
+      "fmt": "fx"
+    },
+    {
+      "sym": "GC=F",
+      "label": "Gold",
+      "fmt": "price"
+    },
+    {
+      "sym": "CL=F",
+      "label": "Oil",
+      "fmt": "price"
+    },
+    {
+      "sym": "^GSPC",
+      "label": "S&P 500",
+      "fmt": "index"
+    }
+  ],
+  "asx_watchlist": [
+    {
+      "sym": "GAS.AX",
+      "label": "State Gas"
+    },
+    {
+      "sym": "COI.AX",
+      "label": "Comet Ridge"
+    },
+    {
+      "sym": "BPT.AX",
+      "label": "Beach Petroleum"
+    },
+    {
+      "sym": "STO.AX",
+      "label": "Santos"
+    },
+    {
+      "sym": "ARA.AX",
+      "label": "Ariadne"
+    },
+    {
+      "sym": "BLU.AX",
+      "label": "Blue Energy"
+    }
+  ],
+  "_updated": "2026-04-14T19:22:37"
+}

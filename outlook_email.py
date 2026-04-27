@@ -28,7 +28,7 @@ AUTHORITY  = "https://login.microsoftonline.com/" + os.environ.get("OUTLOOK_TENA
 SEND_TO    = os.environ.get("BRIEFING_EMAIL_TO", "")       # work email
 SEND_TO_GMAIL = os.environ.get("BRIEFING_EMAIL_GMAIL", "dmcalpine76@gmail.com")  # personal Gmail
 
-SCOPES     = ["Mail.Read", "Mail.Send", "User.Read"]
+SCOPES     = ["Mail.Read", "Mail.Send", "User.Read", "Tasks.ReadWrite"]
 CACHE_FILE = Path(__file__).parent / ".outlook_token_cache.bin"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
@@ -440,25 +440,42 @@ def _build_email_body(analysis: dict, sections: dict, generated_at: datetime.dat
     if actions:
         html += f'<div style="{S["sec_head"]}">⚡ Actions for Today</div>'
         for i, a in enumerate(actions):
-            dl  = a.get("deadline", "")
+            from urllib.parse import quote as _quote
+            dl      = a.get("deadline", "")
             dl_html = f'<span style="{S["deadline"]}">⏰ {dl}</span>' if dl else ""
+            title   = a.get("action", "")
+            detail  = a.get("context", "")
+            todo_url = (f'https://to-do.microsoft.com/tasks/add'
+                        f'?title={_quote(title[:255])}'
+                        f'&body={_quote(detail[:1000])}')
             html += f"""<div style="{S['action']}">
-  <p style="{S['act_title']}">{i+1}. {a.get("action","")} {dl_html}</p>
-  <p style="{S['act_ctx']}">{a.get("context","")}</p>
+  <p style="{S['act_title']}">{i+1}. {title} {dl_html}
+    &nbsp;<a href="{todo_url}" style="font-size:11px;font-weight:700;color:#2980b9;text-decoration:none;white-space:nowrap" target="_blank">📋 Add to To Do</a>
+  </p>
+  <p style="{S['act_ctx']}">{detail}</p>
 </div>"""
 
     if people:
         html += f'<div style="{S["sec_head"]}">👥 People &amp; Meetings</div>'
-        ICONS = {"schedule-meeting": "📅", "follow-up": "🔄", "contact": "💬"}
+        from urllib.parse import quote as _quote
+        ICONS  = {"schedule-meeting": "📅", "follow-up": "🔄", "contact": "💬"}
         LABELS = {"schedule-meeting": "Schedule meeting", "follow-up": "Follow up", "contact": "Contact"}
         for p in people:
-            act  = p.get("action", "contact")
-            icon = ICONS.get(act, "💬")
-            lbl  = LABELS.get(act, act)
+            act    = p.get("action", "contact")
+            icon   = ICONS.get(act, "💬")
+            lbl    = LABELS.get(act, act)
+            name   = p.get("name", "")
             timing = p.get("suggested_timing", "")
+            reason = p.get("reason", "")
+            p_title  = f"{lbl}: {name}" if name else lbl
+            todo_url = (f'https://to-do.microsoft.com/tasks/add'
+                        f'?title={_quote(p_title[:255])}'
+                        f'&body={_quote(reason[:1000])}')
             html += f"""<div style="{S['person']}">
-  <p style="{S['act_title']}">{icon} {p.get("name","")} &mdash; <em style="font-weight:normal">{lbl}</em>{"&nbsp;&nbsp;⏰&nbsp;" + timing if timing else ""}</p>
-  <p style="{S['act_ctx']}">{p.get("reason","")}</p>
+  <p style="{S['act_title']}">{icon} {name} &mdash; <em style="font-weight:normal">{lbl}</em>{"&nbsp;&nbsp;⏰&nbsp;" + timing if timing else ""}
+    &nbsp;<a href="{todo_url}" style="font-size:11px;font-weight:700;color:#2980b9;text-decoration:none;white-space:nowrap" target="_blank">📋 Add to To Do</a>
+  </p>
+  <p style="{S['act_ctx']}">{reason}</p>
 </div>"""
 
     if digest:

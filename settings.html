@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Briefing — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=Source+Sans+3:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:        #1a1a1a;
+  --ink-light:  #666;
+  --paper:      #f5f2eb;
+  --paper-2:    #edeae0;
+  --rule:       #cdc8b5;
+  --accent:     #c0392b;
+  --accent-dk:  #a93226;
+  --white:      #ffffff;
+  --blue:       #2980b9;
+  --green:      #27ae60;
+  --font-d:     'Playfair Display', Georgia, serif;
+  --font-b:     'Source Sans 3', sans-serif;
+  --font-m:     'JetBrains Mono', monospace;
+  --shadow:     0 2px 8px rgba(0,0,0,.08);
+  --radius:     4px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-b);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+/* ── MASTHEAD ── */
+.masthead {
+  background: var(--ink);
+  color: var(--white);
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 3px solid var(--accent);
+  position: sticky; top: 0; z-index: 100;
+}
+.masthead::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,.025) 19px, rgba(255,255,255,.025) 20px);
+  pointer-events: none;
+}
+.masthead-title {
+  font-family: var(--font-d);
+  font-size: 1.1rem; font-weight: 900;
+  letter-spacing: -.01em; position: relative;
+}
+.masthead-sub {
+  font-size: 0.65rem; letter-spacing: .12em;
+  text-transform: uppercase; color: rgba(255,255,255,.4);
+  position: relative;
+}
+.masthead-right {
+  margin-left: auto; display: flex; align-items: center; gap: .75rem; position: relative;
+}
+.save-all-btn {
+  background: var(--accent); color: var(--white);
+  border: none; border-radius: var(--radius);
+  padding: .45rem 1.1rem; font-family: var(--font-b);
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer;
+  transition: background .15s;
+}
+.save-all-btn:hover { background: var(--accent-dk); }
+.save-all-btn:disabled { opacity: .45; cursor: not-allowed; }
+.save-status {
+  font-size: .65rem; letter-spacing: .1em;
+  text-transform: uppercase; color: rgba(255,255,255,.35);
+  transition: color .3s;
+}
+.save-status.ok  { color: #2ecc71; }
+.save-status.err { color: #e74c3c; }
+.close-lnk {
+  font-size: .65rem; color: rgba(255,255,255,.3);
+  text-decoration: none; letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.close-lnk:hover { color: rgba(255,255,255,.7); }
+
+/* ── LAYOUT ── */
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: calc(100vh - 50px);
+}
+
+/* ── SIDEBAR NAV ── */
+.sidebar {
+  background: var(--paper-2);
+  border-right: 1px solid var(--rule);
+  padding: 1.5rem 0;
+  position: sticky; top: 50px;
+  height: calc(100vh - 50px);
+  overflow-y: auto;
+}
+.nav-section-label {
+  font-size: .58rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-light);
+  padding: .6rem 1.1rem .25rem;
+}
+.nav-item {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .45rem 1.1rem;
+  font-size: .78rem; font-weight: 600;
+  color: var(--ink-light); cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all .12s; text-decoration: none;
+}
+.nav-item:hover { background: rgba(0,0,0,.04); color: var(--ink); }
+.nav-item.active {
+  border-left-color: var(--accent);
+  background: rgba(192,57,43,.06);
+  color: var(--accent);
+}
+.nav-item .nav-emoji { font-size: .9rem; width: 1.2rem; text-align: center; }
+
+/* ── MAIN CONTENT ── */
+.content { padding: 2rem 2.5rem 4rem; max-width: 860px; }
+
+/* ── SECTIONS ── */
+.section { margin-bottom: 3rem; }
+.section-title {
+  font-family: var(--font-d);
+  font-size: 1.15rem; font-weight: 700;
+  padding-bottom: .6rem;
+  border-bottom: 3px solid var(--ink);
+  margin-bottom: 1.25rem;
+  display: flex; align-items: baseline; gap: .75rem;
+}
+.section-desc {
+  font-size: .78rem; color: var(--ink-light);
+  margin-bottom: 1.25rem; line-height: 1.6;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin-bottom: .75rem;
+  box-shadow: var(--shadow);
+}
+.card-header {
+  display: flex; align-items: center; gap: .6rem;
+  margin-bottom: .75rem;
+}
+.card-title {
+  font-size: .85rem; font-weight: 700; flex: 1;
+}
+.card-emoji-input {
+  width: 2.2rem; text-align: center;
+  font-size: 1.1rem; border: 1px solid var(--rule);
+  border-radius: var(--radius); padding: .2rem;
+  background: var(--paper-2); cursor: pointer;
+}
+
+/* ── FORM CONTROLS ── */
+.field-row {
+  display: flex; align-items: center; gap: .6rem;
+  margin-bottom: .5rem;
+}
+.field-label {
+  font-size: .65rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-light);
+  width: 90px; flex-shrink: 0;
+}
+input[type="text"],
+input[type="number"],
+select {
+  font-family: var(--font-b);
+  font-size: .8rem; color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: .35rem .6rem;
+  outline: none;
+  transition: border-color .12s;
+  width: 100%;
+}
+input[type="text"]:focus,
+input[type="number"]:focus { border-color: var(--blue); background: #fff; }
+input[type="number"] { width: 80px; }
+.mono { font-family: var(--font-m); font-size: .75rem; }
+.color-swatch {
+  width: 1.8rem; height: 1.8rem; border-radius: 3px;
+  border: 1px solid var(--rule); cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── FEED LIST ── */
+.feed-list { display: flex; flex-direction: column; gap: .35rem; margin: .5rem 0; }
+.feed-row {
+  display: flex; align-items: center; gap: .5rem;
+}
+.feed-row input { flex: 1; }
+.feed-row .del-btn {
+  background: none; border: none; color: #c0392b;
+  cursor: pointer; font-size: .85rem; padding: .2rem .35rem;
+  border-radius: 2px; opacity: .6; transition: opacity .12s;
+  flex-shrink: 0;
+}
+.feed-row .del-btn:hover { opacity: 1; background: #fde8e8; }
+.add-btn {
+  font-size: .72rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--blue);
+  background: none; border: 1px dashed #bcd5e8;
+  border-radius: var(--radius); padding: .3rem .75rem;
+  cursor: pointer; transition: all .12s; margin-top: .35rem;
+}
+.add-btn:hover { background: #f0f7ff; border-color: var(--blue); }
+
+/* ── TICKER TABLE ── */
+.ticker-table { width: 100%; border-collapse: collapse; }
+.ticker-table th {
+  font-size: .6rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-light);
+  text-align: left; padding: .3rem .5rem;
+  border-bottom: 2px solid var(--rule);
+}
+.ticker-table td { padding: .35rem .4rem; vertical-align: middle; }
+.ticker-table tr:not(:last-child) td { border-bottom: 1px solid var(--paper-2); }
+.ticker-table input { width: 100%; }
+.fmt-select { width: 80px !important; }
+.ticker-del { background: none; border: none; color: #c0392b; cursor: pointer; font-size: .85rem; opacity: .5; }
+.ticker-del:hover { opacity: 1; }
+
+/* ── TOPIC CARDS ── */
+.topic-card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  margin-bottom: .75rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.topic-head {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .7rem 1rem;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.topic-head-left { display: flex; align-items: center; gap: .6rem; flex: 1; }
+.topic-color-dot {
+  width: .65rem; height: .65rem; border-radius: 50%; flex-shrink: 0;
+}
+.topic-name-display { font-size: .85rem; font-weight: 700; }
+.topic-status-badge {
+  font-size: .6rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; padding: .1rem .4rem; border-radius: 2px;
+}
+.status-active { background: #d4efdf; color: #1e8449; }
+.status-paused { background: #fef3e2; color: #d35400; }
+.topic-toggle-btn {
+  font-size: .65rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; padding: .2rem .55rem;
+  border: 1px solid var(--rule); border-radius: 2px;
+  background: var(--white); cursor: pointer; color: var(--ink-light);
+  transition: all .12s;
+}
+.topic-toggle-btn:hover { border-color: var(--ink); color: var(--ink); }
+.topic-del-btn {
+  font-size: .75rem; color: var(--accent); background: none;
+  border: none; cursor: pointer; padding: .2rem .4rem;
+  border-radius: 2px; opacity: .6; transition: opacity .12s;
+}
+.topic-del-btn:hover { opacity: 1; background: #fde8e8; }
+.chevron {
+  font-size: .7rem; color: var(--ink-light);
+  transition: transform .2s; flex-shrink: 0;
+}
+.topic-body {
+  padding: .85rem 1rem;
+  display: none;
+}
+.topic-body.open { display: block; }
+.kw-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .6rem; }
+.kw-tag {
+  display: flex; align-items: center; gap: .3rem;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 2rem; padding: .2rem .6rem;
+  font-size: .72rem; font-weight: 600;
+}
+.kw-tag .kw-del {
+  background: none; border: none; color: var(--accent);
+  cursor: pointer; font-size: .75rem; padding: 0; line-height: 1;
+  opacity: .6;
+}
+.kw-tag .kw-del:hover { opacity: 1; }
+.kw-add-row { display: flex; gap: .4rem; margin-top: .35rem; }
+.kw-add-row input { flex: 1; }
+.kw-add-row button {
+  background: var(--blue); color: var(--white);
+  border: none; border-radius: var(--radius);
+  padding: .3rem .75rem; font-size: .72rem; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* ── COUNT CONTROLS ── */
+.count-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
+}
+.count-item { display: flex; flex-direction: column; gap: .3rem; }
+.count-label {
+  font-size: .65rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-light);
+}
+.count-input {
+  width: 80px !important;
+  font-family: var(--font-m) !important;
+  font-size: .85rem !important;
+}
+
+/* ── UNSAVED INDICATOR ── */
+.dirty-dot {
+  width: .45rem; height: .45rem; border-radius: 50%;
+  background: var(--accent); display: inline-block;
+  margin-left: .3rem; opacity: 0; transition: opacity .2s;
+}
+.dirty-dot.visible { opacity: 1; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--rule); padding: .75rem 0; display: flex; flex-wrap: wrap; gap: .25rem; }
+  .nav-section-label { display: none; }
+  .nav-item { border-left: none; border-bottom: 2px solid transparent; padding: .35rem .75rem; }
+  .nav-item.active { border-bottom-color: var(--accent); border-left: none; }
+  .count-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div>
+    <div class="masthead-title">⚙️ Briefing Settings</div>
+    <div class="masthead-sub">Morning Briefing Configuration</div>
+  </div>
+  <div class="masthead-right">
+    <span class="save-status" id="save-status">All saved</span>
+    <button class="save-all-btn" id="save-btn" onclick="saveAll()">Save All Changes</button>
+    <a class="close-lnk" href="/shutdown">Close</a>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="nav-section-label">General</div>
+    <a class="nav-item active" onclick="scrollTo('story-counts')" href="#story-counts">
+      <span class="nav-emoji">📊</span> Story Counts
+    </a>
+    <div class="nav-section-label">News Feeds</div>
+    <a class="nav-item" onclick="scrollTo('cat-0')" href="#cat-0">
+      <span class="nav-emoji">🌍</span> International
+    </a>
+    <a class="nav-item" onclick="scrollTo('cat-1')" href="#cat-1">
+      <span class="nav-emoji">🦘</span> Australian
+    </a>
+    <a class="nav-item" onclick="scrollTo('cat-2')" href="#cat-2">
+      <span class="nav-emoji">📈</span> Finance
+    </a>
+    <div class="nav-section-label">Markets</div>
+    <a class="nav-item" onclick="scrollTo('market-tickers')" href="#market-tickers">
+      <span class="nav-emoji">📉</span> Market Tickers
+    </a>
+    <a class="nav-item" onclick="scrollTo('asx-watchlist')" href="#asx-watchlist">
+      <span class="nav-emoji">🏦</span> ASX Watchlist
+    </a>
+    <div class="nav-section-label">Topics</div>
+    <a class="nav-item" onclick="scrollTo('watch-topics')" href="#watch-topics">
+      <span class="nav-emoji">📌</span> Watch Topics
+    </a>
+  </nav>
+
+  <!-- ── CONTENT ── -->
+  <main class="content" id="main-content">
+
+    <!-- STORY COUNTS -->
+    <section class="section" id="story-counts">
+      <div class="section-title">
+        📊 Story Counts
+        <span class="dirty-dot" id="dirty-counts"></span>
+      </div>
+      <p class="section-desc">How many stories are fetched and summarised per category each run.</p>
+      <div class="card">
+        <div class="count-grid" id="counts-grid">
+          <div class="count-item">
+            <div class="count-label">Stories per category</div>
+            <input class="count-input mono" type="number" min="1" max="20" id="top-n-stories" oninput="markDirty('counts')">
+          </div>
+          <div class="count-item">
+            <div class="count-label">Stories per topic</div>
+            <input class="count-input mono" type="number" min="1" max="20" id="top-n-topic-stories" oninput="markDirty('counts')">
+          </div>
+          <div class="count-item">
+            <div class="count-label">Max feed items</div>
+            <input class="count-input mono" type="number" min="5" max="100" id="max-feed-items" oninput="markDirty('counts')">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEWS CATEGORIES -->
+    <section class="section" id="news-categories">
+      <div class="section-title">
+        📰 News Categories
+        <span class="dirty-dot" id="dirty-categories"></span>
+      </div>
+      <p class="section-desc">The three fixed news columns. Edit the RSS feeds for each — one URL per line. Add or remove feeds freely.</p>
+      <div id="categories-container"></div>
+    </section>
+
+    <!-- MARKET TICKERS -->
+    <section class="section" id="market-tickers">
+      <div class="section-title">
+        📉 Market Tickers
+        <span class="dirty-dot" id="dirty-tickers"></span>
+      </div>
+      <p class="section-desc">Broad market instruments shown in the widget bar. <span class="mono">sym</span> is the Yahoo Finance ticker symbol. <span class="mono">fmt</span> controls number formatting.</p>
+      <div class="card">
+        <table class="ticker-table" id="tickers-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Label</th>
+              <th>Format</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tickers-body"></tbody>
+        </table>
+        <button class="add-btn" style="margin-top:.6rem" onclick="addTicker()">+ Add ticker</button>
+      </div>
+    </section>
+
+    <!-- ASX WATCHLIST -->
+    <section class="section" id="asx-watchlist">
+      <div class="section-title">
+        🏦 ASX Watchlist
+        <span class="dirty-dot" id="dirty-asx"></span>
+      </div>
+      <p class="section-desc">Personal ASX stocks shown as clickable links in the widget bar. Use the <span class="mono">.AX</span> suffix (e.g. <span class="mono">GAS.AX</span>).</p>
+      <div class="card">
+        <table class="ticker-table" id="asx-table">
+          <thead>
+            <tr><th>Symbol (.AX)</th><th>Display Label</th><th></th></tr>
+          </thead>
+          <tbody id="asx-body"></tbody>
+        </table>
+        <button class="add-btn" style="margin-top:.6rem" onclick="addAsx()">+ Add stock</button>
+      </div>
+    </section>
+
+    <!-- WATCH TOPICS -->
+    <section class="section" id="watch-topics">
+      <div class="section-title">
+        📌 Watch Topics
+        <span class="dirty-dot" id="dirty-topics"></span>
+      </div>
+      <p class="section-desc">Custom topics scanned across all feeds each run. Keywords are matched against article titles and summaries — include variations, abbreviations, and key names.</p>
+      <div id="topics-container"></div>
+      <button class="add-btn" style="width:100%;padding:.5rem" onclick="addTopic()">+ Add new topic</button>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let settings = null;
+let topics   = [];
+const dirty  = { counts: false, categories: false, tickers: false, asx: false, topics: false };
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+async function boot() {
+  // Detect if opened as a local file rather than served by settings_server.py
+  if (window.location.protocol === 'file:') {
+    setStatus('⚠ Open via: py settings_server.py — not as a file', 'err');
+    document.getElementById('save-btn').disabled = true;
+    document.querySelector('.masthead-sub').textContent =
+      'Run: py settings_server.py — then open http://localhost:8766';
+    return;
+  }
+
+  try {
+    const pingRes = await fetch('/api/ping');
+    if (!pingRes.ok) throw new Error('ping failed');
+    const ping = await pingRes.json();
+    console.log('Settings file:', ping.settings_file, '| exists:', ping.settings_exists);
+
+    const [sRes, tRes] = await Promise.all([
+      fetch('/api/settings'),
+      fetch('/api/topics'),
+    ]);
+    settings = await sRes.json();
+    const td = await tRes.json();
+    topics   = td.topics || [];
+    renderAll();
+    setStatus('All saved', '');
+  } catch(e) {
+    setStatus('Could not connect to settings_server.py', 'err');
+  }
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderCounts();
+  renderCategories();
+  renderTickers();
+  renderAsx();
+  renderTopics();
+}
+
+function renderCounts() {
+  const sc = settings.story_counts || {};
+  document.getElementById('top-n-stories').value       = sc.top_n_stories       ?? 5;
+  document.getElementById('top-n-topic-stories').value = sc.top_n_topic_stories  ?? 5;
+  document.getElementById('max-feed-items').value      = sc.max_feed_items       ?? 20;
+}
+
+function renderCategories() {
+  const cats = settings.categories || [];
+  const container = document.getElementById('categories-container');
+  container.innerHTML = '';
+  cats.forEach((cat, ci) => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.id = `cat-${ci}`;
+    div.innerHTML = `
+      <div class="card-header">
+        <input class="card-emoji-input" type="text" value="${esc(cat.emoji)}" maxlength="2"
+               oninput="updateCatEmoji(${ci},this.value)" title="Emoji">
+        <div class="card-title">${esc(cat.name)}</div>
+        <input type="color" class="color-swatch" value="${cat.color}"
+               oninput="updateCatColor(${ci},this.value)" title="Column colour">
+      </div>
+      <div class="field-label" style="margin-bottom:.4rem">RSS Feeds</div>
+      <div class="feed-list" id="feeds-${ci}">
+        ${cat.feeds.map((f,fi) => feedRowHtml(ci, fi, f)).join('')}
+      </div>
+      <button class="add-btn" onclick="addFeed(${ci})">+ Add feed URL</button>`;
+    container.appendChild(div);
+  });
+}
+
+function feedRowHtml(ci, fi, url) {
+  return `<div class="feed-row" id="feed-${ci}-${fi}">
+    <input class="mono" type="text" value="${esc(url)}"
+           oninput="updateFeed(${ci},${fi},this.value); markDirty('categories')"
+           placeholder="https://...">
+    <button class="del-btn" onclick="removeFeed(${ci},${fi})" title="Remove">✕</button>
+  </div>`;
+}
+
+function renderTickers() {
+  const tbody = document.getElementById('tickers-body');
+  tbody.innerHTML = (settings.market_tickers || []).map((t, i) => `
+    <tr id="ticker-row-${i}">
+      <td><input class="mono" type="text" value="${esc(t.sym)}"
+                 oninput="updateTicker(${i},'sym',this.value)"></td>
+      <td><input type="text" value="${esc(t.label)}"
+                 oninput="updateTicker(${i},'label',this.value)"></td>
+      <td>
+        <select class="fmt-select" onchange="updateTicker(${i},'fmt',this.value)">
+          ${['index','fx','price'].map(f => `<option ${t.fmt===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="ticker-del" onclick="removeTicker(${i})" title="Remove">✕</button></td>
+    </tr>`).join('');
+}
+
+function renderAsx() {
+  const tbody = document.getElementById('asx-body');
+  tbody.innerHTML = (settings.asx_watchlist || []).map((s, i) => `
+    <tr id="asx-row-${i}">
+      <td><input class="mono" type="text" value="${esc(s.sym)}"
+                 oninput="updateAsx(${i},'sym',this.value)" placeholder="XXX.AX"></td>
+      <td><input type="text" value="${esc(s.label)}"
+                 oninput="updateAsx(${i},'label',this.value)" placeholder="XXX"></td>
+      <td><button class="ticker-del" onclick="removeAsx(${i})" title="Remove">✕</button></td>
+    </tr>`).join('');
+}
+
+function renderTopics() {
+  const container = document.getElementById('topics-container');
+  container.innerHTML = '';
+  if (!topics.length) {
+    container.innerHTML = '<p style="color:var(--ink-light);font-size:.82rem;padding:.5rem 0">No watch topics yet. Click Add below.</p>';
+    return;
+  }
+  topics.forEach((t, ti) => {
+    const isActive = t.active !== false;
+    const card = document.createElement('div');
+    card.className = 'topic-card';
+    card.id = `topic-${ti}`;
+    card.innerHTML = `
+      <div class="topic-head" onclick="toggleTopicBody(${ti})">
+        <div class="topic-head-left">
+          <span class="topic-color-dot" style="background:${t.color||'#555'}"></span>
+          <span style="font-size:1rem">${t.emoji||'📌'}</span>
+          <span class="topic-name-display">${esc(t.name)}</span>
+          <span class="topic-status-badge ${isActive?'status-active':'status-paused'}">
+            ${isActive ? 'Active' : 'Paused'}
+          </span>
+        </div>
+        <button class="topic-toggle-btn" onclick="event.stopPropagation();toggleTopicActive(${ti})">
+          ${isActive ? 'Pause' : 'Resume'}
+        </button>
+        <button class="topic-del-btn" onclick="event.stopPropagation();removeTopic(${ti})" title="Delete">✕</button>
+        <span class="chevron" id="chevron-${ti}">▶</span>
+      </div>
+      <div class="topic-body" id="tbody-${ti}">
+        <div class="field-row">
+          <div class="field-label">Name</div>
+          <input type="text" value="${esc(t.name)}"
+                 oninput="updateTopic(${ti},'name',this.value)">
+        </div>
+        <div class="field-row">
+          <div class="field-label">Emoji</div>
+          <input type="text" value="${esc(t.emoji||'📌')}" maxlength="2" style="width:3rem;text-align:center"
+                 oninput="updateTopic(${ti},'emoji',this.value)">
+        </div>
+        <div class="field-row">
+          <div class="field-label">Colour</div>
+          <input type="color" class="color-swatch" value="${t.color||'#1a3a5c'}"
+                 oninput="updateTopic(${ti},'color',this.value)">
+        </div>
+        <div class="field-row" style="align-items:flex-start">
+          <div class="field-label" style="padding-top:.2rem">Keywords</div>
+          <div style="flex:1">
+            <div class="kw-list" id="kw-list-${ti}">
+              ${(t.keywords||[]).map((kw,ki) => kwTagHtml(ti,ki,kw)).join('')}
+            </div>
+            <div class="kw-add-row">
+              <input type="text" id="kw-input-${ti}" placeholder="Add keyword…"
+                     onkeydown="if(event.key==='Enter'){addKeyword(${ti});event.preventDefault()}">
+              <button onclick="addKeyword(${ti})">Add</button>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Notes</div>
+          <input type="text" value="${esc(t.notes||'')}" placeholder="Optional focus notes…"
+                 oninput="updateTopic(${ti},'notes',this.value)">
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function kwTagHtml(ti, ki, kw) {
+  return `<span class="kw-tag" id="kw-${ti}-${ki}">
+    ${esc(kw)}
+    <button class="kw-del" onclick="removeKeyword(${ti},${ki})" title="Remove">✕</button>
+  </span>`;
+}
+
+// ── Category mutations ────────────────────────────────────────────────────────
+function updateCatEmoji(ci, val) { settings.categories[ci].emoji = val; markDirty('categories'); }
+function updateCatColor(ci, val) { settings.categories[ci].color = val; markDirty('categories'); }
+function updateFeed(ci, fi, val) { settings.categories[ci].feeds[fi] = val; }
+
+function addFeed(ci) {
+  settings.categories[ci].feeds.push('');
+  markDirty('categories');
+  renderCategories();
+  // Focus the new input
+  const feedList = document.getElementById(`feeds-${ci}`);
+  const inputs = feedList.querySelectorAll('input');
+  if (inputs.length) inputs[inputs.length-1].focus();
+}
+
+function removeFeed(ci, fi) {
+  settings.categories[ci].feeds.splice(fi, 1);
+  markDirty('categories');
+  renderCategories();
+}
+
+// ── Ticker mutations ──────────────────────────────────────────────────────────
+function updateTicker(i, key, val) { settings.market_tickers[i][key] = val; markDirty('tickers'); }
+function removeTicker(i) { settings.market_tickers.splice(i,1); markDirty('tickers'); renderTickers(); }
+function addTicker() {
+  settings.market_tickers.push({sym:'',label:'',fmt:'price'});
+  markDirty('tickers'); renderTickers();
+  const rows = document.querySelectorAll('#tickers-body tr');
+  if (rows.length) rows[rows.length-1].querySelector('input').focus();
+}
+
+// ── ASX mutations ─────────────────────────────────────────────────────────────
+function updateAsx(i, key, val) { settings.asx_watchlist[i][key] = val; markDirty('asx'); }
+function removeAsx(i) { settings.asx_watchlist.splice(i,1); markDirty('asx'); renderAsx(); }
+function addAsx() {
+  settings.asx_watchlist.push({sym:'',label:''});
+  markDirty('asx'); renderAsx();
+  const rows = document.querySelectorAll('#asx-body tr');
+  if (rows.length) rows[rows.length-1].querySelector('input').focus();
+}
+
+// ── Topic mutations ───────────────────────────────────────────────────────────
+function toggleTopicBody(ti) {
+  const body = document.getElementById(`tbody-${ti}`);
+  const chev = document.getElementById(`chevron-${ti}`);
+  const open = body.classList.toggle('open');
+  chev.style.transform = open ? 'rotate(90deg)' : '';
+}
+
+function toggleTopicActive(ti) {
+  topics[ti].active = !(topics[ti].active !== false);
+  markDirty('topics'); renderTopics();
+}
+
+function removeTopic(ti) {
+  if (!confirm(`Remove topic "${topics[ti].name}"?`)) return;
+  topics.splice(ti,1); markDirty('topics'); renderTopics();
+}
+
+function updateTopic(ti, key, val) { topics[ti][key] = val; markDirty('topics'); }
+
+function addKeyword(ti) {
+  const inp = document.getElementById(`kw-input-${ti}`);
+  const kw  = inp.value.trim();
+  if (!kw) return;
+  if (!topics[ti].keywords) topics[ti].keywords = [];
+  topics[ti].keywords.push(kw);
+  inp.value = '';
+  markDirty('topics'); renderTopics();
+  // Re-open the body after re-render
+  const body = document.getElementById(`tbody-${ti}`);
+  const chev = document.getElementById(`chevron-${ti}`);
+  if (body) { body.classList.add('open'); }
+  if (chev) { chev.style.transform = 'rotate(90deg)'; }
+}
+
+function removeKeyword(ti, ki) {
+  topics[ti].keywords.splice(ki,1);
+  markDirty('topics'); renderTopics();
+  const body = document.getElementById(`tbody-${ti}`);
+  const chev = document.getElementById(`chevron-${ti}`);
+  if (body) body.classList.add('open');
+  if (chev) chev.style.transform = 'rotate(90deg)';
+}
+
+function addTopic() {
+  const name = prompt('Topic name (e.g. "Taroom Trough"):');
+  if (!name || !name.trim()) return;
+  const slug = name.trim().toLowerCase().replace(/[^\w\s-]/g,'').replace(/[\s_-]+/g,'-');
+  topics.push({
+    id:       slug,
+    name:     name.trim(),
+    emoji:    '📌',
+    color:    '#1a3a5c',
+    keywords: [name.trim().toLowerCase()],
+    notes:    '',
+    active:   true,
+    added:    new Date().toISOString().slice(0,10),
+  });
+  markDirty('topics'); renderTopics();
+  // Scroll to and open the new topic
+  const ti = topics.length - 1;
+  setTimeout(() => {
+    const card = document.getElementById(`topic-${ti}`);
+    if (card) card.scrollIntoView({behavior:'smooth', block:'center'});
+    toggleTopicBody(ti);
+  }, 50);
+}
+
+// ── Dirty tracking ────────────────────────────────────────────────────────────
+function markDirty(section) {
+  dirty[section] = true;
+  const dot = document.getElementById(`dirty-${section}`);
+  if (dot) dot.classList.add('visible');
+  setStatus('Unsaved changes', '');
+}
+
+function clearDirty() {
+  Object.keys(dirty).forEach(k => dirty[k] = false);
+  document.querySelectorAll('.dirty-dot').forEach(d => d.classList.remove('visible'));
+}
+
+// ── Collect current values from DOM before saving ────────────────────────────
+function collectCounts() {
+  settings.story_counts = {
+    top_n_stories:       parseInt(document.getElementById('top-n-stories').value) || 5,
+    top_n_topic_stories: parseInt(document.getElementById('top-n-topic-stories').value) || 5,
+    max_feed_items:      parseInt(document.getElementById('max-feed-items').value) || 20,
+  };
+}
+
+function collectFeeds() {
+  // Read current feed inputs back into settings.categories
+  (settings.categories || []).forEach((cat, ci) => {
+    const rows = document.querySelectorAll(`#feeds-${ci} .feed-row input`);
+    cat.feeds = [...rows].map(r => r.value.trim()).filter(Boolean);
+  });
+}
+
+function collectTickers() {
+  // Read ticker table rows back into settings.market_tickers
+  const rows = document.querySelectorAll('#tickers-body tr');
+  settings.market_tickers = [...rows].map(row => {
+    const inputs = row.querySelectorAll('input');
+    const select = row.querySelector('select');
+    return {
+      sym:   (inputs[0]?.value || '').trim(),
+      label: (inputs[1]?.value || '').trim(),
+      fmt:   select?.value || 'price',
+    };
+  }).filter(t => t.sym && t.label);
+}
+
+function collectAsx() {
+  // Read ASX table rows back into settings.asx_watchlist
+  const rows = document.querySelectorAll('#asx-body tr');
+  settings.asx_watchlist = [...rows].map(row => {
+    const inputs = row.querySelectorAll('input');
+    return {
+      sym:   (inputs[0]?.value || '').trim(),
+      label: (inputs[1]?.value || '').trim(),
+    };
+  }).filter(t => t.sym && t.label);
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+async function saveAll() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    // Collect any live DOM values before saving
+    collectCounts();
+    collectFeeds();
+    collectTickers();
+    collectAsx();
+
+    const [sRes, tRes] = await Promise.all([
+      fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(settings) }),
+      fetch('/api/topics',   { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({topics}) }),
+    ]);
+
+    const sOk = sRes.ok, tOk = tRes.ok;
+    if (sOk && tOk) {
+      clearDirty();
+      setStatus('✓ Saved', 'ok');
+      setTimeout(() => setStatus('All saved', ''), 2500);
+    } else {
+      const msg = (!sOk && !tOk) ? 'Settings + topics save failed'
+                : !sOk ? 'Settings save failed'
+                : 'Topics save failed';
+      setStatus(msg + ' — check terminal', 'err');
+    }
+  } catch(e) {
+    setStatus('Save error: ' + e.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Save All Changes';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(msg, cls) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  el.className = 'save-status' + (cls ? ' ' + cls : '');
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+// Highlight active nav item on scroll
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.toggle('active', n.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  ['story-counts','news-categories','market-tickers','asx-watchlist','watch-topics']
+    .forEach(id => { const el = document.getElementById(id); if(el) observer.observe(el); });
+});
+
+// Warn on close with unsaved changes
+window.addEventListener('beforeunload', e => {
+  if (Object.values(dirty).some(Boolean)) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+boot();
+</script>
+</body>
+</html>

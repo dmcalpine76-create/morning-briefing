@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheduling Dashboard — Morning Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink:#1a1a1a; --ink-light:#666; --paper:#f5f2eb; --paper-2:#edeae0;
+  --rule:#cdc8b5; --accent:#c0392b; --white:#fff; --green:#27ae60;
+  --blue:#2980b9; --orange:#d35400;
+  --font-d:'Playfair Display',Georgia,serif;
+  --font-b:'Source Sans 3','Helvetica Neue',sans-serif;
+}
+html { scroll-behavior:smooth; }
+body { background:var(--paper); color:var(--ink); font-family:var(--font-b); font-size:15px; line-height:1.55; min-height:100vh; }
+
+/* masthead */
+.masthead { background:var(--ink); color:var(--white); padding:0.75rem 1.5rem;
+  display:flex; align-items:center; gap:1rem; border-bottom:3px solid var(--accent);
+  position:sticky; top:0; z-index:100; }
+.masthead::before { content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 19px,rgba(255,255,255,.025) 19px,rgba(255,255,255,.025) 20px);
+  pointer-events:none; }
+.masthead-left { position:relative; }
+.masthead-title { font-family:var(--font-d); font-size:1.15rem; font-weight:900; letter-spacing:-.02em; }
+.masthead-sub { font-family:var(--font-d); font-style:italic; font-size:0.72rem; color:rgba(255,255,255,.4); }
+.masthead-right { margin-left:auto; display:flex; gap:0.5rem; align-items:center; position:relative; }
+
+.btn { font-family:var(--font-b); font-size:0.7rem; font-weight:700; letter-spacing:0.04em;
+  text-transform:uppercase; padding:0.38rem 0.9rem; border-radius:3px; cursor:pointer;
+  border:none; transition:all 0.15s; white-space:nowrap; }
+.btn-primary { background:var(--accent); color:var(--white); }
+.btn-primary:hover { background:#a93226; }
+.btn-primary:disabled { opacity:0.4; cursor:not-allowed; }
+.btn-secondary { background:rgba(255,255,255,.1); color:rgba(255,255,255,.75);
+  border:1px solid rgba(255,255,255,.2); }
+.btn-secondary:hover { background:rgba(255,255,255,.2); color:var(--white); }
+.btn-ghost { background:transparent; color:var(--ink-light); border:1px solid var(--rule);
+  font-size:0.62rem; padding:0.22rem 0.6rem; }
+.btn-ghost:hover { border-color:var(--ink); color:var(--ink); }
+
+/* status bar */
+.status-bar { background:var(--paper-2); border-bottom:1px solid var(--rule);
+  padding:0.4rem 1.5rem; display:flex; align-items:center; gap:1rem; font-size:0.75rem; }
+.status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.status-dot.ok { background:var(--green); }
+.status-dot.warn { background:var(--orange); }
+.status-dot.idle { background:var(--rule); }
+#status-text { color:var(--ink-light); }
+.sel-count { margin-left:auto; font-weight:700; color:var(--ink); }
+
+/* layout */
+.container { max-width:960px; margin:0 auto; padding:1.5rem 1.5rem 5rem; }
+
+/* section headers */
+.sec-head { font-family:var(--font-d); font-size:0.85rem; font-weight:800;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-light);
+  padding:0.5rem 0; margin-bottom:0.75rem; border-bottom:2px solid var(--rule);
+  display:flex; align-items:center; gap:0.5rem; }
+.sec-count { font-size:0.6rem; font-weight:700; background:var(--paper-2);
+  border:1px solid var(--rule); padding:0.1rem 0.45rem; border-radius:2rem;
+  color:var(--ink-light); margin-left:auto; }
+
+/* task cards */
+.task-card {
+  background:var(--white); border:1px solid var(--rule); border-radius:4px;
+  margin-bottom:0.6rem; transition:border-color 0.15s, box-shadow 0.15s;
+  overflow:hidden;
+}
+.task-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.07); }
+.task-card.selected { border-color:var(--blue); border-left:3px solid var(--blue); }
+.task-card.overdue { border-left:3px solid var(--accent); }
+.task-card.pushed { opacity:0.55; border-color:var(--green); }
+
+.card-header { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 1rem; cursor:pointer; }
+.card-check { width:1.1rem; height:1.1rem; accent-color:var(--blue); cursor:pointer; flex-shrink:0; }
+.card-priority { font-size:0.58rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase;
+  padding:0.1rem 0.4rem; border-radius:2px; flex-shrink:0; }
+.pri-urgent { background:#fde8e8; color:var(--accent); }
+.pri-high   { background:#fef3e2; color:var(--orange); }
+.pri-normal { background:#eafaf1; color:var(--green); }
+.card-title { font-family:var(--font-d); font-size:0.92rem; font-weight:700; flex:1; min-width:0; line-height:1.3; }
+.card-list  { font-size:0.65rem; color:var(--ink-light); flex-shrink:0; }
+.card-expand-btn { font-size:0.7rem; color:var(--ink-light); flex-shrink:0; transition:transform 0.2s; }
+.card-expand-btn.open { transform:rotate(180deg); }
+
+.card-body { display:none; padding:0 1rem 1rem; border-top:1px solid var(--paper-2); }
+.card-body.open { display:block; }
+
+.card-task-detail { font-size:0.78rem; color:var(--ink-light); margin-bottom:0.85rem;
+  padding:0.5rem 0.75rem; background:var(--paper-2); border-radius:3px; line-height:1.55; }
+
+.card-fields { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; }
+.field-group { display:flex; flex-direction:column; gap:0.25rem; }
+.field-group label { font-size:0.6rem; font-weight:700; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--ink-light); }
+.field-group input, .field-group select {
+  font-family:var(--font-b); font-size:0.83rem; color:var(--ink);
+  background:var(--paper); border:1px solid var(--rule); border-radius:3px;
+  padding:0.35rem 0.55rem; width:100%; transition:border-color 0.15s; }
+.field-group input:focus, .field-group select:focus {
+  outline:none; border-color:var(--ink); background:var(--white); }
+
+.card-actions { display:flex; gap:0.5rem; margin-top:0.75rem; align-items:center; }
+.push-result { font-size:0.72rem; font-weight:700; margin-left:auto; }
+.push-result.ok   { color:var(--green); }
+.push-result.fail { color:var(--accent); }
+
+/* flagged section */
+.flagged-card { background:var(--white); border:1px solid #f5cba7;
+  border-left:3px solid var(--orange); border-radius:4px; padding:0.65rem 1rem;
+  margin-bottom:0.5rem; display:flex; align-items:center; gap:0.75rem; }
+.flagged-time { font-size:0.72rem; font-weight:700; color:var(--ink-light); flex-shrink:0; width:80px; }
+.flagged-title { font-size:0.85rem; font-weight:600; flex:1; }
+.flagged-badge { font-size:0.58rem; font-weight:700; background:#fef3e2; color:var(--orange);
+  padding:0.1rem 0.4rem; border-radius:2px; }
+
+/* unscheduled */
+.unscheduled-item { display:flex; align-items:flex-start; gap:0.6rem;
+  padding:0.6rem 0.85rem; background:var(--white); border:1px solid var(--rule);
+  border-radius:3px; margin-bottom:0.5rem; }
+.unscheduled-title { font-size:0.83rem; font-weight:600; flex:1; }
+.unscheduled-reason { font-size:0.72rem; color:var(--ink-light); margin-top:0.15rem; }
+
+/* sticky footer */
+.push-footer {
+  position:fixed; bottom:0; left:0; right:0;
+  background:var(--white); border-top:2px solid var(--rule);
+  padding:0.8rem 1.5rem; display:flex; align-items:center; gap:1rem;
+  box-shadow:0 -3px 12px rgba(0,0,0,.08); z-index:200;
+}
+.push-footer-info { font-size:0.8rem; color:var(--ink-light); }
+.push-footer-info strong { color:var(--ink); }
+.push-progress { font-size:0.72rem; color:var(--ink-light); margin-left:auto; }
+
+/* empty state */
+.empty-state { text-align:center; padding:3rem 1.5rem; color:var(--ink-light); }
+.empty-state .empty-icon { font-size:2.5rem; margin-bottom:0.75rem; }
+.empty-state p { font-size:0.85rem; line-height:1.7; }
+.empty-state code { background:var(--paper-2); padding:0.1rem 0.4rem; border-radius:3px;
+  font-family:monospace; font-size:0.85em; color:var(--ink); }
+
+/* loading */
+#loading { display:flex; align-items:center; justify-content:center; min-height:60vh;
+  flex-direction:column; gap:1rem; color:var(--ink-light); }
+.spinner { width:28px; height:28px; border:3px solid var(--rule);
+  border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+@media(max-width:600px) {
+  .card-fields { grid-template-columns:1fr 1fr; }
+  .push-footer { flex-wrap:wrap; gap:0.5rem; }
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-left">
+    <div class="masthead-title">🗓️ Scheduling Dashboard</div>
+    <div class="masthead-sub" id="plan-date">Loading…</div>
+  </div>
+  <div class="masthead-right">
+    <button class="btn btn-secondary" onclick="refreshPlan()">↺ Refresh plan</button>
+    <button class="btn btn-primary" id="push-btn" onclick="pushSelected()" disabled>
+      Push to Outlook
+    </button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="status-dot idle" id="status-dot"></div>
+  <span id="status-text">Loading scheduling plan…</span>
+  <span class="sel-count" id="sel-count"></span>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div>Loading plan from server…</div>
+</div>
+
+<div id="main" style="display:none">
+<div class="container">
+
+  <!-- FLAGGED -->
+  <div id="flagged-section" style="display:none; margin-bottom:1.5rem">
+    <div class="sec-head" style="color:var(--orange); border-color:var(--orange)">
+      ⚑ Yesterday's Unfinished Blocks
+      <span class="sec-count" id="flagged-count"></span>
+    </div>
+    <div id="flagged-list"></div>
+  </div>
+
+  <!-- PROPOSED SCHEDULE -->
+  <div id="schedule-section">
+    <div class="sec-head">
+      🎯 Proposed Schedule
+      <label style="font-size:0.65rem;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer;display:flex;align-items:center;gap:0.3rem;color:var(--ink-light)">
+        <input type="checkbox" id="select-all" onchange="toggleAll(this.checked)" style="width:0.9rem;height:0.9rem;accent-color:var(--blue)"> Select all
+      </label>
+      <span class="sec-count" id="schedule-count"></span>
+    </div>
+    <div id="schedule-list"></div>
+  </div>
+
+  <!-- UNSCHEDULED -->
+  <div id="unscheduled-section" style="display:none; margin-top:1.5rem">
+    <div class="sec-head" style="color:var(--ink-light)">
+      ⚠️ Could Not Schedule
+      <span class="sec-count" id="unscheduled-count"></span>
+    </div>
+    <p style="font-size:0.78rem;color:var(--ink-light);margin-bottom:0.75rem">
+      These tasks had no suitable slot in the next {{days_ahead}} days. Add time to your calendar or extend the scheduling window in your rules.
+    </p>
+    <div id="unscheduled-list"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- STICKY FOOTER -->
+<div class="push-footer" id="push-footer" style="display:none">
+  <div class="push-footer-info">
+    <strong id="footer-sel-count">0</strong> task(s) selected
+  </div>
+  <div class="push-progress" id="push-progress"></div>
+  <button class="btn btn-primary" id="footer-push-btn" onclick="pushSelected()" disabled>
+    📅 Push selected to Outlook
+  </button>
+</div>
+
+<script>
+let plan = null;
+let pushing = false;
+
+// ── LOAD PLAN ──────────────────────────────────────────────────────────────
+
+async function loadPlan() {
+  setStatus('idle', 'Loading plan…');
+  try {
+    const resp = await fetch('/plan');
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+    plan = await resp.json();
+    if (plan.error) throw new Error(plan.error);
+    renderPlan();
+    setStatus('ok', `Plan loaded — generated ${plan.generated_at || 'this morning'}`);
+    document.getElementById('plan-date').textContent = plan.generated_at || '';
+  } catch(e) {
+    setStatus('warn', `Could not load plan: ${e.message}`);
+    showEmpty(`Could not load scheduling plan: ${e.message}<br><br>
+      Make sure you're opening this page via:<br>
+      <code>py outlook_scheduler.py dashboard</code>`);
+  }
+}
+
+async function refreshPlan() {
+  setStatus('idle', 'Regenerating plan — this may take 30–60 seconds…');
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('main').style.display = 'none';
+  try {
+    const resp = await fetch('/refresh', { method: 'POST' });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    plan = data;
+    renderPlan();
+    setStatus('ok', 'Plan refreshed ✓');
+  } catch(e) {
+    setStatus('warn', `Refresh failed: ${e.message}`);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = '';
+  }
+}
+
+// ── RENDER ──────────────────────────────────────────────────────────────────
+
+function renderPlan() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display = '';
+
+  renderFlagged(plan.flagged || []);
+  renderScheduled(plan.scheduled || []);
+  renderUnscheduled(plan.unscheduled || []);
+  updateFooter();
+}
+
+function renderFlagged(flagged) {
+  const sec  = document.getElementById('flagged-section');
+  const list = document.getElementById('flagged-list');
+  if (!flagged.length) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  document.getElementById('flagged-count').textContent = flagged.length;
+  list.innerHTML = flagged.map(f => `
+    <div class="flagged-card">
+      <span class="flagged-time">${f.start_time || ''}</span>
+      <span class="flagged-title">${esc(f.subject.replace('🎯 ',''))}</span>
+      <span class="flagged-badge">Review &amp; reschedule</span>
+    </div>`).join('');
+}
+
+function renderScheduled(scheduled) {
+  const list = document.getElementById('schedule-list');
+  document.getElementById('schedule-count').textContent = scheduled.length;
+  document.getElementById('push-footer').style.display = scheduled.length ? 'flex' : 'none';
+
+  if (!scheduled.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">✅</div>
+      <p>No tasks to schedule.<br>Add items to your <strong>Daily Priorities</strong> To Do list to get started.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = scheduled.map((s, i) => {
+    const t = s.task;
+    const priClass = t.priority === 'urgent' ? 'pri-urgent' : t.priority === 'high' ? 'pri-high' : 'pri-normal';
+    const priLabel = t.priority === 'urgent' ? '⚡ Overdue' : t.priority === 'high' ? '● High' : '◦ Normal';
+    const overdueCls = t.is_overdue ? ' overdue' : '';
+
+    return `<div class="task-card${overdueCls}" id="card-${i}">
+  <div class="card-header" onclick="toggleCard(${i})">
+    <input type="checkbox" class="card-check task-cb" data-idx="${i}"
+      onclick="event.stopPropagation(); updateFooter()"
+      onchange="updateCard(${i})">
+    <span class="card-priority ${priClass}">${priLabel}</span>
+    <span class="card-title">${esc(t.title)}</span>
+    <span class="card-list">${esc(t.list_name)}</span>
+    <span class="card-expand-btn" id="expand-${i}">▾</span>
+  </div>
+  <div class="card-body" id="body-${i}">
+    ${t.body ? `<div class="card-task-detail">${esc(t.body)}</div>` : ''}
+    <div class="card-fields">
+      <div class="field-group">
+        <label>Date</label>
+        <input type="date" id="date-${i}" value="${s.date}"
+          onchange="planChanged(${i})">
+      </div>
+      <div class="field-group">
+        <label>Start time</label>
+        <input type="time" id="time-${i}" value="${s.start_time}"
+          onchange="planChanged(${i})">
+      </div>
+      <div class="field-group">
+        <label>Duration</label>
+        <select id="dur-${i}" onchange="planChanged(${i})">
+          ${[15,30,45,60,75,90,105,120,150,180,240].map(m =>
+            `<option value="${m}" ${s.estimated_mins==m?'selected':''}>${m>=60?Math.floor(m/60)+'h'+(m%60?m%60+'m':''):m+'m'}</option>`
+          ).join('')}
+        </select>
+      </div>
+    </div>
+    ${s.reason ? `<div style="font-size:0.72rem;color:var(--ink-light);margin-top:0.6rem;font-style:italic">💡 ${esc(s.reason)}</div>` : ''}
+    <div class="card-actions">
+      <button class="btn btn-ghost" onclick="removeCard(${i})">✕ Remove</button>
+      <span class="push-result" id="result-${i}"></span>
+    </div>
+  </div>
+</div>`;
+  }).join('');
+}
+
+function renderUnscheduled(items) {
+  const sec  = document.getElementById('unscheduled-section');
+  const list = document.getElementById('unscheduled-list');
+  if (!items.length) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  document.getElementById('unscheduled-count').textContent = items.length;
+  list.innerHTML = items.map(u => `
+    <div class="unscheduled-item">
+      <div style="flex:1">
+        <div class="unscheduled-title">${esc(u.task.title)}</div>
+        <div class="unscheduled-reason">${esc(u.reason || 'No suitable slot found')}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── CARD INTERACTIONS ──────────────────────────────────────────────────────
+
+function toggleCard(i) {
+  const body   = document.getElementById(`body-${i}`);
+  const btn    = document.getElementById(`expand-${i}`);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  btn.classList.toggle('open', !isOpen);
+}
+
+function updateCard(i) {
+  const cb   = document.querySelector(`[data-idx="${i}"]`);
+  const card = document.getElementById(`card-${i}`);
+  card.classList.toggle('selected', cb.checked);
+  updateFooter();
+}
+
+function planChanged(i) {
+  // Mark card as modified
+  const card = document.getElementById(`card-${i}`);
+  card.style.borderColor = 'var(--orange)';
+  // Update plan data
+  if (plan && plan.scheduled && plan.scheduled[i]) {
+    plan.scheduled[i].date       = document.getElementById(`date-${i}`).value;
+    plan.scheduled[i].start_time = document.getElementById(`time-${i}`).value;
+    plan.scheduled[i].estimated_mins = +document.getElementById(`dur-${i}`).value;
+  }
+}
+
+function removeCard(i) {
+  const card = document.getElementById(`card-${i}`);
+  card.style.display = 'none';
+  if (plan && plan.scheduled && plan.scheduled[i]) {
+    plan.scheduled[i]._removed = true;
+  }
+  updateFooter();
+}
+
+function toggleAll(checked) {
+  document.querySelectorAll('.task-cb').forEach(cb => {
+    const card = document.getElementById(`card-${cb.dataset.idx}`);
+    if (card && card.style.display !== 'none' && !card.classList.contains('pushed')) {
+      cb.checked = checked;
+      card.classList.toggle('selected', checked);
+    }
+  });
+  updateFooter();
+}
+
+function updateFooter() {
+  const selected = getSelected();
+  const count    = selected.length;
+  document.getElementById('footer-sel-count').textContent = count;
+  document.getElementById('sel-count').textContent = count ? `${count} selected` : '';
+  const btn = document.getElementById('footer-push-btn');
+  btn.disabled = count === 0 || pushing;
+  document.getElementById('push-btn').disabled = count === 0 || pushing;
+}
+
+function getSelected() {
+  return [...document.querySelectorAll('.task-cb:checked')]
+    .map(cb => +cb.dataset.idx)
+    .filter(i => plan.scheduled[i] && !plan.scheduled[i]._removed);
+}
+
+// ── PUSH TO OUTLOOK ────────────────────────────────────────────────────────
+
+async function pushSelected() {
+  const indices = getSelected();
+  if (!indices.length || pushing) return;
+  pushing = true;
+
+  const btn1 = document.getElementById('footer-push-btn');
+  const btn2 = document.getElementById('push-btn');
+  btn1.disabled = true; btn2.disabled = true;
+  btn1.textContent = 'Pushing…';
+  setStatus('idle', `Pushing ${indices.length} event(s) to Outlook…`);
+
+  const items = indices.map(i => {
+    const s = plan.scheduled[i];
+    return {
+      idx:           i,
+      task_id:       s.task.id,
+      task_title:    s.task.title,
+      task_body:     s.task.body || '',
+      task_due:      s.task.due_date || '',
+      task_overdue:  s.task.is_overdue || false,
+      task_list:     s.task.list_name || '',
+      date:          document.getElementById(`date-${i}`).value,
+      start_time:    document.getElementById(`time-${i}`).value,
+      duration_mins: +document.getElementById(`dur-${i}`).value,
+    };
+  });
+
+  let ok = 0, fail = 0;
+
+  for (const item of items) {
+    document.getElementById('push-progress').textContent =
+      `${ok + fail + 1} / ${items.length}`;
+    try {
+      const resp = await fetch('/push_event', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(item),
+      });
+      const data = await resp.json();
+      const el = document.getElementById(`result-${item.idx}`);
+      if (data.success) {
+        ok++;
+        if (el) el.innerHTML = '<span class="ok">✓ Added to Outlook</span>';
+        document.getElementById(`card-${item.idx}`).classList.add('pushed');
+        document.querySelector(`[data-idx="${item.idx}"]`).checked = false;
+        document.querySelector(`[data-idx="${item.idx}"]`).disabled = true;
+      } else {
+        fail++;
+        if (el) el.innerHTML = `<span class="fail">✗ ${esc(data.error||'Failed')}</span>`;
+      }
+    } catch(e) {
+      fail++;
+      const el = document.getElementById(`result-${item.idx}`);
+      if (el) el.innerHTML = `<span class="fail">✗ ${esc(e.message)}</span>`;
+    }
+  }
+
+  pushing = false;
+  updateFooter();
+  document.getElementById('push-progress').textContent = '';
+  btn1.textContent = '📅 Push selected to Outlook';
+
+  if (fail === 0) {
+    setStatus('ok', `✓ ${ok} event(s) created in Outlook`);
+  } else {
+    setStatus('warn', `${ok} created, ${fail} failed`);
+  }
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+
+function setStatus(type, msg) {
+  const dot = document.getElementById('status-dot');
+  dot.className = `status-dot ${type}`;
+  document.getElementById('status-text').textContent = msg;
+}
+
+function showEmpty(html) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display = '';
+  document.getElementById('schedule-list').innerHTML =
+    `<div class="empty-state"><div class="empty-icon">🗓️</div><p>${html}</p></div>`;
+  document.getElementById('schedule-count').textContent = '0';
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+loadPlan();
+</script>
+</body>
+</html>

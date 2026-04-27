@@ -1,5 +1,5 @@
 {
-  "_comment": "Your personal watch topics. Edit directly or use: py manage_topics.py",
+  "_comment": "Watch topics for Morning Briefing. Edit here or via settings dashboard.",
   "topics": [
     {
       "id": "artificial-intelligence",
@@ -69,7 +69,7 @@
     },
     {
       "id": "ps5-games",
-      "name": "PS5 Game Reviews",
+      "name": "Game News",
       "emoji": "🎮",
       "color": "#003087",
       "keywords": [
@@ -82,27 +82,49 @@
         "PS5 release",
         "PlayStation exclusive",
         "PS5 launch",
-        "PlayStation Plus"
+        "PlayStation Plus",
+        "007 First Light",
+        "Diablo 4",
+        "Crimson Desert"
       ],
       "added": "2025-03-17",
       "active": true
     },
     {
-      "id": "crimson-desert",
-      "name": "Crimson Desert",
-      "emoji": "🏜️",
-      "color": "#7a3010",
+      "id": "adam-robert-smith",
+      "name": "Ben Roberts-Smith",
+      "emoji": "📌",
+      "color": "#1a3a5c",
       "keywords": [
-        "Crimson Desert",
-        "Pearl Abyss",
-        "Crimson Desert game",
-        "Crimson Desert release",
-        "Crimson Desert news",
-        "Crimson Desert update",
-        "Crimson Desert gameplay"
+        "Ben Roberts-Smith"
       ],
-      "added": "2025-03-17",
-      "active": true
+      "notes": "",
+      "active": true,
+      "added": "2026-04-09"
+    },
+    {
+      "id": "taroom-trough",
+      "name": "Taroom Trough",
+      "emoji": "📌",
+      "color": "#1a3a5c",
+      "keywords": [
+        "taroom trough"
+      ],
+      "notes": "",
+      "active": true,
+      "added": "2026-04-09"
+    },
+    {
+      "id": "brisbane-broncos",
+      "name": "Brisbane Broncos",
+      "emoji": "📌",
+      "color": "#1a3a5c",
+      "keywords": [
+        "brisbane broncos"
+      ],
+      "notes": "",
+      "active": true,
+      "added": "2026-04-14"
     }
   ]
 }

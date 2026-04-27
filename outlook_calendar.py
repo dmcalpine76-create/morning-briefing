@@ -128,12 +128,11 @@ def fetch_calendar_events(days_ahead: int = 2) -> dict:
     end_utc   = window_end.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     try:
-        # Use AEST timezone preference so Graph returns times already in AEST
-        # This avoids ambiguous UTC strings with no Z suffix
+        # Force Graph to return all times in UTC so our conversion is unambiguous
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
-            "Prefer": 'outlook.timezone="AUS Eastern Standard Time"',
+            "Prefer": 'outlook.timezone="UTC"',
         }
         resp = requests.get(
             f"{GRAPH_BASE}/me/calendarView",
@@ -186,26 +185,14 @@ def fetch_calendar_events(days_ahead: int = 2) -> dict:
         else:
             raw_start = ev["start"].get("dateTime", "")
             raw_end   = ev["end"].get("dateTime", "")
-            # Graph returns times in AEST (requested via Prefer header).
-            # Strings with no offset are already in AEST — attach AEST_OFFSET directly.
-            # Strings with Z or +offset are converted to AEST.
+            # Graph returns UTC; convert to AEST
             try:
-                def _parse_dt(s):
-                    # Normalise: strip sub-second precision, handle Z and offset formats
-                    s = s.split(".")[0]  # remove fractional seconds
-                    if s.endswith("Z"):
-                        # UTC — convert to AEST
-                        return datetime.datetime.fromisoformat(
-                            s[:-1] + "+00:00"
-                        ).astimezone(AEST_OFFSET)
-                    elif "+" in s[10:] or (s.count("-") > 2):
-                        # Has explicit timezone offset — parse and convert to AEST
-                        return datetime.datetime.fromisoformat(s).astimezone(AEST_OFFSET)
-                    else:
-                        # No timezone info — treat as local (AEST = Brisbane)
-                        return datetime.datetime.fromisoformat(s).replace(tzinfo=AEST_OFFSET)
-                start_dt = _parse_dt(raw_start)
-                end_dt   = _parse_dt(raw_end)
+                start_dt = datetime.datetime.fromisoformat(
+                    raw_start.replace("Z", "+00:00")
+                ).astimezone(AEST_OFFSET)
+                end_dt = datetime.datetime.fromisoformat(
+                    raw_end.replace("Z", "+00:00")
+                ).astimezone(AEST_OFFSET)
                 # Windows-compatible strftime (no %-I)
                 start_str = start_dt.strftime("%I:%M %p").lstrip("0")
                 end_str   = end_dt.strftime("%I:%M %p").lstrip("0")
@@ -275,17 +262,13 @@ def fetch_calendar_events(days_ahead: int = 2) -> dict:
 
 def analyse_calendar_events(events: list[dict], email_context: list[dict] = None) -> dict:
     """
-    Use Claude Sonnet to generate per-event briefings, cross-referencing emails.
+    Use Claude to generate 2-3 bullet briefings per calendar event.
 
-    For each event, we:
-      1. Search email_context for fuzzy matches on subject, organiser, attendee names
-      2. Pass matched emails + full event details to Claude
-      3. Ask Claude to reason from actual evidence, not generic advice
+    events        — list of event dicts from fetch_calendar_events()
+    email_context — list of raw email dicts from outlook_email (subject, sender,
+                    body_preview) to cross-reference against meetings.
 
-    events        — list of event dicts (today + tomorrow only, not yesterday)
-    email_context — full list of raw email dicts {subject, from, body_preview}
-
-    Returns dict keyed by event subject: {"bullets": [...]}
+    Returns dict keyed by event subject: {"bullets": [...], "error": None|str}
     """
     if not _ANTHROPIC_AVAILABLE or not events:
         return {}
@@ -294,119 +277,90 @@ def analyse_calendar_events(events: list[dict], email_context: list[dict] = None
     if not api_key:
         return {}
 
-    client = _anthropic.Anthropic(api_key=api_key)
-    results = {}
-
+    # Build compact event summaries for the prompt
+    event_summaries = []
     for ev in events:
-        subject   = ev["subject"]
-        organiser = ev.get("organizer", "")
-        preview   = ev.get("body_preview", "")
-        attendees = ev.get("attendee_names", [])   # populated below if available
-
-        # ── Find relevant emails by fuzzy keyword matching ──
-        # Extract searchable terms: words from subject + organiser name parts
-        import re as _re
-        stop = {"the","a","an","and","or","re","fw","fwd","meeting","call",
-                "catch","up","with","for","about","on","at","in","of","to"}
-        def _terms(text):
-            return {w.lower() for w in _re.split(r"[\s:,/\-]+", text)
-                    if len(w) > 2 and w.lower() not in stop}
-
-        # Build search terms from subject — but exclude words so common they
-        # match everything (company name, domain, very short words)
-        GLOBAL_STOPWORDS = {
-            "state", "gas", "stategas", "doug", "mcalpine",  # too common in this inbox
-            "meeting", "call", "catch", "catchup", "teams", "zoom",
-            "the", "and", "for", "with", "about", "from", "this",
-        }
-        ev_terms = {w for w in _terms(subject) if w not in GLOBAL_STOPWORDS}
-
-        # Add organiser surname only if it's a specific external name
-        if organiser and "@" in organiser:
-            domain = organiser.split("@")[-1].split(".")[0].lower()
-            surname = organiser.split("@")[0].split(".")[-1].lower()
-            # Only add if it's not internal (stategas domain)
-            if "stategas" not in domain and len(surname) > 2:
-                ev_terms.add(surname)
-                ev_terms.add(domain)  # e.g. "santos", "qpmenergy", "bdo"
-
-        # Score emails: count how many distinct ev_terms appear
-        # Require at least 1 match, prefer emails with more matches
-        scored_emails = []
-        for em in (email_context or []):
-            em_text = " ".join([
-                em.get("subject", ""),
-                em.get("from", ""),
-                em.get("body_preview", ""),
-            ]).lower()
-            score = sum(1 for t in ev_terms if t in em_text)
-            if score > 0:
-                scored_emails.append((score, em))
-
-        # Sort by score descending, take top 6
-        scored_emails.sort(key=lambda x: x[0], reverse=True)
-        matched_emails = [em for _, em in scored_emails[:6]]
-
-        # Build email evidence block
-        if matched_emails and ev_terms:
-            em_lines = []
-            for em in matched_emails:
-                em_lines.append(
-                    f"  • [{em.get('from','')}] {em.get('subject','')} — "
-                    f"{em.get('body_preview','')[:200]}"
-                )
-            email_block = "MATCHED EMAILS:\n" + "\n".join(em_lines)
-        else:
-            email_block = "No emails matched this meeting."
-
-        # Build event detail block
-        ev_lines = [f"Subject: {subject}"]
+        parts = [f"Meeting: {ev['subject']}"]
         if not ev["is_all_day"]:
-            ev_lines.append(f"Time: {ev['start_time']} – {ev['end_time']}")
-        if organiser:
-            ev_lines.append(f"Organiser: {organiser}")
-        if ev["attendee_count"] > 0:
-            ev_lines.append(f"Attendees: {ev['attendee_count']} people")
+            parts.append(f"Time: {ev['start_time']} – {ev['end_time']}")
+        if ev["organizer"]:
+            parts.append(f"Organiser: {ev['organizer']}")
+        if ev["attendee_count"] > 1:
+            parts.append(f"Attendees: {ev['attendee_count']} people")
         if ev["location"]:
-            ev_lines.append(f"Location: {ev['location']}")
-        if preview:
-            ev_lines.append(f"Description: {preview}")
-        event_block = "\n".join(ev_lines)
+            parts.append(f"Location: {ev['location']}")
+        if ev["body_preview"]:
+            parts.append(f"Description: {ev['body_preview'][:300]}")
+        event_summaries.append("\n".join(parts))
 
-        prompt = f"""You are preparing a morning briefing for Doug McAlpine, State Gas, Brisbane.
+    # Build compact email context (subjects + senders + preview, capped at 30 emails)
+    email_lines = []
+    for em in (email_context or [])[:30]:
+        subj   = em.get("subject", "")[:100]
+        sender = em.get("from", em.get("sender", ""))[:60]
+        prev   = em.get("body_preview", em.get("preview", ""))[:150]
+        if subj:
+            email_lines.append(f"• {subj} (from: {sender}) — {prev}")
 
-MEETING DETAILS:
-{event_block}
+    email_block = (
+        "RECENT EMAILS (for cross-referencing):\n" + "\n".join(email_lines)
+        if email_lines else "No email context available."
+    )
+
+    events_block = "\n\n---\n\n".join(event_summaries)
+
+    prompt = f"""You are a professional executive assistant preparing a morning briefing for Doug McAlpine, who works at State Gas in Brisbane, Australia.
+
+For each meeting listed below, write 2-3 bullet points using ONLY information explicitly present in:
+1. The meeting details provided (title, organiser, attendees, description)
+2. The email subjects and previews listed
+
+STRICT RULES:
+- Do NOT invent, assume, or hallucinate any context not present in the data above.
+- Do NOT write generic advice like "review the agenda" or "prepare talking points".
+- If a meeting has a description or body preview, summarise what it actually says.
+- If an email subject clearly relates to a meeting, reference it specifically by subject.
+- If you have genuinely no relevant context for a meeting, return a single bullet: "No additional context found in emails or meeting description."
+- Each bullet must be under 25 words and grounded in the actual data provided.
 
 {email_block}
 
-Write 2-3 bullet points that will help Doug prepare for this meeting.
+CALENDAR EVENTS TO BRIEF:
 
-Rules:
-- If emails matched: summarise what they reveal about this topic — be specific about what was discussed, requested, or is pending.
-- If no emails matched but the description has content: summarise what the description says.
-- If organiser or attendees suggest a known company or role, you may briefly note what kind of interaction this likely is (e.g. "Vendor review — [Company]").
-- Do NOT invent agenda items, action lists, or preparation steps that aren't grounded in the actual data.
-- If there is genuinely nothing useful to say, write one bullet: "No email context found — review any pre-meeting materials."
-- Keep each bullet under 30 words.
+{events_block}
 
-Respond ONLY as JSON: {{"bullets": ["bullet 1", "bullet 2"]}}"""
+Respond ONLY as JSON in this exact format (no markdown, no preamble):
+{{
+  "briefings": [
+    {{
+      "subject": "<exact meeting subject>",
+      "bullets": ["bullet 1", "bullet 2"]
+    }}
+  ]
+}}"""
 
-        try:
-            resp = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=400,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            raw = resp.content[0].text.strip()
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-            data = __import__("json").loads(raw)
-            results[subject] = {"bullets": data.get("bullets", []), "error": None}
-        except Exception as e:
-            results[subject] = {"bullets": [], "error": str(e)}
-
-    return results
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1200,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        raw = resp.content[0].text.strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        data = __import__("json").loads(raw)
+        result = {}
+        for item in data.get("briefings", []):
+            result[item["subject"]] = {
+                "bullets": item.get("bullets", []),
+                "error":   None,
+            }
+        return result
+    except Exception as e:
+        # Return empty rather than crashing — calendar tab degrades gracefully
+        return {"_error": str(e)}
 
 
 def _duration_label(mins: int) -> str:

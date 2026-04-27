@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Briefing — Launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink:#1a1a1a; --ink-light:#666; --paper:#f5f2eb; --paper-2:#edeae0;
+  --rule:#cdc8b5; --accent:#c0392b; --white:#fff; --green:#27ae60; --blue:#2471a3;
+  --orange:#d35400;
+  --font-d:'Playfair Display',Georgia,serif;
+  --font-b:'Source Sans 3','Helvetica Neue',sans-serif;
+  --font-m:'Courier New',monospace;
+}
+body { background:var(--paper); color:var(--ink); font-family:var(--font-b); font-size:15px; line-height:1.55; min-height:100vh; }
+
+.masthead { background:var(--ink); color:var(--white); padding:0.85rem 1.5rem;
+  display:flex; align-items:center; gap:1rem; border-bottom:3px solid var(--accent);
+  position:sticky; top:0; z-index:100; }
+.masthead-title { font-family:var(--font-d); font-size:1.2rem; font-weight:900; letter-spacing:-.02em; }
+.masthead-sub   { font-family:var(--font-d); font-style:italic; font-size:0.72rem; color:rgba(255,255,255,.4); }
+.status-pill { margin-left:auto; display:flex; align-items:center; gap:0.4rem;
+  font-size:0.65rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(255,255,255,.35); }
+.status-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.2); flex-shrink:0; }
+.status-dot.ok    { background:#2ecc71; box-shadow:0 0 6px #2ecc71; }
+.status-dot.busy  { background:#f39c12; animation:pulse 1s infinite; }
+.status-dot.error { background:#e74c3c; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+@keyframes spin   { to{transform:rotate(360deg)} }
+
+.container { max-width:940px; margin:0 auto; padding:1.5rem 1.5rem 3rem; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem; }
+@media(max-width:600px) { .grid { grid-template-columns:1fr; } }
+
+.sec-head { font-family:var(--font-d); font-size:0.82rem; font-weight:800;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-light);
+  padding:0.4rem 0; margin:1.25rem 0 0.75rem; border-bottom:2px solid var(--rule); }
+
+.card { background:var(--white); border:1px solid var(--rule); border-radius:5px; overflow:hidden;
+  transition:box-shadow 0.15s; }
+.card:hover { box-shadow:0 2px 10px rgba(0,0,0,.08); }
+.card-header { padding:0.85rem 1.1rem 0.7rem; border-bottom:1px solid var(--paper-2);
+  display:flex; align-items:flex-start; gap:0.75rem; }
+.card-icon  { font-size:1.3rem; flex-shrink:0; line-height:1; margin-top:2px; }
+.card-title { font-family:var(--font-d); font-size:0.95rem; font-weight:700; line-height:1.25; }
+.card-desc  { font-size:0.75rem; color:var(--ink-light); margin-top:0.2rem; line-height:1.5; }
+.card-body  { padding:0.85rem 1.1rem; }
+.card-cmd   { font-family:var(--font-m); font-size:0.7rem; background:#2c2c2c; color:#a8d8a8;
+  padding:0.3rem 0.6rem; border-radius:3px; display:inline-block; margin-bottom:0.65rem; }
+
+.run-btn { width:100%; font-family:var(--font-b); font-size:0.72rem; font-weight:700;
+  letter-spacing:0.05em; text-transform:uppercase; padding:0.55rem 1rem; border-radius:3px;
+  cursor:pointer; border:none; transition:all 0.15s;
+  display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+.run-btn.primary   { background:var(--accent); color:var(--white); }
+.run-btn.primary:hover   { background:#a93226; }
+.run-btn.secondary { background:var(--blue); color:var(--white); }
+.run-btn.secondary:hover { background:#1a5f89; }
+.run-btn.success   { background:var(--green); color:var(--white); }
+.run-btn.success:hover   { background:#219a52; }
+.run-btn.neutral   { background:var(--paper-2); color:var(--ink); border:1px solid var(--rule); }
+.run-btn.neutral:hover   { background:var(--rule); }
+.run-btn:disabled  { opacity:0.45; cursor:not-allowed; }
+.spinner { width:11px; height:11px; border:2px solid rgba(255,255,255,.25);
+  border-top-color:rgba(255,255,255,.9); border-radius:50%;
+  animation:spin 0.7s linear infinite; display:none; flex-shrink:0; }
+.busy .spinner { display:block; }
+.busy .btn-arrow { display:none; }
+
+.info-box { background:var(--paper-2); border:1px solid var(--rule); border-radius:3px;
+  padding:0.65rem 0.9rem; font-size:0.78rem; color:var(--ink-light); line-height:1.6; margin-bottom:0.75rem; }
+.info-box strong { color:var(--ink); }
+.info-box code { font-family:var(--font-m); font-size:0.82em; background:rgba(0,0,0,.07); padding:0.05rem 0.25rem; border-radius:2px; }
+
+/* Log */
+.log-wrap { background:#1a1a1a; border-radius:4px; overflow:hidden; margin-top:1rem; }
+.log-titlebar { background:#111; padding:0.4rem 0.85rem; display:flex; align-items:center; gap:0.4rem;
+  font-size:0.62rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,.3); }
+.log-dot { width:8px; height:8px; border-radius:50%; }
+.log-body { padding:0.75rem 1rem; height:200px; overflow-y:auto; font-family:var(--font-m);
+  font-size:0.72rem; line-height:1.65; color:#aaa; }
+.log-body .ok   { color:#5dbb63; }
+.log-body .warn { color:#f0a500; }
+.log-body .err  { color:#e05c5c; }
+.log-body .info { color:#5dade2; }
+.log-body .dim  { color:#555; }
+
+/* server error banner */
+#server-banner { background:#fde8e8; border:1px solid #f5c6c6; border-radius:4px;
+  padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.82rem; color:var(--accent);
+  display:none; line-height:1.6; }
+#server-banner code { font-family:var(--font-m); font-size:0.88em; background:rgba(192,57,43,.1); padding:0.05rem 0.3rem; border-radius:2px; }
+
+#toast { position:fixed; bottom:1.5rem; right:1.5rem; background:var(--ink); color:var(--white);
+  font-size:0.78rem; font-weight:600; padding:0.6rem 1.2rem; border-radius:4px;
+  border-left:3px solid var(--green); opacity:0; transform:translateY(8px);
+  transition:all 0.25s; pointer-events:none; z-index:999; }
+#toast.show { opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div>
+    <div class="masthead-title">Morning Briefing</div>
+    <div class="masthead-sub">Command Launcher</div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot" id="sd"></div>
+    <span id="st">Connecting…</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div id="server-banner">
+    ⚠️ &nbsp;Cannot connect to launcher server. &nbsp;Open a terminal in your project folder and run:<br>
+    <code>py launcher_server.py</code><br>
+    Then reload this page.
+  </div>
+
+  <div class="sec-head">☀️ Daily Workflow — run in this order</div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📰</div>
+        <div>
+          <div class="card-title">1 &nbsp; Generate Fresh Briefing</div>
+          <div class="card-desc">Fetches news, emails, weather, markets and calendar. Generates your HTML briefing and emails it. Takes 1–3 minutes.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py briefing.py</div>
+        <button class="run-btn primary" id="btn-briefing" onclick="run('briefing')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Run briefing
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">✅</div>
+        <div>
+          <div class="card-title">2 &nbsp; Review Actions → Push to To Do</div>
+          <div class="card-desc">Opens latest briefing in your browser with checkboxes. Tick actions for today and bulk-push to Microsoft To Do.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py briefing.py review</div>
+        <button class="run-btn secondary" id="btn-review" onclick="run('review')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Open review
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🗓️</div>
+        <div>
+          <div class="card-title">3 &nbsp; Schedule Tasks → Push to Outlook</div>
+          <div class="card-desc">Proposes a schedule for your To Do tasks. Opens dashboard to review, adjust times, and push to Outlook calendar.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py outlook_scheduler.py dashboard</div>
+        <button class="run-btn success" id="btn-scheduler" onclick="run('scheduler')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Open scheduler
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🔍</div>
+        <div>
+          <div class="card-title">Preview Schedule (no browser)</div>
+          <div class="card-desc">Generates a proposed schedule and prints it to the log below. No Outlook events created. Quick check only.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py outlook_scheduler.py preview</div>
+        <button class="run-btn neutral" id="btn-preview" onclick="run('preview')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Preview only
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sec-head">⚙️ Settings &amp; Tools</div>
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📋</div>
+        <div>
+          <div class="card-title">Edit Scheduling Rules</div>
+          <div class="card-desc">Opens the rules editor in your browser. Set working hours, fortnightly cycle, task types, protected times.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">scheduling_rules.html</div>
+        <button class="run-btn neutral" id="btn-rules" onclick="run('rules')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Open rules editor
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🔑</div>
+        <div>
+          <div class="card-title">Refresh Outlook Token</div>
+          <div class="card-desc">Run when Outlook auth expires (~every 90 days). Walks you through a browser login then uploads the new token to GitHub.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py outlook_email.py setup</div>
+        <button class="run-btn neutral" id="btn-token" onclick="run('token')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Refresh token
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LOG -->
+  <div class="log-wrap">
+    <div class="log-titlebar">
+      <div class="log-dot" style="background:#e74c3c"></div>
+      <div class="log-dot" style="background:#f39c12"></div>
+      <div class="log-dot" style="background:#2ecc71"></div>
+      <span style="margin-left:0.4rem">Output</span>
+      <button onclick="clearLog()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.2);font-size:0.68rem;cursor:pointer;font-family:var(--font-b);letter-spacing:0.05em">clear</button>
+    </div>
+    <div class="log-body" id="log">
+      <span class="dim">Waiting for launcher server…</span>
+    </div>
+  </div>
+
+  <div style="margin-top:1.25rem">
+    <div class="info-box">
+      <strong>How to use:</strong> Run <code>py launcher_server.py</code> in a terminal in your project folder.
+      It opens this page automatically at <code>http://localhost:8780</code> — always open it this way, not by double-clicking the file.
+    </div>
+    <div class="info-box">
+      <strong>📱 From your phone:</strong> The daily briefing arrives at 5:30am AEST. Tap <strong>📋</strong> on any action card to add it to Microsoft To Do. No PC needed for this.
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+const SERVER = 'http://localhost:8780';
+let pollTimer   = null;
+let lastLogTime = 0;
+let isRunning   = false;
+let serverOk    = false;
+
+// ── POLLING ────────────────────────────────────────────────────────────────
+
+async function pollLog() {
+  try {
+    const r = await fetch(`${SERVER}/log?since=${lastLogTime}`, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return;
+    const d = await r.json();
+
+    // Render new lines
+    if (d.lines && d.lines.length) {
+      const el = document.getElementById('log');
+      d.lines.forEach(l => {
+        const span = document.createElement('span');
+        span.className = l.level || '';
+        span.textContent = l.text;
+        el.appendChild(span);
+        el.appendChild(document.createTextNode('\n'));
+        lastLogTime = Math.max(lastLogTime, l.t);
+      });
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // Sync running state
+    if (isRunning !== d.running) {
+      isRunning = d.running;
+      updateButtons();
+      if (!d.running) setStatus('ok', 'Ready');
+    }
+
+    if (!serverOk) {
+      serverOk = true;
+      document.getElementById('server-banner').style.display = 'none';
+      setStatus('ok', 'Ready');
+    }
+  } catch(e) {
+    if (serverOk) {
+      serverOk = false;
+      setStatus('error', 'Server not running');
+      document.getElementById('server-banner').style.display = 'block';
+    }
+  }
+}
+
+// Start polling every 800ms
+pollTimer = setInterval(pollLog, 800);
+
+// ── RUN COMMAND ────────────────────────────────────────────────────────────
+
+async function run(key) {
+  if (isRunning) { showToast('A command is already running'); return; }
+  if (!serverOk) { showToast('Start launcher_server.py first'); return; }
+
+  try {
+    const r = await fetch(`${SERVER}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmd: key }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      isRunning = true;
+      updateButtons();
+      setStatus('busy', 'Running…');
+    } else {
+      showToast(d.error || 'Could not start command');
+    }
+  } catch(e) {
+    showToast('Cannot reach server — is launcher_server.py running?');
+  }
+}
+
+// ── UI HELPERS ─────────────────────────────────────────────────────────────
+
+const BTN_IDS = ['briefing','review','scheduler','preview','rules','token'];
+
+function updateButtons() {
+  BTN_IDS.forEach(id => {
+    const btn = document.getElementById('btn-' + id);
+    if (!btn) return;
+    btn.disabled = isRunning;
+    btn.classList.toggle('busy', isRunning && btn.classList.contains('running-active'));
+  });
+}
+
+function setStatus(type, msg) {
+  document.getElementById('sd').className = 'status-dot ' + type;
+  document.getElementById('st').textContent = msg;
+}
+
+function clearLog() {
+  const el = document.getElementById('log');
+  el.innerHTML = '<span class="dim">Log cleared.</span>\n';
+  lastLogTime = Date.now() / 1000;  // skip anything already shown
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
