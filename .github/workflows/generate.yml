@@ -2,7 +2,9 @@ name: Generate Morning Briefing
 
 on:
   schedule:
-    - cron: '30 19 * * *'
+    # 3:00 AM AEST (UTC+10) = 5:00 PM UTC (previous day)
+    # Runs Sunday–Thursday UTC = Monday–Friday AEST
+    - cron: '0 17 * * 0-4'
   workflow_dispatch:
     inputs:
       reason:
@@ -19,67 +21,103 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
 
+      # ── 2. Python ──────────────────────────────────────────────────────────
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: '3.12'
           cache: 'pip'
 
+      # ── 3. Dependencies ────────────────────────────────────────────────────
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install \
+            anthropic \
+            feedparser \
+            requests \
+            msal \
+            yfinance \
+            python-dotenv
 
+      # ── 4. Restore Outlook token ───────────────────────────────────────────
+      # Uses Python to write the token — bash echo corrupts multi-line JSON
       - name: Restore Outlook token
         env:
           OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
         run: |
-          python3 << 'PYEOF'
+          python3 - <<'PYEOF'
           import os, json, sys
-          raw = os.environ.get('OUTLOOK_TOKEN_CACHE', '')
+          raw = os.environ.get("OUTLOOK_TOKEN_CACHE", "")
           if not raw:
-              print('OUTLOOK_TOKEN_CACHE not set — skipping')
+              print("WARNING: OUTLOOK_TOKEN_CACHE not set — Outlook features skipped")
               sys.exit(0)
           try:
               parsed = json.loads(raw)
-              with open('.outlook_token_cache.bin', 'w') as f:
+              with open(".outlook_token_cache.bin", "w", encoding="utf-8") as f:
                   json.dump(parsed, f)
-              print('Token written OK — ' + str(len(raw)) + ' chars')
-          except Exception as e:
-              print('JSON error: ' + str(e) + ' — writing raw')
-              with open('.outlook_token_cache.bin', 'w') as f:
+              print("OK: Outlook token cache restored")
+          except json.JSONDecodeError:
+              with open(".outlook_token_cache.bin", "w", encoding="utf-8") as f:
                   f.write(raw)
+              print("OK: Outlook token cache restored (plain text format)")
           PYEOF
 
+      # ── 5. Restore Google token ────────────────────────────────────────────
+      - name: Restore Google token
+        env:
+          GOOGLE_TOKEN_CACHE: ${{ secrets.GOOGLE_TOKEN_CACHE }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, json, sys
+          raw = os.environ.get("GOOGLE_TOKEN_CACHE", "")
+          if not raw:
+              print("INFO: GOOGLE_TOKEN_CACHE not set — Gmail/Google Calendar skipped")
+              sys.exit(0)
+          try:
+              parsed = json.loads(raw)
+              with open(".google_token_cache.json", "w", encoding="utf-8") as f:
+                  json.dump(parsed, f)
+              print("OK: Google token cache restored")
+          except json.JSONDecodeError:
+              with open(".google_token_cache.json", "w", encoding="utf-8") as f:
+                  f.write(raw)
+              print("OK: Google token cache restored (plain text format)")
+          PYEOF
+
+      # ── 6. Restore Gmail actions ───────────────────────────────────────────
+      # gmail_actions.json is committed to the repo and updated via Claude.ai
+      # Nothing to restore here — it's already checked out with the repo
+
+      # ── 7. Run briefing generator ──────────────────────────────────────────
       - name: Generate briefing
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
-          OUTLOOK_TENANT_ID: ${{ secrets.OUTLOOK_TENANT_ID }}
-          BRIEFING_EMAIL_TO: ${{ secrets.BRIEFING_EMAIL_TO }}
+          CI: "true"
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          OUTLOOK_CLIENT_ID:    ${{ secrets.OUTLOOK_CLIENT_ID }}
+          OUTLOOK_TENANT_ID:    ${{ secrets.OUTLOOK_TENANT_ID }}
+          BRIEFING_EMAIL_TO:    ${{ secrets.BRIEFING_EMAIL_TO }}
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
-          BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
+          BRIEFING_PASSWORD:    ${{ secrets.BRIEFING_PASSWORD }}
+          GMAIL_MCP_ENABLED:    ${{ secrets.GMAIL_MCP_ENABLED }}
         run: python briefing.py
 
-      - name: Wrap with password and publish
+      # ── 8. Wrap output with password protection ────────────────────────────
+      - name: Wrap with password
         env:
           BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
-        run: |
-          OUTPUT=$(ls -td output/*/ 2>/dev/null | head -1)
-          if [ -z "$OUTPUT" ]; then
-            echo "No output folder found"
-            exit 1
-          fi
-          echo "Output folder: $OUTPUT"
-          python wrap_password.py "${OUTPUT}briefing.html" docs/index.html "$BRIEFING_PASSWORD"
-          touch docs/.nojekyll
-          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M UTC')" > docs/last_run.txt
+        run: python wrap_password.py
 
+      # ── 9. Deploy to GitHub Pages ──────────────────────────────────────────
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          publish_dir:  ./output
           publish_branch: gh-pages
           force_orphan: true
