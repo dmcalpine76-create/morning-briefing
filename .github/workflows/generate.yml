@@ -111,7 +111,17 @@ jobs:
       - name: Wrap with password
         env:
           BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
-        run: python wrap_password.py
+        run: |
+          # Find today's briefing HTML in the output folder
+          OUTPUT_DIR=$(ls -td output/*/  2>/dev/null | head -1)
+          if [ -z "$OUTPUT_DIR" ]; then
+            echo "ERROR: No output folder found"
+            exit 1
+          fi
+          echo "Output folder: $OUTPUT_DIR"
+          # Wrap the briefing with password protection
+          python wrap_password.py "${OUTPUT_DIR}briefing.html" "${OUTPUT_DIR}index.html" "$BRIEFING_PASSWORD"
+          echo "Password wrap complete"
 
       # ── 9. Deploy to GitHub Pages ──────────────────────────────────────────
       - name: Deploy to GitHub Pages
