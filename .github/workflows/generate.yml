@@ -122,7 +122,9 @@ jobs:
           echo "Output folder: $OUTPUT_DIR"
           # Wrap the briefing with password protection
           python wrap_password.py "${OUTPUT_DIR}briefing.html" "${OUTPUT_DIR}index.html" "$BRIEFING_PASSWORD"
-          echo "Password wrap complete"
+          # Copy index.html to output root so GitHub Pages serves it at the base URL
+          cp "${OUTPUT_DIR}index.html" output/index.html
+          echo "Password wrap complete — index.html at output root"
 
       # ── 9. Deploy to GitHub Pages ──────────────────────────────────────────
       - name: Deploy to GitHub Pages
