@@ -1,40 +1,54 @@
 {
-  "generated_at": "2026-04-27T20:00:00.565747",
+  "generated_at": "2026-04-30T21:20:15.220128",
   "actions": [
     {
-      "action": "Reply to 74 Glenlyon Drive security quote \u2014 confirm go-ahead with Emma",
-      "context": "Turner's CD sent $6,754 security quote. You said 'high but not out of market' and asked about glass break sensors. Emma replied she's happy to spend the money \u2014 need to confirm with agent to proceed",
+      "action": "Pay Biju Interiors invoice INV-0057 \u2014 Emma forwarded as overdue",
+      "context": "Emma forwarded overdue invoice reminder from Biju Interiors via Xero \u2014 needs payment or follow-up",
+      "priority": "urgent",
+      "deadline": "overdue",
+      "from_email": "emma.selwood8@gmail.com"
+    },
+    {
+      "action": "Approve Turner's CD progress claim PC-01092 for roof install stage",
+      "context": "Kye Dalzell sent progress claim for roof install stage at 74 Glenlyon Drive \u2014 review and approve payment",
       "priority": "high",
       "deadline": "",
       "from_email": "kye@turnerscd.com"
     },
     {
-      "action": "Handle Enoggera routine inspection \u2014 Emma can't attend, arrange access or attend yourself",
-      "context": "Emma forwarded Keith Brady Real Estate routine inspection notice for 100 Edith St, Enoggera and said 'Crap, I can't do this' \u2014 needs someone to arrange access or attend",
+      "action": "Respond to Louise re Horizon \u2014 provide sales agent names",
+      "context": "Louise (VroomVroomVroom) asked Mike Boyd (cc'd you) for names of suitable sales consultants \u2014 you are cc'd and may need to contribute names",
       "priority": "high",
       "deadline": "",
-      "from_email": "emma.selwood8@gmail.com"
+      "from_email": "louise@vroomvroomvroom.com.au"
     },
     {
-      "action": "Review Cascades strata quotes and respond on 5-year water penetration issue at No 7",
-      "context": "Mrs Balderstone (No 7) forwarded strata management quotes to all owners and flagged 5 years of unresolved rain penetration on southern wall \u2014 owners committee response needed",
+      "action": "Follow up Shareholders Meeting discussion with Peter \u2014 decide on Chris / 80% sale",
+      "context": "Peter suggested selling your 80% to Chris after disappointing shareholder meeting \u2014 thread unresolved, call or reply needed",
       "priority": "high",
       "deadline": "",
-      "from_email": "cascades720@gmail.com"
+      "from_email": "pthorn33@gmail.com"
     },
     {
-      "action": "Review Villanova Mothers Night and Sports Lunch \u2014 buy tickets or decline",
-      "context": "Villanova College sent reminder about upcoming Mothers Night and Sports Lunch events \u2014 ticket purchase decision needed",
+      "action": "Note Keats garage door repair rescheduled \u2014 painting now 6 May 2026",
+      "context": "Capitol BCA updated Keats CTS 3589 notice \u2014 door frame replacement postponed, painting added for 6 May. You forwarded to mcalpchan already.",
       "priority": "normal",
-      "deadline": "",
-      "from_email": "villa@vnc.qld.edu.au"
+      "deadline": "6 May 2026",
+      "from_email": "merusha.allan@capitolbca.com.au"
     },
     {
-      "action": "Note son's football training schedule for remainder of season",
-      "context": "Villanova football coach sent season schedule \u2014 Mon 3:45\u20135:15pm training, Wed 3:45\u20134:30pm training at Villa Park",
+      "action": "Register son for Villanova Basketball Academy Term 2",
+      "context": "Villanova sent reminder to register for Term 2 basketball academy program",
       "priority": "normal",
       "deadline": "",
-      "from_email": "bec.bailey@vnc.qld.edu.au"
+      "from_email": "sharon.casey@vnc.qld.edu.au"
+    },
+    {
+      "action": "Review Lincoln's 10 Literature reflection \u2014 24/25 result",
+      "context": "Paula Cattoni-Henry sent Lincoln's reflection based on his 10 Literature Instrument 1 result of 24/25 \u2014 parent follow-up",
+      "priority": "normal",
+      "deadline": "",
+      "from_email": "phenry@vnc.qld.edu.au"
     }
   ]
 }
