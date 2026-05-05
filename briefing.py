@@ -2568,14 +2568,38 @@ def main():
         print("\n📬  Fetching Outlook email analysis…")
         email_analysis = _outlook.get_email_analysis(client)
 
-    # ── Gmail actions (read from gmail_actions.json written by Claude.ai session) ──
+    # ── Gmail actions via MCP (if configured) or from cached gmail_actions.json ──
     gmail_analysis = {}
     if _GMAIL_AVAILABLE:
-        gmail_analysis = _gmail.get_gmail_analysis()
-        if gmail_analysis.get("error"):
-            print(f"   📬  Gmail: {gmail_analysis['error']}")
+        # Try live MCP fetch first (works when GMAIL_REFRESH_TOKEN is set)
+        if os.environ.get("GMAIL_REFRESH_TOKEN") and os.environ.get("GMAIL_CLIENT_ID"):
+            print("\n  Fetching Gmail actions via MCP…")
+            try:
+                gmail_analysis = _gmail.get_gmail_analysis(client)
+                if gmail_analysis.get("error"):
+                    print(f"   ⚠️  Gmail MCP: {gmail_analysis['error']}")
+                    gmail_analysis = _gmail.get_gmail_analysis()  # fall back to cached file
+                else:
+                    n = len(gmail_analysis.get('actions', []))
+                    print(f"   ✓ Gmail: {n} actions found via MCP")
+                    # Save fresh results to gmail_actions.json for caching
+                    import json as _gjson
+                    _gjson_path = Path(__file__).parent / "gmail_actions.json"
+                    _gjson_path.write_text(_gjson.dumps({
+                        "generated_at": generated.isoformat(),
+                        "actions": gmail_analysis.get("actions", []),
+                    }, indent=2), encoding="utf-8")
+            except Exception as _ge:
+                print(f"   ⚠️  Gmail MCP error: {_ge}")
+                gmail_analysis = _gmail.get_gmail_analysis()  # fall back to cached
         else:
-            print(f"   ✓ Gmail: {len(gmail_analysis.get('actions', []))} actions loaded from gmail_actions.json")
+            # No refresh token — read from cached gmail_actions.json
+            gmail_analysis = _gmail.get_gmail_analysis()
+            if gmail_analysis.get("error"):
+                print(f"   Gmail: {gmail_analysis['error']}")
+            else:
+                n = len(gmail_analysis.get('actions', []))
+                print(f"   ✓ Gmail: {n} actions loaded from gmail_actions.json")
 
     # ── Gmail actions analysis ──
 
