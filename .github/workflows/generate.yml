@@ -105,7 +105,9 @@ jobs:
           BRIEFING_EMAIL_TO:    ${{ secrets.BRIEFING_EMAIL_TO }}
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
           BRIEFING_PASSWORD:    ${{ secrets.BRIEFING_PASSWORD }}
-          GMAIL_MCP_ENABLED:    ${{ secrets.GMAIL_MCP_ENABLED }}
+          GMAIL_CLIENT_ID:      ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET:  ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN:  ${{ secrets.GMAIL_REFRESH_TOKEN }}
         run: python briefing.py
 
       # ── 8. Wrap output with password protection ────────────────────────────
@@ -126,7 +128,16 @@ jobs:
           cp "${OUTPUT_DIR}index.html" output/index.html
           echo "Password wrap complete — index.html at output root"
 
-      # ── 9. Deploy to GitHub Pages ──────────────────────────────────────────
+      # ── 9. Commit updated gmail_actions.json back to main ────────────────────
+      - name: Commit Gmail actions
+        run: |
+          git config user.name "Morning Briefing Bot"
+          git config user.email "actions@github.com"
+          git add gmail_actions.json || true
+          git diff --staged --quiet || git commit -m "Auto-refresh Gmail actions [skip ci]"
+          git push origin main || true
+
+      # ── 10. Deploy to GitHub Pages ──────────────────────────────────────────
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
