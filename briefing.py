@@ -51,6 +51,13 @@ except ImportError:
     SCHEDULER_ENABLED = False
 
 try:
+    import asx_announcements as _asx_ann
+    _ASX_ANN_AVAILABLE = True
+except ImportError:
+    _asx_ann = None
+    _ASX_ANN_AVAILABLE = False
+
+try:
     import gmail_email as _gmail
     _GMAIL_AVAILABLE = True
 except ImportError:
@@ -850,7 +857,7 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 </div>"""
 
 
-def _build_email_tab(analysis: dict, gmail_analysis: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
+def _build_email_tab(analysis: dict, gmail_analysis: dict = None, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
     """
     Build the Work Actions email tab.
     Two columns: Priority Digest (read-only) | Actions for Today (checkboxes + Push).
@@ -982,6 +989,44 @@ def _build_email_tab(analysis: dict, gmail_analysis: dict = None, graph_token_js
         )
     )
 
+    # ── ASX Announcements column ─────────────────────────────────────────────
+    _asx_announcements = (asx_ann_data or {}).get("announcements", [])
+    _asx_error         = (asx_ann_data or {}).get("error", "")
+    _asx_gen           = (asx_ann_data or {}).get("generated_at", "")
+    asx_ann_html = ""
+    for ann in _asx_announcements:
+        ticker   = ann.get("ticker", "")
+        company  = ann.get("company", "")
+        headline = ann.get("headline", "")
+        summary  = ann.get("summary", "")
+        is_ps    = ann.get("is_price_sensitive", False)
+        ps_badge = ('<span class="badge badge-critical">\u26a1 Price Sensitive</span>' if is_ps else
+                    '<span class="badge badge-notable">\u25e6 Announcement</span>')
+        ann_url  = f"https://www.asx.com.au/markets/company/{ticker}"
+        asx_ann_html += (
+            f'<div class="ep-card">'
+            f'<div class="ep-meta">{ps_badge}'
+            f'<span class="ep-folder-tag">{_html.escape(ticker)}</span></div>'
+            f'<div class="ep-from">{_html.escape(company)}</div>'
+            f'<div class="ep-subject"><a href="{ann_url}" target="_blank" rel="noopener" '
+            f'style="color:var(--ink);text-decoration:none">{_html.escape(headline)}</a></div>'
+            f'<div class="ep-summary">{_html.escape(summary)}</div>'
+            f'</div>'
+        )
+    if not asx_ann_html:
+        if _asx_error:
+            asx_ann_html = f'<p class="ep-empty" style="font-style:italic;color:var(--ink-light)">{_html.escape(_asx_error)}</p>'
+        else:
+            asx_ann_html = '<p class="ep-empty">No announcements in the last 24 hours.</p>'
+    _asx_ts = ""
+    if _asx_gen:
+        try:
+            import datetime as _dt2
+            _gen_dt = _dt2.datetime.fromisoformat(_asx_gen)
+            _asx_ts = f' <span style="font-size:0.55rem;font-weight:400;color:var(--ink-light)">as at {_gen_dt.strftime("%H:%M")}</span>'
+        except Exception:
+            pass
+
     return f"""
 <!-- Task data for To Do push -->
 <script>
@@ -1013,6 +1058,13 @@ const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
         </div>
         {gmail_body}
     </section>
+    <section>
+        <div class="ep-panel-title">
+            \U0001f4ca ASX Announcements{_asx_ts}
+            <span class="ep-count">{len(_asx_announcements)}</span>
+        </div>
+        {asx_ann_html}
+    </section>
 </div>
 
 <!-- ── Sticky To Do push footer ── -->
@@ -1028,7 +1080,7 @@ const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
 </div>"""
 
 def generate_html(sections: dict, generated_at: datetime.datetime,
-                   active_topics=None, email_analysis=None, gmail_analysis=None, market_data=None,
+                   active_topics=None, email_analysis=None, gmail_analysis=None, asx_ann_data=None, market_data=None,
                    topic_stories=None, asx_data=None, weather_data=None,
                    sunshine_data=None, gas_data=None, hh_gas_data=None,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None) -> str:
@@ -1057,7 +1109,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     _lid = todo_list_id or ""
     _lid_encoded = _b64.b64encode(_lid.encode()).decode() if _lid else ""
     todo_list_id_js = _json2.dumps(_lid_encoded)
-    email_tab_html  = _build_email_tab(email_analysis or {}, gmail_analysis=gmail_analysis or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js)
+    email_tab_html  = _build_email_tab(email_analysis or {}, gmail_analysis=gmail_analysis or {}, asx_ann_data=asx_ann_data or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js)
     # Calendar tab — built from pre-fetched calendar_data dict
     _cal = calendar_data or {}
     calendar_tab_html = _cal.get("_html", "") if _cal else ""
@@ -2601,6 +2653,17 @@ def main():
                 n = len(gmail_analysis.get('actions', []))
                 print(f"   ✓ Gmail: {n} actions loaded from gmail_actions.json")
 
+    # ── ASX announcements for watchlist tickers ──────────────────────────────
+    asx_ann_data = {"announcements": []}
+    if _ASX_ANN_AVAILABLE:
+        print("\n  Fetching ASX announcements…")
+        try:
+            asx_ann_data = _asx_ann.get_asx_announcements(client)
+            if asx_ann_data.get("error"):
+                print(f"   ⚠️  ASX announcements: {asx_ann_data['error']}")
+        except Exception as _ae:
+            print(f"   ⚠️  ASX announcements error: {_ae}")
+
     # ── Gmail actions analysis ──
 
 
@@ -2760,7 +2823,7 @@ def main():
             pass
 
     html = generate_html(all_sections, generated, active_topics, email_analysis,
-                         gmail_analysis, market_data, all_topic_stories, asx_data,
+                         gmail_analysis, asx_ann_data, market_data, all_topic_stories, asx_data,
                          weather_data, sunshine_data, gas_data, hh_gas_data,
                          calendar_data=calendar_data,
                          schedule_result=schedule_result,
