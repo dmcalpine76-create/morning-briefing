@@ -1,5 +1,5 @@
 {
-  "_comment": "Watch topics for Morning Briefing. Edit here or via settings dashboard.",
+  "_comment": "Your personal watch topics. Edit directly or use: python manage_topics.py",
   "topics": [
     {
       "id": "artificial-intelligence",
@@ -91,40 +91,40 @@
       "active": true
     },
     {
-      "id": "adam-robert-smith",
-      "name": "Ben Roberts-Smith",
-      "emoji": "📌",
+      "id": "world-cup-2026",
+      "name": "World Cup 2026",
+      "emoji": "sport",
       "color": "#1a3a5c",
       "keywords": [
-        "Ben Roberts-Smith"
+        "world cup 2026"
       ],
       "notes": "",
-      "active": true,
-      "added": "2026-04-09"
+      "added": "2026-06-15",
+      "active": true
     },
     {
-      "id": "taroom-trough",
-      "name": "Taroom Trough",
-      "emoji": "📌",
-      "color": "#1a3a5c",
+      "id": "space-x-ipo",
+      "name": "Space X IPO",
+      "emoji": "technology",
+      "color": "#3a1a4a",
       "keywords": [
-        "taroom trough"
+        "space x ipo"
       ],
       "notes": "",
-      "active": true,
-      "added": "2026-04-09"
+      "added": "2026-06-15",
+      "active": true
     },
     {
-      "id": "brisbane-broncos",
-      "name": "Brisbane Broncos",
-      "emoji": "📌",
-      "color": "#1a3a5c",
+      "id": "domestic-gas-update",
+      "name": "Domestic Gas Update",
+      "emoji": "Commodities",
+      "color": "#4a2a1a",
       "keywords": [
-        "brisbane broncos"
+        "domestic gas update"
       ],
       "notes": "",
-      "active": true,
-      "added": "2026-04-14"
+      "added": "2026-06-15",
+      "active": true
     }
   ]
 }
