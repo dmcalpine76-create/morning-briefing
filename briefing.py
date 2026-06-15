@@ -57,12 +57,6 @@ except ImportError:
     _asx_ann = None
     _ASX_ANN_AVAILABLE = False
 
-try:
-    import gmail_email as _gmail
-    _GMAIL_AVAILABLE = True
-except ImportError:
-    _gmail = None
-    _GMAIL_AVAILABLE = False
 
 
 
@@ -857,7 +851,7 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 </div>"""
 
 
-def _build_email_tab(analysis: dict, gmail_analysis: dict = None, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
+def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
     """
     Build the Work Actions email tab.
     Two columns: Priority Digest (read-only) | Actions for Today (checkboxes + Push).
@@ -890,6 +884,7 @@ def _build_email_tab(analysis: dict, gmail_analysis: dict = None, asx_ann_data: 
             "detail":   item.get("context", ""),
             "due":      datetime.date.today().isoformat(),
             "priority": item.get("priority", "normal"),
+            "web_link": item.get("web_link", ""),
         })
     for i, item in enumerate(_gmail_actions):
         task_data.append({
@@ -931,9 +926,16 @@ def _build_email_tab(analysis: dict, gmail_analysis: dict = None, asx_ann_data: 
         deadline = item.get("deadline", "")
         dl_tag   = f'<span class="ep-deadline">⏰ {deadline}</span>' if deadline else ""
         ref      = item.get("from_email", "")
+        web_link = item.get("web_link", "")
         tid      = f"action_{i}"
         title    = item.get("action", "")
         detail   = item.get("context", "")
+        # Email source link — opens original email in Outlook Web App
+        src_link = (
+            f'<a href="{_html.escape(web_link)}" target="_blank" rel="noopener" '
+            f'class="ep-email-link" title="Open source email">✉ View email</a>'
+            if web_link else ""
+        )
         actions_html += f"""
         <div class="ep-todo-card" id="card-{tid}">
             <label class="ep-todo-check">
@@ -942,52 +944,19 @@ def _build_email_tab(analysis: dict, gmail_analysis: dict = None, asx_ann_data: 
             <div class="ep-todo-body">
                 <div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>
                 <div class="ep-action-context">{_html.escape(detail)}</div>
-                {f'<div class="ep-action-ref">Re: {_html.escape(ref)}</div>' if ref else ""}
+                {f'<div class="ep-action-ref">Re: {_html.escape(ref)} {src_link}</div>' if ref else ""}
             </div>
             <div class="ep-todo-result" id="result-{tid}"></div>
         </div>"""
 
-    if not digest and not actions and not _gmail_actions:
+    if not digest and not actions:
         return f'<div style="padding:3rem;text-align:center;color:#888">{empty_msg}</div>'
 
     sel_actions_btn = (
         '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'action\',this.checked)"> '
         'Select all</label>'
     ) if actions else ""
-    sel_gmail_btn = (
-        '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'gmail\',this.checked)"> '
-        'Select all</label>'
-    ) if _gmail_actions else ""
 
-    # Gmail action cards
-    _gmail_error = (gmail_analysis or {}).get("error", "")
-    gmail_html = ""
-    for i, item in enumerate(_gmail_actions):
-        badge    = URGENCY_BADGE.get(item.get("priority", "normal"), URGENCY_BADGE["normal"])
-        deadline = item.get("deadline", "")
-        dl_tag   = f'<span class="ep-deadline">{deadline}</span>' if deadline else ""
-        ref      = item.get("from_email", "")
-        tid      = f"gmail_{i}"
-        title    = item.get("action", "")
-        detail   = item.get("context", "")
-        gmail_html += (
-            f'<div class="ep-todo-card" id="card-{tid}">'
-            f'<label class="ep-todo-check">'
-            f'<input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()"></label>'
-            f'<div class="ep-todo-body">'
-            f'<div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>'
-            f'<div class="ep-action-context">{_html.escape(detail)}</div>'
-            + (f'<div class="ep-action-ref">Re: {_html.escape(ref)}</div>' if ref else '')
-            + f'</div><div class="ep-todo-result" id="result-{tid}"></div></div>'
-        )
-
-    gmail_body = (
-        gmail_html if gmail_html else (
-            f'<p class="ep-empty" style="color:var(--ink-light);font-style:italic">{_gmail_error}</p>'
-            if _gmail_error else
-            '<p class="ep-empty">No Gmail actions found.</p>'
-        )
-    )
 
     # ── ASX Announcements column ─────────────────────────────────────────────
     _asx_announcements = (asx_ann_data or {}).get("announcements", [])
@@ -1052,14 +1021,6 @@ const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
     </section>
     <section>
         <div class="ep-panel-title">
-            \U0001f4ec Gmail Actions
-            <span class="ep-count">{len(_gmail_actions)}</span>
-            {sel_gmail_btn}
-        </div>
-        {gmail_body}
-    </section>
-    <section>
-        <div class="ep-panel-title">
             \U0001f4ca ASX Announcements{_asx_ts}
             <span class="ep-count">{len(_asx_announcements)}</span>
         </div>
@@ -1080,7 +1041,7 @@ const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
 </div>"""
 
 def generate_html(sections: dict, generated_at: datetime.datetime,
-                   active_topics=None, email_analysis=None, gmail_analysis=None, asx_ann_data=None, market_data=None,
+                   active_topics=None, email_analysis=None, asx_ann_data=None, market_data=None,
                    topic_stories=None, asx_data=None, weather_data=None,
                    sunshine_data=None, gas_data=None, hh_gas_data=None,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None) -> str:
@@ -1096,7 +1057,6 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     weather_html   = weather_bar_html(weather_data or [], sunshine_data or [], gas_data or {}, hh_gas_data or {})
     email_count    = len((email_analysis or {}).get('digest', []))
     action_count   = len((email_analysis or {}).get('actions', []))
-    gmail_count    = len((gmail_analysis or {}).get('actions', []))
     # Embed Graph token for direct mobile push (token is short-lived ~1hr)
     import json as _json2
     # Base64-encode token before embedding to avoid GitHub secret scanning
@@ -1109,7 +1069,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     _lid = todo_list_id or ""
     _lid_encoded = _b64.b64encode(_lid.encode()).decode() if _lid else ""
     todo_list_id_js = _json2.dumps(_lid_encoded)
-    email_tab_html  = _build_email_tab(email_analysis or {}, gmail_analysis=gmail_analysis or {}, asx_ann_data=asx_ann_data or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js)
+    email_tab_html  = _build_email_tab(email_analysis or {}, asx_ann_data=asx_ann_data or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js)
     # Calendar tab — built from pre-fetched calendar_data dict
     _cal = calendar_data or {}
     calendar_tab_html = _cal.get("_html", "") if _cal else ""
@@ -1308,6 +1268,9 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .ep-person-timing {{ font-size: 0.68rem; font-weight: 700; color: #27ae60; margin-top: 0.25rem; }}
         .ep-person-context {{ font-size: 0.65rem; color: var(--ink-light); margin-top: 0.15rem; font-style: italic; }}
         .ep-empty {{ font-size: 0.85rem; color: var(--ink-light); padding: 1rem 0; }}
+        .ep-email-link {{ font-size: 0.65rem; font-weight: 700; color: var(--blue, #2980b9);
+            text-decoration: none; margin-left: 0.4rem; opacity: 0.75; }}
+        .ep-email-link:hover {{ opacity: 1; text-decoration: underline; }}
         @media (max-width: 900px) {{ .email-view {{ grid-template-columns: 1fr; }} }}
 
         /* ── TO DO CHECKBOX CARDS ── */
@@ -2620,39 +2583,6 @@ def main():
         print("\n📬  Fetching Outlook email analysis…")
         email_analysis = _outlook.get_email_analysis(client)
 
-    # ── Gmail actions via MCP (if configured) or from cached gmail_actions.json ──
-    gmail_analysis = {}
-    if _GMAIL_AVAILABLE:
-        # Try live MCP fetch first (works when GMAIL_REFRESH_TOKEN is set)
-        if os.environ.get("GMAIL_REFRESH_TOKEN") and os.environ.get("GMAIL_CLIENT_ID"):
-            print("\n  Fetching Gmail actions via MCP…")
-            try:
-                gmail_analysis = _gmail.get_gmail_analysis(client)
-                if gmail_analysis.get("error"):
-                    print(f"   ⚠️  Gmail MCP: {gmail_analysis['error']}")
-                    gmail_analysis = _gmail.get_gmail_analysis()  # fall back to cached file
-                else:
-                    n = len(gmail_analysis.get('actions', []))
-                    print(f"   ✓ Gmail: {n} actions found via MCP")
-                    # Save fresh results to gmail_actions.json for caching
-                    import json as _gjson
-                    _gjson_path = Path(__file__).parent / "gmail_actions.json"
-                    _gjson_path.write_text(_gjson.dumps({
-                        "generated_at": generated.isoformat(),
-                        "actions": gmail_analysis.get("actions", []),
-                    }, indent=2), encoding="utf-8")
-            except Exception as _ge:
-                print(f"   ⚠️  Gmail MCP error: {_ge}")
-                gmail_analysis = _gmail.get_gmail_analysis()  # fall back to cached
-        else:
-            # No refresh token — read from cached gmail_actions.json
-            gmail_analysis = _gmail.get_gmail_analysis()
-            if gmail_analysis.get("error"):
-                print(f"   Gmail: {gmail_analysis['error']}")
-            else:
-                n = len(gmail_analysis.get('actions', []))
-                print(f"   ✓ Gmail: {n} actions loaded from gmail_actions.json")
-
     # ── ASX announcements for watchlist tickers ──────────────────────────────
     asx_ann_data = {"announcements": []}
     if _ASX_ANN_AVAILABLE:
@@ -2823,7 +2753,7 @@ def main():
             pass
 
     html = generate_html(all_sections, generated, active_topics, email_analysis,
-                         gmail_analysis, asx_ann_data, market_data, all_topic_stories, asx_data,
+                         asx_ann_data, market_data, all_topic_stories, asx_data,
                          weather_data, sunshine_data, gas_data, hh_gas_data,
                          calendar_data=calendar_data,
                          schedule_result=schedule_result,

@@ -127,14 +127,16 @@ def get_day_rules(rules: dict, dt: datetime.datetime) -> dict:
 
 # ── FETCH TASKS FROM TO DO ────────────────────────────────────────────────────
 
-def fetch_todo_tasks(token: str, rules: dict) -> list[dict]:
+def fetch_todo_tasks(token: str, rules: dict, lookback_hours: int = 48) -> list[dict]:
     """
     Fetch tasks from:
       1. The 'Daily Priorities' list
-      2. Any other list with overdue tasks (due date < today)
+      2. Any other list with overdue tasks (due date within lookback_hours of now)
+    lookback_hours: how far back to look for overdue tasks (default 48h)
     Returns list of task dicts with: id, title, body, due_date, priority, list_name, is_overdue
     """
-    today = datetime.date.today()
+    today     = datetime.date.today()
+    lookback_cutoff = datetime.date.today() - datetime.timedelta(hours=lookback_hours)
     tasks = []
     seen_ids = set()
 
@@ -178,7 +180,7 @@ def fetch_todo_tasks(token: str, rules: dict) -> list[dict]:
                 except Exception:
                     pass
 
-            is_overdue = due_date and due_date < today
+            is_overdue = due_date and lookback_cutoff <= due_date < today
 
             # Include if: in Daily Priorities list, OR overdue in any list
             if not is_priority and not is_overdue:
@@ -902,6 +904,188 @@ def run_scheduler(
 
 # ── DASHBOARD SERVER ─────────────────────────────────────────────────────────
 
+
+def ai_schedule_tasks_with_durations(
+    tasks: list[dict],
+    slots: list[dict],
+    rules: dict,
+    api_key: str,
+) -> list[dict]:
+    """
+    Schedule tasks using USER-SPECIFIED durations instead of AI estimates.
+    The AI still picks the best slot and time, but honours the exact duration
+    the user set for each task.
+    """
+    if not _ANTHROPIC_AVAILABLE or not tasks or not slots:
+        return []
+
+    global_rules = rules.get("global", {})
+    scheduling   = rules.get("scheduling", {})
+    cal_blocks   = rules.get("calendar_blocks", {})
+    max_hours    = global_rules.get("max_hours", 3)
+    max_blocks   = global_rules.get("max_blocks", 4)
+    extra_instr  = scheduling.get("extra_instructions", "")
+
+    # Build task lines — include user-set duration explicitly
+    task_lines = "\n".join(
+        f"[{i+1}] {t['title']}"
+        + (f" (OVERDUE — due {t['due_date']})" if t["is_overdue"] else
+           f" (due {t['due_date']})" if t["due_date"] else "")
+        + f"\n    Duration: EXACTLY {t['user_duration_mins']} minutes (set by user — do not change)"
+        + f"\n    Priority: {t['priority']}"
+        + (f"\n    Notes: {t['body']}" if t.get("body") else "")
+        for i, t in enumerate(tasks[:20])
+    )
+
+    slot_lines = "\n".join(
+        f"[S{i+1}] {s['date']} {s['start_dt'].strftime('%H:%M')}–{s['end_dt'].strftime('%H:%M')} "
+        f"({s['duration_mins']}min available, {s['slot_type'].replace('_', ' ')}, Week {s['week']})"
+        for i, s in enumerate(slots[:40])
+    )
+
+    prompt = f"""You are a professional diary scheduler for Doug McAlpine, State Gas, Brisbane (AEST).
+
+SCHEDULING RULES:
+- Hard start: 09:00, Hard stop: 16:00 every day
+- Deep work (contracts, documents, financial, regulatory): 09:00–12:00
+- Admin/calls/emails: 12:00–16:00
+- Max {max_hours} hours of task blocks per day, max {max_blocks} blocks per day
+- Snap all tasks to start on the hour or half-hour
+- Overdue tasks must be scheduled TODAY or TOMORROW at latest
+- High priority tasks scheduled before normal priority tasks
+- IMPORTANT: Use EXACTLY the duration specified for each task — the user has set these
+{f'- {extra_instr}' if extra_instr else ''}
+
+AVAILABLE SLOTS:
+{slot_lines}
+
+TASKS TO SCHEDULE:
+{task_lines}
+
+Rules for slot selection:
+1. The task duration MUST fit within the slot's available time
+2. Match deep work tasks to morning slots (deep work), admin to afternoon slots
+3. Do not schedule more than {max_hours}h total per day
+
+Respond ONLY as JSON:
+{{
+  "schedule": [
+    {{
+      "task_index": 1,
+      "slot_index": "S1",
+      "estimated_mins": 60,
+      "reason": "one sentence why this slot works"
+    }}
+  ],
+  "unscheduled": [
+    {{
+      "task_index": 2,
+      "reason": "why it could not be scheduled"
+    }}
+  ]
+}}"""
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        resp   = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        raw = resp.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        data = json.loads(raw)
+    except Exception as e:
+        print(f"  ⚠️  AI scheduling error: {e}")
+        return []
+
+    prefix  = cal_blocks.get("block_prefix", "🎯 ")
+    results = []
+
+    for item in data.get("schedule", []):
+        try:
+            t_idx = int(item["task_index"]) - 1
+            s_idx = int(item["slot_index"][1:]) - 1
+            task  = tasks[t_idx]
+            slot  = slots[s_idx]
+
+            # Use user-specified duration — not AI estimate
+            est = task["user_duration_mins"]
+            est = min(est, slot["duration_mins"])  # can't exceed slot
+            est = max(15, round(est / 15) * 15)    # snap to 15min
+
+            end_dt = slot["start_dt"] + datetime.timedelta(minutes=est)
+
+            results.append({
+                "task":           task,
+                "slot":           slot,
+                "estimated_mins": est,
+                "start_dt":       slot["start_dt"],
+                "end_dt":         end_dt,
+                "title":          f"{prefix}{task['title']}",
+                "description":    _build_event_body(task, cal_blocks),
+                "reason":         item.get("reason", ""),
+            })
+        except (IndexError, KeyError, ValueError):
+            continue
+
+    return results
+
+
+def _auto_describe_task(title: str, body: str, due: str, overdue: bool,
+                         list_name: str, api_key: str, web_link: str = "") -> str:
+    """
+    Generate a 1-2 sentence calendar event description using Claude.
+    Falls back to a plain text description if the API call fails.
+    """
+    # If body is already substantial, just format it cleanly
+    parts = []
+    if overdue:
+        parts.append(f"⚠️ OVERDUE (was due {due})")
+    elif due:
+        parts.append(f"Due: {due}")
+    if list_name:
+        parts.append(f"From: {list_name}")
+    if web_link:
+        parts.append(f"Source email: {web_link}")
+
+    if body and len(body.strip()) > 40:
+        # Body is already descriptive — use it directly
+        return body.strip() + ("\n" + "\n".join(parts) if parts else "")
+
+    # Body is sparse or empty — ask Claude to write a description
+    if not _ANTHROPIC_AVAILABLE or not api_key:
+        return (body + "\n" + "\n".join(parts)).strip() if body else "\n".join(parts)
+
+    try:
+        _client = _anthropic.Anthropic(api_key=api_key)
+        context = body.strip() if body else ""
+        prompt = f"""Write a 1-2 sentence calendar event description for this task.
+Be specific and actionable — what needs to happen during this time block.
+
+Task title: {title}
+{f"Context notes: {context}" if context else "No additional context provided."}
+{f"Due: {due}" if due else ""}
+{f"List: {list_name}" if list_name else ""}
+
+Write just the description text, no headings or labels. Max 2 sentences."""
+
+        resp = _client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=120,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        generated = resp.content[0].text.strip()
+        if parts:
+            generated += "\n" + "\n".join(parts)
+        return generated
+    except Exception:
+        # Fallback to plain text
+        return (body + "\n" + "\n".join(parts)).strip() if body else "\n".join(parts)
+
+
+
 def serve_dashboard(api_key: str) -> None:
     """
     Serve the scheduling dashboard on localhost and handle:
@@ -943,18 +1127,22 @@ def serve_dashboard(api_key: str) -> None:
             due       = item.get("task_due", "")
             overdue   = item.get("task_overdue", False)
             list_name = item.get("task_list", "")
+            web_link  = item.get("web_link", "")
 
             prefix    = cal_blocks.get("block_prefix", "🎯 ")
             show_as   = "free" if rules.get("global", {}).get("mark_as_free", True) else cal_blocks.get("block_show_as", "free")
             reminder  = cal_blocks.get("block_reminder", 10)
 
-            # Build description
-            parts = []
-            if body_text:  parts.append(body_text)
-            if overdue:    parts.append(f"⚠️ OVERDUE (was due {due})")
-            elif due:      parts.append(f"Due: {due}")
-            if list_name:  parts.append(f"From: {list_name}")
-            description = "\n".join(parts)
+            # Auto-generate a description using Claude if body is sparse
+            description = _auto_describe_task(
+                title=title,
+                body=body_text,
+                due=due,
+                overdue=overdue,
+                list_name=list_name,
+                web_link=web_link,
+                api_key=api_key,
+            )
 
             # Parse datetime in AEST then convert to UTC for Graph
             dt_local  = _dt.datetime.fromisoformat(f"{date_str}T{time_str}:00").replace(tzinfo=AEST_OFFSET)
@@ -987,7 +1175,30 @@ def serve_dashboard(api_key: str) -> None:
                 if PLAN_FILE.exists():
                     self._serve_json(PLAN_FILE.read_text(encoding="utf-8"))
                 else:
-                    self._serve_json(json.dumps({"error": "No plan file found. Run: py outlook_scheduler.py preview"}))
+                    self._serve_json(json.dumps({"error": "No plan file found."}))
+            elif self.path.startswith("/tasks"):
+                # Return raw tasks for the Task Review step (no scheduling yet)
+                # Optional ?lookback=72 query param to override default 48h lookback
+                from urllib.parse import urlparse, parse_qs
+                _qs = parse_qs(urlparse(self.path).query)
+                _lb = int(_qs.get("lookback", ["48"])[0])
+                try:
+                    raw_tasks = fetch_todo_tasks(token, rules, lookback_hours=_lb)
+                    tasks_out = [
+                        {
+                            "id":        t["id"],
+                            "title":     t["title"],
+                            "body":      t["body"],
+                            "due_date":  t["due_date"],
+                            "priority":  t["priority"],
+                            "list_name": t["list_name"],
+                            "is_overdue": t["is_overdue"],
+                        }
+                        for t in raw_tasks
+                    ]
+                    self._serve_json(json.dumps({"tasks": tasks_out}))
+                except Exception as e:
+                    self._serve_json(json.dumps({"error": str(e)}))
             else:
                 self.send_response(404); self.end_headers()
 
@@ -1000,6 +1211,59 @@ def serve_dashboard(api_key: str) -> None:
                 result = run_scheduler(api_key, dry_run=True, verbose=True)
                 plan_json = PLAN_FILE.read_text(encoding="utf-8") if PLAN_FILE.exists() else json.dumps({})
                 self._serve_json(plan_json)
+
+            elif self.path == "/schedule_with_inputs":
+                # Receive user-reviewed tasks with durations/priorities,
+                # run AI scheduling using those exact values, return plan
+                user_tasks    = payload.get("tasks", [])
+                lookback_hours = int(payload.get("lookback_hours", 48))
+                print(f"\n   🧠  Scheduling {len(user_tasks)} user-reviewed tasks (lookback {lookback_hours}h)…")
+                try:
+                    # Fetch calendar events for slot finding
+                    events = fetch_upcoming_events(token, days=rules.get("global", {}).get("days_ahead", 5) + 1)
+                    slots  = find_free_slots(events, rules, days_ahead=rules.get("global", {}).get("days_ahead", 5))
+                    print(f"   📅  {len(slots)} free slots found")
+
+                    # Build task dicts from user inputs, overriding AI estimates
+                    reviewed_tasks = []
+                    for ut in user_tasks:
+                        reviewed_tasks.append({
+                            "id":         ut["id"],
+                            "title":      ut["title"],
+                            "body":       ut.get("body", ""),
+                            "due_date":   ut.get("due_date"),
+                            "priority":   ut["priority"],
+                            "list_name":  ut.get("list_name", ""),
+                            "is_overdue": ut.get("is_overdue", False),
+                            "list_id":    ut.get("list_id", ""),
+                            # User-specified duration stored for the AI prompt
+                            "user_duration_mins": ut.get("duration_mins", 0),
+                        })
+
+                    # Run AI scheduling — pass user durations via extra instruction
+                    scheduled = ai_schedule_tasks_with_durations(
+                        reviewed_tasks, slots, rules, api_key)
+                    flagged = get_flagged_blocks(events)
+
+                    unscheduled_ids = {s["task"]["id"] for s in scheduled}
+                    unscheduled = [
+                        {"task": t, "reason": "no suitable slot"}
+                        for t in reviewed_tasks if t["id"] not in unscheduled_ids
+                    ]
+
+                    result = {
+                        "scheduled":   scheduled,
+                        "unscheduled": unscheduled,
+                        "flagged":     flagged,
+                    }
+                    save_plan(result)
+                    plan_json = PLAN_FILE.read_text(encoding="utf-8") if PLAN_FILE.exists() else json.dumps({})
+                    self._serve_json(plan_json)
+                    print(f"   ✓  Scheduled {len(scheduled)} tasks")
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    self._serve_json(json.dumps({"error": str(e)}))
 
             elif self.path == "/push_event":
                 result = _create_one_event(payload)

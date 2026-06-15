@@ -148,6 +148,8 @@ def _parse_msg(msg: dict, folder_name: str, is_sent: bool) -> dict:
         "has_attach": msg.get("hasAttachments", False),
         "folder":     folder_name,
         "is_sent":    is_sent,
+        "msg_id":     msg.get("id", ""),
+        "web_link":   msg.get("webLink", ""),
     }
 
 
@@ -165,12 +167,12 @@ def fetch_recent_emails(token: str, hours_back: int = 48) -> list:
     base_params = {
         "$orderby": "receivedDateTime desc",
         "$top":     40,
-        "$select":  "subject,from,toRecipients,receivedDateTime,bodyPreview,importance,isRead,hasAttachments",
+        "$select":  "subject,from,toRecipients,receivedDateTime,bodyPreview,importance,isRead,hasAttachments,id,webLink",
     }
     sent_params = {
         "$orderby": "sentDateTime desc",
         "$top":     20,
-        "$select":  "subject,from,toRecipients,sentDateTime,bodyPreview,importance,hasAttachments",
+        "$select":  "subject,from,toRecipients,sentDateTime,bodyPreview,importance,hasAttachments,id,webLink",
         "$filter":  f"sentDateTime ge {since_str}",
     }
 
@@ -238,6 +240,7 @@ def _fmt(email: dict, index: int) -> str:
     flags = []
     if email["is_sent"]:       flags.append("SENT BY ME")
     elif not email["is_read"]: flags.append("UNREAD")
+    # web_link available but not included in prompt to save tokens
     if email["importance"] == "high": flags.append("HIGH IMPORTANCE")
     if email["has_attach"]:    flags.append("has attachment")
     flag_str  = f" [{', '.join(flags)}]" if flags else ""
@@ -339,6 +342,24 @@ def get_email_analysis(client: anthropic.Anthropic) -> dict:
         print(f"   ✓   {len(result['digest'])} priority · "
               f"{len(result['actions'])} actions · "
               f"{len(result['people'])} people/meetings")
+
+        # Enrich actions and digest with web_link by matching from_email
+        # Build lookup: from_email -> most recent web_link
+        link_map = {}
+        for e in emails:
+            fe = e.get("from_email", "").lower()
+            if fe and e.get("web_link") and fe not in link_map:
+                link_map[fe] = e["web_link"]
+
+        for item in result.get("actions", []):
+            fe = item.get("from_email", "").lower()
+            if fe and fe in link_map:
+                item["web_link"] = link_map[fe]
+        for item in result.get("digest", []):
+            fe = item.get("from_email", "").lower()
+            if fe and fe in link_map:
+                item["web_link"] = link_map[fe]
+
         return result
     except RuntimeError as e:
         print(f"  ⚠️  Outlook: {e}")
