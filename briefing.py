@@ -875,7 +875,6 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
     }
 
     # ── Build task list for Push button ──────────────────────────────────────
-    _gmail_actions = (gmail_analysis or {}).get("actions", [])
     task_data = []
     for i, item in enumerate(actions):
         task_data.append({
@@ -885,14 +884,6 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
             "due":      datetime.date.today().isoformat(),
             "priority": item.get("priority", "normal"),
             "web_link": item.get("web_link", ""),
-        })
-    for i, item in enumerate(_gmail_actions):
-        task_data.append({
-            "id":       f"gmail_{i}",
-            "title":    item.get("action", ""),
-            "detail":   item.get("context", ""),
-            "due":      datetime.date.today().isoformat(),
-            "priority": item.get("priority", "normal"),
         })
 
     tasks_json     = _json.dumps(task_data).replace("</script>", "<\\/script>")
