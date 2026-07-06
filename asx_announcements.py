@@ -4,9 +4,7 @@ asx_announcements.py — ASX announcement monitor for watchlist tickers
 Uses Claude claude-haiku-4-5-20251001 with web_search to find ASX announcements
 released in the last 24 hours for each ticker in the watchlist.
 
-Called from briefing.py — results displayed in the Work Actions tab
-in place of the Gmail Actions column.
-
+Called from briefing.py — results displayed in the Work Actions tab.
 No external API keys needed beyond ANTHROPIC_API_KEY.
 """
 
@@ -18,7 +16,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Watchlist — must match the tickers in briefing.py
 WATCHLIST = [
     ("GAS", "State Gas"),
     ("COI", "Comet Ridge"),
@@ -28,14 +25,11 @@ WATCHLIST = [
     ("BLU", "Blue Star Helium"),
 ]
 
-MAX_RETRIES = 2
-
 
 def get_asx_announcements(client: anthropic.Anthropic = None) -> dict:
     """
     Search for ASX announcements from the last 24 hours for each watchlist ticker.
     Returns {"announcements": [...], "generated_at": ISO string}
-    Each announcement: {ticker, company, headline, summary, date, is_price_sensitive}
     """
     if client is None:
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -43,108 +37,97 @@ def get_asx_announcements(client: anthropic.Anthropic = None) -> dict:
             return {"announcements": [], "error": "ANTHROPIC_API_KEY not set"}
         client = anthropic.Anthropic(api_key=api_key)
 
-    today = datetime.date.today()
+    today     = datetime.date.today()
     yesterday = today - datetime.timedelta(days=1)
-    ticker_list = ", ".join(f"{t} ({n})" for t, n in WATCHLIST)
 
-    prompt = f"""Today is {today.strftime('%A %d %B %Y')}.
+    # ── Step 1: Search for announcements (free-form, with web search) ─────────
+    search_prompt = f"""Search the web for ASX company announcements released in the last 24 hours for these companies:
 
-Search the web for ASX company announcements released in the last 24 hours 
-(i.e. since {yesterday.strftime('%d %B %Y')}) for these ASX-listed companies:
+{chr(10).join(f'- ASX:{t} ({n})' for t, n in WATCHLIST)}
 
-{ticker_list}
+Today is {today.strftime('%A %d %B %Y')}. Search for announcements from {yesterday.strftime('%d %B')} and {today.strftime('%d %B %Y')}.
 
-Search for each company individually using queries like:
-- "ASX GAS State Gas announcement {today.strftime('%d %B %Y')}"
-- "ASX COI Comet Ridge announcement"
-- etc.
+For each company, search: "ASX [ticker] announcement {today.strftime('%B %Y')}"
 
-Focus on finding official ASX market announcements — quarterly reports, 
-trading halts, capital raises, exploration results, board changes, etc.
+Collect all announcements you find and summarise what each one says."""
 
-Return ONLY valid JSON with this structure:
+    try:
+        # Step 1 — let Claude search freely
+        search_resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=3000,
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=[{"role": "user", "content": search_prompt}],
+        )
+
+        # Collect the full assistant response including tool results
+        search_text = ""
+        for block in search_resp.content:
+            if hasattr(block, "text"):
+                search_text += block.text
+
+        if not search_text.strip():
+            # Model only did tool calls — extract what it found
+            search_text = "Search completed."
+
+        # ── Step 2: Format as JSON (no web search, just formatting) ──────────
+        format_prompt = f"""Based on this research about ASX announcements:
+
+{search_text}
+
+Now return ONLY a JSON object listing any ASX announcements found from the last 24 hours 
+(since {yesterday.strftime('%d %B %Y')}) for these tickers: {', '.join(t for t, _ in WATCHLIST)}
+
+Use this exact format:
 {{
   "announcements": [
     {{
       "ticker": "GAS",
       "company": "State Gas",
-      "headline": "exact announcement headline",
-      "summary": "1-2 sentences: what the announcement says and why it matters to shareholders",
+      "headline": "exact announcement title",
+      "summary": "1-2 sentences explaining what the announcement says and why it matters",
       "date": "{today.isoformat()}",
       "is_price_sensitive": true
     }}
   ]
 }}
 
-Only include announcements actually released in the last 24 hours.
-If no announcement found for a ticker in the last 24 hours, do not include it.
-If no announcements found for any ticker, return {{"announcements": []}}
-Return ONLY the JSON — no markdown, no explanation."""
+Rules:
+- Only include announcements actually from the last 24 hours
+- If none found for a ticker, do not include it
+- If no announcements found at all, return {{"announcements": []}}
+- Return ONLY the JSON — no explanation, no markdown fences"""
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            messages = [{"role": "user", "content": prompt}]
+        format_resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": format_prompt}],
+        )
 
-            # Keep calling until we get a text response (web_search may need multiple turns)
-            for turn in range(5):
-                resp = client.messages.create(
-                    model="claude-haiku-4-5-20251001",
-                    max_tokens=2000,
-                    tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                    messages=messages,
-                )
+        raw = ""
+        for block in format_resp.content:
+            if hasattr(block, "text"):
+                raw += block.text
 
-                # Collect text and check if done
-                text_parts = []
-                tool_uses = []
-                for block in resp.content:
-                    if hasattr(block, "text"):
-                        text_parts.append(block.text)
-                    elif block.type == "tool_use":
-                        tool_uses.append(block)
+        raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
 
-                if resp.stop_reason == "end_turn" and text_parts:
-                    raw = " ".join(text_parts).strip()
-                    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-                    try:
-                        data = json.loads(raw)
-                        announcements = data.get("announcements", [])
-                        print(f"   ✓ ASX announcements: {len(announcements)} found")
-                        for a in announcements:
-                            ps = " ⚡" if a.get("is_price_sensitive") else ""
-                            print(f"     [{a['ticker']}] {a['headline'][:60]}{ps}")
-                        return {
-                            "announcements": announcements,
-                            "generated_at": datetime.datetime.now().isoformat(),
-                        }
-                    except json.JSONDecodeError:
-                        if attempt < MAX_RETRIES - 1:
-                            break  # retry outer loop
-                        return {"announcements": [], "error": f"Could not parse response: {raw[:100]}"}
+        data = json.loads(raw)
+        announcements = data.get("announcements", [])
 
-                elif resp.stop_reason == "tool_use":
-                    # Continue the conversation with tool results
-                    messages.append({"role": "assistant", "content": resp.content})
-                    tool_results = []
-                    for tu in tool_uses:
-                        # web_search results come back via the API automatically
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tu.id,
-                            "content": "Search completed."
-                        })
-                    messages.append({"role": "user", "content": tool_results})
-                else:
-                    break
+        print(f"   ✓ ASX announcements: {len(announcements)} found")
+        for a in announcements:
+            ps = " ⚡" if a.get("is_price_sensitive") else ""
+            print(f"     [{a['ticker']}] {a['headline'][:65]}{ps}")
 
-        except anthropic.APIError as e:
-            if attempt < MAX_RETRIES - 1:
-                continue
-            return {"announcements": [], "error": f"API error: {e}"}
-        except Exception as e:
-            return {"announcements": [], "error": f"Error: {e}"}
+        return {
+            "announcements": announcements,
+            "generated_at":  datetime.datetime.now().isoformat(),
+        }
 
-    return {"announcements": [], "error": "Max retries reached"}
+    except json.JSONDecodeError as e:
+        return {"announcements": [], "error": f"Could not parse JSON response: {e}"}
+    except Exception as e:
+        return {"announcements": [], "error": f"Error: {e}"}
 
 
 if __name__ == "__main__":
@@ -158,7 +141,7 @@ if __name__ == "__main__":
         if not announcements:
             print("No announcements found in the last 24 hours for watchlist tickers")
         else:
-            print(f"\n{len(announcements)} announcement(s):")
+            print(f"\n{len(announcements)} announcement(s) found:")
             for a in announcements:
                 ps = " ⚡ PRICE SENSITIVE" if a.get("is_price_sensitive") else ""
                 print(f"\n  [{a['ticker']}] {a['company']}{ps}")

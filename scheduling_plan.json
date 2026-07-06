@@ -1,68 +1,47 @@
 {
-  "generated_at": "Monday 15 June 2026, 10:18 AEST",
-  "scheduled": [
+  "generated_at": "Monday 6 July 2026, 09:27 AEST",
+  "scheduled": [],
+  "unscheduled": [
     {
       "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM7z2hUAAA=",
-        "title": "Complete R&D Tax Incentive Portal access renewal (steps 3 and 4) and notify BDO",
-        "body": "BDO's portal access has lapsed, blocking the FY2025 R&D claim extension lodgement.",
-        "due_date": "2026-06-14",
-        "priority": "urgent",
-        "list_name": "Tasks",
-        "is_overdue": true,
-        "list_id": "",
-        "user_duration_mins": 30
-      },
-      "date": "2026-06-17",
-      "start_time": "09:00",
-      "end_time": "09:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf Complete R&D Tax Incentive Portal access renewal (steps 3 and 4) and notify BDO",
-      "description": "BDO's portal access has lapsed, blocking the FY2025 R&D claim extension lodgement.\n\u26a0\ufe0f OVERDUE (was due 2026-06-14)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM7z2hUAAA=/details",
-      "reason": "Overdue deep work task (R&D Tax Incentive Portal) scheduled for earliest available morning slot on 2026-06-17 to clear urgent backlog."
-    },
-    {
-      "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANZoq45AAA=",
-        "title": "State Gas - mediator availability [HGL-PRODUCTION.FID1340487]",
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhIAAA=",
+        "title": "O'Neill CCA",
         "body": "",
-        "due_date": "2026-06-14",
+        "due_date": "2026-07-05",
         "priority": "urgent",
         "list_name": "Flagged Emails",
         "is_overdue": true,
-        "list_id": "",
-        "user_duration_mins": 30
+        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
       },
-      "date": "2026-06-17",
-      "start_time": "11:30",
-      "end_time": "12:00",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf State Gas - mediator availability [HGL-PRODUCTION.FID1340487]",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-06-14)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANZoq45AAA=/details",
-      "reason": "Overdue high-priority task (mediator availability) scheduled for second available morning slot on 2026-06-17 within deep work window."
+      "reason": "no suitable slot available"
     },
     {
       "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANZoq44AAA=",
-        "title": "Gallagher Renewal Notice || State Gas Limited || 30 June 2026",
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhHAAA=",
+        "title": "C-CPLRC-100962325 State Gas Limited EA0002523 (ATP 2062)",
         "body": "",
-        "due_date": "2026-06-14",
+        "due_date": "2026-07-05",
         "priority": "urgent",
         "list_name": "Flagged Emails",
         "is_overdue": true,
-        "list_id": "",
-        "user_duration_mins": 30
+        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
       },
-      "date": "2026-06-17",
-      "start_time": "13:00",
-      "end_time": "13:30",
-      "estimated_mins": 30,
-      "title": "\ud83c\udfaf Gallagher Renewal Notice || State Gas Limited || 30 June 2026",
-      "description": "\u26a0\ufe0f OVERDUE (was due 2026-06-14)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANZoq44AAA=/details",
-      "reason": "Overdue high-priority admin task (Gallagher Renewal Notice) scheduled for afternoon slot on 2026-06-17 with 30min buffer after morning tasks."
+      "reason": "no suitable slot available"
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhGAAA=",
+        "title": "Denison Gas - Assets",
+        "body": "",
+        "due_date": "2026-07-05",
+        "priority": "urgent",
+        "list_name": "Flagged Emails",
+        "is_overdue": true,
+        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
+      },
+      "reason": "no suitable slot available"
     }
   ],
-  "unscheduled": [],
   "flagged": [],
   "error": null
 }
