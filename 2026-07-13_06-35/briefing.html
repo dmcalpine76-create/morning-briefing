@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Briefing — Monday, 13 July 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --ink:          #1a1a1a;
+            --ink-light:    #666;
+            --paper:        #f5f2eb;
+            --paper-2:      #edeae0;
+            --rule:         #cdc8b5;
+            --accent:       #c0392b;
+            --white:        #ffffff;
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body:    'Source Sans 3', 'Helvetica Neue', sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+        body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; min-height: 100vh; }
+
+        /* ── MASTHEAD ── */
+        .masthead {
+            background: var(--ink); color: var(--white);
+            padding: 1rem 1.5rem; display: flex; align-items: baseline;
+            gap: 1.25rem; border-bottom: 3px solid var(--accent);
+            position: relative; overflow: hidden;
+        }
+        .masthead::before {
+            content: ''; position: absolute; inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.025) 19px, rgba(255,255,255,0.025) 20px);
+            pointer-events: none;
+        }
+        .masthead-title { font-family: var(--font-display); font-size: 1.9rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1; white-space: nowrap; position: relative; }
+        .masthead-date { font-family: var(--font-display); font-style: italic; font-size: 0.9rem; color: rgba(255,255,255,0.5); position: relative; }
+        .masthead-generated { margin-left: auto; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.25); white-space: nowrap; position: relative; }
+
+        /* ── TOP WIDGET BAR ── */
+        .widget-bar {
+            background: var(--paper-2); border-bottom: 2px solid var(--rule);
+            padding: 0.3rem 1rem; display: flex; align-items: center;
+            gap: 0.3rem; min-height: 2.2rem;
+            overflow-x: auto; overflow-y: visible;
+            flex-wrap: nowrap;
+        }
+        .widget-slot {
+            display: flex; align-items: center; gap: 0.3rem;
+            background: var(--white); border: 1px solid var(--rule); border-radius: 3px;
+            padding: 0.15rem 0.45rem; font-size: 0.62rem; white-space: nowrap; flex-shrink: 0;
+        }
+        .widget-slot-placeholder { border-style: dashed; background: transparent; color: var(--rule); font-style: italic; }
+        .widget-slot .label { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.55rem; color: var(--ink-light); }
+        .widget-slot .value { font-weight: 600; color: var(--ink); font-size: 0.68rem; }
+        .widget-slot .change.up { color: #27ae60; font-size: 0.62rem; }
+        .widget-slot .change.down { color: #c0392b; font-size: 0.62rem; }
+        .widget-divider { width: 1px; height: 1.1rem; background: var(--rule); flex-shrink: 0; align-self: center; }
+        .widget-topic-link { text-decoration: none; transition: border-color 0.12s, background 0.12s; }
+        .widget-asx-link { text-decoration: none; transition: border-color 0.12s, background 0.12s; cursor: pointer; }
+        .widget-asx-link:hover { background: var(--ink); border-color: var(--ink); }
+        .widget-asx-link:hover .label { color: rgba(255,255,255,0.6); }
+        .widget-asx-link:hover .value { color: var(--white); }
+        .widget-asx-link:hover .change { opacity: 0.85; }
+        .widget-topic-link:hover { background: var(--ink); color: var(--white); border-color: var(--ink); }
+        .widget-topic-link:hover .label { color: rgba(255,255,255,0.6); }
+        .widget-topic-link:hover .value { color: var(--white); }
+
+        /* ── WEATHER / INFO BAR ── */
+        .weather-bar {
+            background: var(--paper-2); border-bottom: 2px solid var(--rule);
+            display: flex; align-items: stretch;
+            min-height: 3.4rem; overflow: hidden;
+        }
+        .wx-section {
+            display: flex; align-items: center; gap: 0;
+            flex: 1; overflow: hidden; padding: 0 0.5rem;
+        }
+        .wx-section-gas {
+            flex: 0 0 auto; min-width: 7rem;
+            justify-content: center;
+        }
+        .wx-divider {
+            width: 1px; background: var(--rule); flex-shrink: 0; align-self: stretch;
+        }
+        .wx-section-label {
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--ink-light);
+            writing-mode: vertical-rl; text-orientation: mixed;
+            transform: rotate(180deg);
+            padding: 0.4rem 0.3rem; flex-shrink: 0;
+            border-right: 1px solid var(--rule); margin-right: 0.35rem;
+        }
+        .wx-slots {
+            display: flex; align-items: center; gap: 0; overflow-x: auto;
+            scrollbar-width: none; flex: 1;
+        }
+        .wx-slots::-webkit-scrollbar { display: none; }
+        .wx-slot {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 0.05rem; padding: 0.2rem 0.6rem;
+            border-right: 1px solid var(--rule); flex-shrink: 0; min-width: 52px;
+        }
+        .wx-slot:last-child { border-right: none; }
+        .wx-today { background: rgba(192,57,43,0.06); border-radius: 2px; }
+        .wx-day {
+            font-size: 0.55rem; font-weight: 700; letter-spacing: 0.07em;
+            text-transform: uppercase; color: var(--ink-light); line-height: 1;
+        }
+        .wx-today .wx-day { color: var(--accent); }
+        .wx-icon { font-size: 1.05rem; line-height: 1.3; }
+        .wx-temps { display: flex; gap: 0.25rem; align-items: baseline; }
+        .wx-high { font-size: 0.7rem; font-weight: 700; color: var(--ink); }
+        .wx-low  { font-size: 0.62rem; color: var(--ink-light); }
+        .wx-rain { font-size: 0.55rem; color: #2980b9; font-weight: 600; line-height: 1; min-height: 0.75rem; }
+        .wx-gas-slot { border-right: none; min-width: auto; padding: 0.3rem 0.5rem; }
+        .wx-gas-price { font-size: 1.05rem; font-weight: 700; color: var(--ink); line-height: 1.2; }
+        .weather-unavailable { font-size: 0.7rem; color: var(--ink-light); font-style: italic; padding: 0.3rem; }
+
+        /* ── MASTHEAD TABS ── */
+        .masthead { flex-wrap: wrap; gap: 0.5rem; padding: 0.65rem 1.25rem; }
+        .masthead-left { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+        .masthead-title { font-size: 1.05rem; white-space: nowrap; }
+        .masthead-date { font-family: var(--font-display); font-style: italic; font-size: 0.68rem; color: rgba(255,255,255,0.45); position: relative; }
+        .masthead-tabs { display: flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
+        .tab-btn {
+            font-family: var(--font-body); font-size: 0.62rem; font-weight: 700;
+            letter-spacing: 0.03em; text-transform: uppercase;
+            padding: 0.22rem 0.5rem; border-radius: 3px; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55);
+            transition: all 0.15s; white-space: nowrap;
+        }
+        @media (max-width: 600px) {
+            .masthead-tabs { justify-content: flex-start; width: 100%; }
+            .tab-btn { font-size: 0.58rem; padding: 0.2rem 0.4rem; }
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.9); }
+        .tab-active { background: var(--accent) !important; color: var(--white) !important; border-color: var(--accent) !important; }
+
+        /* ── EMAIL TAB LAYOUT (mirrors email.html) ── */
+        .email-view { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 1.5rem; align-items: start; }
+        .ep-panel-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; padding-bottom: 0.5rem; border-bottom: 3px solid var(--ink); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .ep-count { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }
+        /* email digest cards */
+        .ep-card { background: var(--white); border: 1px solid var(--rule); border-radius: 3px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: box-shadow .12s; }
+        .ep-card:hover { box-shadow: 0 1px 5px rgba(0,0,0,.08); }
+        .ep-card-unread { border-left: 3px solid #2980b9; }
+        .ep-meta { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+        .ep-from { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-light); margin-bottom: 0.2rem; }
+        .ep-subject { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }
+        .ep-summary { font-size: 0.84rem; color: #444; line-height: 1.6; }
+        .ep-action-tag { margin-top: 0.4rem; font-size: 0.68rem; font-weight: 700; color: var(--accent); }
+        .ep-folder-tag { font-size: 0.58rem; color: var(--ink-light); background: var(--paper-2); padding: 0.1rem 0.35rem; border-radius: 2px; margin-left: auto; }
+        .ep-sent-tag { font-size: 0.6rem; font-weight: 700; color: #888; background: #f0f0f0; padding: 0.1rem 0.35rem; border-radius: 2px; }
+        /* action rows */
+        .ep-action-row { display: flex; gap: 0.75rem; padding: 0.75rem 0.9rem; background: var(--white); border: 1px solid var(--rule); border-radius: 3px; margin-bottom: 0.5rem; }
+        .ep-action-num { font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; color: var(--rule); line-height: 1; padding-top: 0.1rem; flex-shrink: 0; width: 1.2rem; text-align: center; }
+        .ep-action-title { font-size: 0.91rem; font-weight: 600; line-height: 1.35; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .ep-action-context { font-size: 0.81rem; color: #555; line-height: 1.55; }
+        .ep-action-ref { font-size: 0.65rem; color: var(--ink-light); margin-top: 0.2rem; font-style: italic; }
+        .ep-deadline { font-size: 0.6rem; font-weight: 700; color: #c0392b; background: #fde8e8; padding: 0.1rem 0.4rem; border-radius: 2px; }
+        /* people cards */
+        .ep-person { display: flex; gap: 0.75rem; padding: 0.8rem 0.9rem; background: var(--white); border: 1px solid var(--rule); border-radius: 3px; margin-bottom: 0.5rem; }
+        .ep-person-icon { font-size: 1.3rem; line-height: 1; flex-shrink: 0; padding-top: 0.1rem; }
+        .ep-person-name { font-size: 0.88rem; font-weight: 700; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .ep-person-act { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--white); background: var(--ink); padding: 0.1rem 0.4rem; border-radius: 2px; opacity: 0.75; }
+        .ep-person-email { font-size: 0.68rem; color: var(--ink-light); margin-bottom: 0.25rem; }
+        .ep-person-reason { font-size: 0.78rem; color: #444; line-height: 1.55; }
+        .ep-person-timing { font-size: 0.68rem; font-weight: 700; color: #27ae60; margin-top: 0.25rem; }
+        .ep-person-context { font-size: 0.65rem; color: var(--ink-light); margin-top: 0.15rem; font-style: italic; }
+        .ep-empty { font-size: 0.85rem; color: var(--ink-light); padding: 1rem 0; }
+        .ep-email-link { font-size: 0.65rem; font-weight: 700; color: var(--blue, #2980b9);
+            text-decoration: none; margin-left: 0.4rem; opacity: 0.75; }
+        .ep-email-link:hover { opacity: 1; text-decoration: underline; }
+        @media (max-width: 900px) { .email-view { grid-template-columns: 1fr; } }
+
+        /* ── TO DO CHECKBOX CARDS ── */
+        .ep-todo-card {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            background: var(--white); border: 1px solid var(--rule); border-radius: 3px;
+            padding: 0.75rem 0.9rem; margin-bottom: 0.5rem;
+            transition: border-color 0.12s, background 0.12s;
+        }
+        .ep-todo-card:has(.todo-cb:checked) {
+            border-color: #2980b9; background: #f0f7ff;
+        }
+        .ep-todo-check { padding-top: 0.15rem; flex-shrink: 0; }
+        .ep-todo-check input[type="checkbox"] {
+            width: 1rem; height: 1rem; cursor: pointer; accent-color: #2980b9;
+        }
+        .ep-todo-body { flex: 1; min-width: 0; }
+        .ep-todo-result {
+            font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+            padding-top: 0.15rem; flex-shrink: 0; text-align: right;
+        }
+        .ep-todo-result .result-ok   { color: #27ae60; }
+        .ep-todo-result .result-fail { color: #c0392b; }
+        .ep-todo-deeplink {
+            font-size: 0.95rem; text-decoration: none; opacity: 0.45;
+            transition: opacity 0.15s; display: block; line-height: 1;
+            padding: 0.1rem;
+        }
+        .ep-todo-deeplink:hover { opacity: 1; }
+        .ep-sel-all {
+            font-size: 0.65rem; color: var(--ink-light); cursor: pointer;
+            display: flex; align-items: center; gap: 0.3rem;
+            margin-left: auto; font-weight: 600; letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+        .ep-sel-all input { width: 0.8rem; height: 0.8rem; cursor: pointer; accent-color: #2980b9; }
+
+        /* ── STICKY TO DO FOOTER ── */
+        .todo-footer {
+            display: none;   /* shown only when email tab is active */
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--white); border-top: 2px solid var(--rule);
+            padding: 0.7rem 1.5rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 200;
+            justify-content: space-between; align-items: center;
+            gap: 1rem;
+        }
+        .todo-footer-info { font-size: 0.8rem; color: var(--ink-light); }
+        .todo-footer-info strong { color: var(--ink); }
+        .todo-push-btn {
+            background: #2980b9; color: #fff; border: none;
+            border-radius: 5px; padding: 0.5rem 1.2rem;
+            font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            letter-spacing: 0.03em; transition: background 0.15s, opacity 0.15s;
+        }
+        .todo-push-btn:hover   { background: #1f6391; }
+        .todo-push-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .todo-push-btn.done    { background: #27ae60; }
+
+        /* ── THREE-COLUMN LAYOUT ── */
+        .columns-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px; background: var(--rule);
+            min-height: calc(100vh - 8rem);
+        }
+        .briefing-column { background: var(--paper); display: flex; flex-direction: column; min-width: 0; }
+
+        .column-header {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 0.9rem 0.6rem; background: var(--white);
+            border-bottom: 3px solid var(--section-color, var(--ink));
+            position: sticky; top: 0; z-index: 10;
+        }
+        .column-emoji { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+        .column-title { font-family: var(--font-display); font-size: 0.88rem; font-weight: 700; line-height: 1.2; flex: 1; min-width: 0; }
+        .story-count { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; flex-shrink: 0; }
+
+        /* ── STORY CARDS ── */
+        .stories-list { display: flex; flex-direction: column; gap: 1px; background: var(--rule); flex: 1; }
+        .story-card { background: var(--white); padding: 0.85rem 0.9rem; animation: fadeUp 0.35s ease both; animation-delay: var(--delay, 0s); transition: background 0.12s; }
+        .story-card:hover { background: #fdfcf9; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .story-meta { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+        .badge { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.12rem 0.4rem; border-radius: 2px; flex-shrink: 0; }
+        .badge-critical { background: #fde8e8; color: #c0392b; }
+        .badge-major    { background: #fef3e2; color: #d35400; }
+        .badge-notable  { background: #e8f4e8; color: #27ae60; }
+        .story-source { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .story-headline { font-family: var(--font-display); font-size: 0.93rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }
+        .story-headline a { color: var(--ink); text-decoration: none; }
+        .story-headline a:hover { color: var(--accent); text-decoration: underline; }
+        .story-summary { font-size: 0.83rem; color: #484848; line-height: 1.6; }
+
+        /* ── TOPIC TAB HEADER ── */
+        .topic-tab-header {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.7rem 1.25rem; background: var(--white);
+            border-bottom: 3px solid var(--tc, var(--ink));
+            font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+        }
+        .topic-tab-count { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }
+
+
+        /* ── CALENDAR TAB ── */
+        .cal-view { padding: 0; }
+        .cal-day-section { margin-bottom: 0; border-bottom: 1px solid var(--rule); }
+        .cal-day-header {
+            display: flex; align-items: baseline; gap: 0.75rem;
+            padding: 0.65rem 1.25rem;
+            background: var(--paper-2);
+            border-bottom: 1px solid var(--rule);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .cal-day-label {
+            font-family: var(--font-display); font-size: 0.75rem;
+            font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--ink);
+        }
+        .cal-day-date { font-size: 0.84rem; color: var(--ink-light); }
+        .cal-day-count {
+            margin-left: auto; font-size: 0.62rem; font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--ink-light); background: var(--white);
+            border: 1px solid var(--rule); padding: 0.12rem 0.5rem;
+            border-radius: 2rem;
+        }
+        .cal-events { padding: 0.5rem 0; }
+        .cal-event {
+            display: flex; gap: 1rem; align-items: flex-start;
+            padding: 0.7rem 1.25rem;
+            border-bottom: 1px solid var(--rule);
+            transition: background 0.15s;
+        }
+        .cal-event:last-child { border-bottom: none; }
+        .cal-event:hover { background: var(--paper-2); }
+        .cal-event-past { opacity: 0.45; }
+        .cal-event-time {
+            min-width: 90px; flex-shrink: 0;
+            display: flex; flex-direction: column; gap: 2px;
+            padding-top: 1px;
+        }
+        .cal-start { font-size: 0.82rem; font-weight: 700; color: var(--ink); }
+        .cal-end   { font-size: 0.72rem; color: var(--ink-light); }
+        .cal-dur   {
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--ink-light);
+            background: var(--paper-2); border: 1px solid var(--rule);
+            padding: 0.08rem 0.35rem; border-radius: 3px; align-self: flex-start;
+            margin-top: 2px;
+        }
+        .cal-all-day {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--ink-light);
+        }
+        .cal-event-body  { flex: 1; min-width: 0; }
+        .cal-event-subject {
+            font-size: 0.94rem; font-weight: 700; color: var(--ink);
+            line-height: 1.3; margin-bottom: 4px;
+        }
+        .cal-event-meta {
+            font-size: 0.81rem; color: var(--ink-light); margin-bottom: 3px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .cal-join-link { color: #2980b9; text-decoration: none; font-weight: 600; }
+        .cal-join-link:hover { text-decoration: underline; }
+        .cal-event-preview {
+            font-size: 0.80rem; color: var(--ink-light);
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+            margin-top: 3px; line-height: 1.4;
+        }
+        .cal-badge {
+            display: inline-block; font-size: 0.58rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            padding: 0.1rem 0.4rem; border-radius: 3px;
+            vertical-align: middle; margin-left: 5px;
+        }
+        .cal-badge-accepted  { background: #eafaf1; color: #27ae60; border: 1px solid #a9dfbf; }
+        .cal-badge-declined  { background: #fdecea; color: #c0392b; border: 1px solid #f1948a; }
+        .cal-badge-tentative { background: #fef9e7; color: #b7770d; border: 1px solid #f9e79f; }
+        .cal-badge-pending   { background: var(--paper-2); color: var(--ink-light); border: 1px solid var(--rule); }
+        .cal-badge-organizer { background: #eaf2ff; color: #2471a3; border: 1px solid #aed6f1; }
+        .cal-empty {
+            padding: 1.5rem 1.25rem; font-size: 0.82rem;
+            color: var(--ink-light); font-style: italic;
+        }
+        .cal-error { padding: 1.5rem 1.25rem; color: #c0392b; font-size: 0.85rem; }
+        .cal-error-hint { color: var(--ink-light); font-size: 0.8rem; margin-top: 0.5rem; }
+        .cal-error code {
+            background: var(--paper-2); padding: 0.1rem 0.3rem;
+            border-radius: 3px; font-family: monospace; font-size: 0.85em;
+        }
+        /* ── AI Briefing column ── */
+        .cal-brief-col {
+            flex-shrink: 0; width: 240px;
+            border-left: 2px solid var(--rule);
+            padding: 0 0 0 0.9rem;
+            align-self: stretch;
+            display: flex; flex-direction: column; gap: 0.3rem;
+        }
+        .cal-brief-label {
+            font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--ink-light);
+            margin-bottom: 0.2rem;
+        }
+        .cal-brief-list {
+            margin: 0; padding: 0 0 0 1rem; list-style: disc;
+        }
+        .cal-brief-bullet {
+            font-size: 0.80rem; color: var(--ink); line-height: 1.45;
+            margin-bottom: 0.25rem;
+        }
+        .cal-brief-bullet:last-child { margin-bottom: 0; }
+        @media (max-width: 900px) {
+            .cal-brief-col { width: 100%; border-left: none;
+                border-top: 1px solid var(--rule); padding: 0.6rem 0 0 0; }
+        }
+
+        @media (max-width: 700px) {
+            .cal-event { flex-direction: column; gap: 0.3rem; }
+            .cal-event-time { min-width: unset; flex-direction: row; align-items: center; gap: 0.5rem; }
+        }
+
+        /* ── FOOTER ── */
+        footer { background: var(--ink); color: rgba(255,255,255,0.28); text-align: center; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.9rem 1.5rem; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 860px) {
+            .columns-wrapper { grid-template-columns: 1fr; }
+            .column-header { position: relative; }
+        }
+
+        /* ── TOPICS TAB — responsive columns ── */
+        .topics-tab-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(180px, 1fr));
+            gap: 1px;
+            background: var(--rule);
+            min-height: calc(100vh - 8rem);
+        }
+        @media (max-width: 1200px) {
+            .topics-tab-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 860px) {
+            .topics-tab-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 540px) {
+            .topics-tab-grid { grid-template-columns: 1fr; }
+            .topics-tab-grid .column-header { position: relative; top: auto; }
+        }
+        @media (max-width: 600px) {
+            .masthead { flex-wrap: wrap; gap: 0.35rem; }
+            .masthead-generated { margin-left: 0; width: 100%; }
+        }
+        @media print {
+            .widget-bar, footer { display: none; }
+            .columns-wrapper { gap: 0; background: none; }
+            .story-card { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="masthead">
+    <div class="masthead-left">
+        <h1 class="masthead-title">Doug's Morning Briefing</h1>
+        <span class="masthead-date">Monday, 13 July 2026 &mdash; 06:35 AEST</span>
+    </div>
+    <nav class="masthead-tabs">
+        <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
+        <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions (2)</button>
+        <button class="tab-btn" onclick="showTab('calendar')" id="tab-calendar">📅 Calendar (8✦1)</button>
+        <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule</button>
+        <button class="tab-btn" onclick="showTab('topics')" id="tab-topics">📌 My Topics 🤖 ⚡ 🔴 🎮 sport technology Commodities</button>
+    </nav>
+</header>
+
+<!-- ── TOP WIDGET BAR ── -->
+<div class="widget-bar" id="widget-bar">
+    <div class="widget-slot"><span class="label">ASX 200</span><span class="value">8,806</span><span class="change up">▲ 0.50%</span></div><div class="widget-slot"><span class="label">AUD/USD</span><span class="value">0.6947</span><span class="change up">▲ 0.06%</span></div><div class="widget-slot"><span class="label">Gold</span><span class="value">$4113.70</span><span class="change down">▼ 0.38%</span></div><div class="widget-slot"><span class="label">Oil</span><span class="value">$71.41</span><span class="change down">▼ 1.35%</span></div><div class="widget-slot"><span class="label">S&P 500</span><span class="value">7,575</span><span class="change up">▲ 0.42%</span></div>
+    <div class="widget-divider"></div>
+    <a href="https://www.asx.com.au/markets/company/STATE GAS" target="_blank" rel="noopener" class="widget-slot widget-asx-link"><span class="label">State Gas</span><span class="value">$0.014</span><span class="change up">▲ 0.00%</span></a><a href="https://www.asx.com.au/markets/company/COMET RIDGE" target="_blank" rel="noopener" class="widget-slot widget-asx-link"><span class="label">Comet Ridge</span><span class="value">$0.088</span><span class="change down">▼ 3.30%</span></a><a href="https://www.asx.com.au/markets/company/BEACH PETROLEUM" target="_blank" rel="noopener" class="widget-slot widget-asx-link"><span class="label">Beach Petroleum</span><span class="value">$0.875</span><span class="change up">▲ 0.57%</span></a><a href="https://www.asx.com.au/markets/company/SANTOS" target="_blank" rel="noopener" class="widget-slot widget-asx-link"><span class="label">Santos</span><span class="value">$7.620</span><span class="change down">▼ 0.39%</span></a><a href="https://www.asx.com.au/markets/company/ARIADNE" target="_blank" rel="noopener" class="widget-slot widget-asx-link"><span class="label">Ariadne</span><span class="value">$0.480</span><span class="change up">▲ 1.05%</span></a><a href="https://www.asx.com.au/markets/company/BLUE ENERGY" target="_blank" rel="noopener" class="widget-slot widget-asx-link"><span class="label">Blue Energy</span><span class="value">$0.004</span><span class="change up">▲ 16.67%</span></a>
+</div>
+
+<!-- ── WEATHER BAR ── -->
+<div class="weather-bar" id="weather-bar">
+    <div class="wx-section">
+        <div class="wx-section-label">🌆 Brisbane</div>
+        <div class="wx-slots"><div class="wx-slot wx-today">
+                <span class="wx-day">Today</span>
+                <span class="wx-icon">☀️</span>
+                <span class="wx-temps"><span class="wx-high">20°</span><span class="wx-low">10°</span></span>
+                <span class="wx-rain">0%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Tue</span>
+                <span class="wx-icon">☀️</span>
+                <span class="wx-temps"><span class="wx-high">20°</span><span class="wx-low">9°</span></span>
+                <span class="wx-rain">0%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Wed</span>
+                <span class="wx-icon">🌤️</span>
+                <span class="wx-temps"><span class="wx-high">20°</span><span class="wx-low">9°</span></span>
+                <span class="wx-rain">6%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Thu</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">19°</span><span class="wx-low">10°</span></span>
+                <span class="wx-rain">65%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Fri</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">20°</span><span class="wx-low">11°</span></span>
+                <span class="wx-rain">63%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Sat</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">21°</span><span class="wx-low">14°</span></span>
+                <span class="wx-rain">53%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Sun</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">20°</span><span class="wx-low">14°</span></span>
+                <span class="wx-rain">29%</span>
+            </div></div>
+    </div>
+    <div class="wx-divider"></div>
+    <div class="wx-section">
+        <div class="wx-section-label">🏖️ Sunshine Beach</div>
+        <div class="wx-slots"><div class="wx-slot wx-today">
+                <span class="wx-day">Today</span>
+                <span class="wx-icon">☀️</span>
+                <span class="wx-temps"><span class="wx-high">21°</span><span class="wx-low">11°</span></span>
+                <span class="wx-rain">0%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Tue</span>
+                <span class="wx-icon">☀️</span>
+                <span class="wx-temps"><span class="wx-high">21°</span><span class="wx-low">10°</span></span>
+                <span class="wx-rain">0%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Wed</span>
+                <span class="wx-icon">☀️</span>
+                <span class="wx-temps"><span class="wx-high">19°</span><span class="wx-low">11°</span></span>
+                <span class="wx-rain">6%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Thu</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">18°</span><span class="wx-low">12°</span></span>
+                <span class="wx-rain">43%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Fri</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">19°</span><span class="wx-low">13°</span></span>
+                <span class="wx-rain">57%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Sat</span>
+                <span class="wx-icon">☁️</span>
+                <span class="wx-temps"><span class="wx-high">21°</span><span class="wx-low">16°</span></span>
+                <span class="wx-rain">41%</span>
+            </div><div class="wx-slot">
+                <span class="wx-day">Sun</span>
+                <span class="wx-icon">🌦️</span>
+                <span class="wx-temps"><span class="wx-high">20°</span><span class="wx-low">16°</span></span>
+                <span class="wx-rain">45%</span>
+            </div></div>
+    </div>
+    <div class="wx-divider"></div>
+    <div class="wx-section wx-section-gas">
+        <div class="wx-section-label">⛽ Gas</div>
+        <div class="wx-slot wx-gas-slot">
+            <span class="wx-day">AU East Coast</span>
+            <span class="wx-gas-price">—</span>
+            <span class="wx-rain">$/GJ</span>
+        </div><div class="wx-slot wx-gas-slot">
+            <span class="wx-day">Henry Hub</span>
+            <span class="wx-gas-price">$2.94</span>
+            <span class="wx-rain">USD/MMBtu</span>
+        </div>
+    </div>
+</div>
+
+<!-- ── NEWS TAB ── -->
+<div id="view-news">
+<div class="columns-wrapper">
+    
+    <div class="briefing-column">
+        <div class="column-header" style="--section-color: #1a3a5c">
+            <span class="column-emoji">🌍</span>
+            <h2 class="column-title">International News</h2>
+            <span class="story-count">5</span>
+        </div>
+        <div class="stories-list">
+            
+            <article class="story-card" style="--delay: 0.0s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">BBC News</span>
+                </div>
+                <h3 class="story-headline">US and Iran Exchange Strikes Over Strait of Hormuz</h3>
+                <p class="story-summary">Iran declared the Strait of Hormuz closed and launched attacks on US allies; the US responded with strikes, unraveling the ceasefire.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.07s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">World news | The Guardian</span>
+                </div>
+                <h3 class="story-headline">Venezuela Quake Death Toll Surpasses 4,300</h3>
+                <p class="story-summary">Back-to-back earthquakes killed over 4,300 and injured 16,740 in coastal La Guaira state, with thousands still missing.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.14s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">NYT > World News</span>
+                </div>
+                <h3 class="story-headline">Zelensky Announces Major Ukrainian Leadership Shake-Up</h3>
+                <p class="story-summary">Ukraine's prime minister will step down as President Zelensky reshuffles senior leadership while the war turns in Ukraine's favor.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.21000000000000002s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">BBC News</span>
+                </div>
+                <h3 class="story-headline">Former Qatar Emir Sheikh Hamad Dies at 74</h3>
+                <p class="story-summary">Sheikh Hamad bin Khalifa Al Thani, who transformed Qatar into a global gas power after a 1996 coup, has died.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.28s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">NYT > World News</span>
+                </div>
+                <h3 class="story-headline">Deadly Wildfires Sweep Southern Spain, Killing Twelve</h3>
+                <p class="story-summary">Twelve people died in one of Spain's deadliest wildfires as residents report chaotic and insufficient emergency communications.</p>
+            </article>
+        </div>
+    </div>
+    <div class="briefing-column">
+        <div class="column-header" style="--section-color: #1a4a2e">
+            <span class="column-emoji">🦘</span>
+            <h2 class="column-title">Australian News</h2>
+            <span class="story-count">5</span>
+        </div>
+        <div class="stories-list">
+            
+            <article class="story-card" style="--delay: 0.0s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">ABC Grandstand Sport</span>
+                </div>
+                <h3 class="story-headline">France Thrashes Wallabies 42-26 in Historic Brisbane Test</h3>
+                <p class="story-summary">France scored four straight wins over Australia with a 42-26 Nations Championship victory in Brisbane.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.07s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">Sydney Morning Herald - Latest News</span>
+                </div>
+                <h3 class="story-headline">Melbourne Cafe Firebombed Days After Shooting Attack</h3>
+                <p class="story-summary">A Melbourne cafe was firebombed just days after being sprayed with bullets in escalating violence.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.14s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Sydney Morning Herald - Latest News</span>
+                </div>
+                <h3 class="story-headline">Universities Face New Legal Standards Against Racism</h3>
+                <p class="story-summary">Australian universities will be legally required to prevent racism and antisemitism under new standards.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.21000000000000002s">
+                <div class="story-meta">
+                    <span class="badge badge-notable">◦ Notable</span>
+                    <span class="story-source">Australia news | The Guardian</span>
+                </div>
+                <h3 class="story-headline">Australia Ditching Paper Arrival Cards for Digital</h3>
+                <p class="story-summary">Paper customs declaration cards will be phased out at all Australian airports and seaports after a successful trial.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.28s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Australia news | The Guardian</span>
+                </div>
+                <h3 class="story-headline">AI Copyright Battle Splits Labor as Albanese Plans Speech</h3>
+                <p class="story-summary">AI companies lobby to weaken Australian copyright laws, splitting Labor between tech investment and protecting artists' rights.</p>
+            </article>
+        </div>
+    </div>
+    <div class="briefing-column">
+        <div class="column-header" style="--section-color: #3a1a4a">
+            <span class="column-emoji">📈</span>
+            <h2 class="column-title">Australian Finance &amp; Markets</h2>
+            <span class="story-count">5</span>
+        </div>
+        <div class="stories-list">
+            
+            <article class="story-card" style="--delay: 0.0s">
+                <div class="story-meta">
+                    <span class="badge badge-critical">⚡ Critical</span>
+                    <span class="story-source">The Age - Business</span>
+                </div>
+                <h3 class="story-headline">ASX Faces Uncertainty as Iran Closes Strait of Hormuz</h3>
+                <p class="story-summary">Australian shares set to climb but face heightened uncertainty after Iran closed the Strait of Hormuz following weekend strikes.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.07s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Financial Newswire</span>
+                </div>
+                <h3 class="story-headline"><a href="https://financialnewswire.com.au/funds-management/australian-bonds-to-weather-oil-shocks-nz-vulnerable/" target="_blank" rel="noopener noreferrer">Australian Bonds Resilient Against Oil Shock Risks</a></h3>
+                <p class="story-summary">RBC BlueBay says Australian bonds face fewer inflation risks from oil shocks, with the tightening cycle largely behind them.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.14s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">Financial Newswire</span>
+                </div>
+                <h3 class="story-headline"><a href="https://financialnewswire.com.au/superannuation/australiansuper-doubles-up-on-india-investment/" target="_blank" rel="noopener noreferrer">AustralianSuper Doubles India Infrastructure Investment</a></h3>
+                <p class="story-summary">AustralianSuper doubled its commitment to India's National Investment and Infrastructure Fund at the Australia-India Leaders Summit.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.21000000000000002s">
+                <div class="story-meta">
+                    <span class="badge badge-major">● Major</span>
+                    <span class="story-source">The Age - Business</span>
+                </div>
+                <h3 class="story-headline">MA Financial Acquires $500m Pub Portfolio</h3>
+                <p class="story-summary">Investment house MA Financial swooped on a six-pub portfolio across Sydney and the Hunter Valley in a $500 million deal.</p>
+            </article>
+            <article class="story-card" style="--delay: 0.28s">
+                <div class="story-meta">
+                    <span class="badge badge-notable">◦ Notable</span>
+                    <span class="story-source">The Age - Business</span>
+                </div>
+                <h3 class="story-headline">ACCC Warns Battery Sharing Critical to Energy Costs</h3>
+                <p class="story-summary">ACCC warns of major cost blowouts in the coal transition unless millions of households share battery control via virtual power plants.</p>
+            </article>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ── EMAIL TAB ── -->
+<div id="view-email" style="display:none">
+
+<!-- Task data for To Do push -->
+<script>
+const BRIEFING_TASKS = [{"id": "action_0", "title": "Review Monday morning briefing for accuracy and completeness, especially the US-Iran Strait of Hormuz situation and potential impact on energy markets", "detail": "The self-sent briefing highlights critical geopolitical events that could directly affect State Gas operations and energy pricing.", "due": "2026-07-12", "priority": "high", "web_link": ""}, {"id": "action_1", "title": "Assess potential supply chain and pricing implications of US-Iran conflict for State Gas operations", "detail": "Strait of Hormuz disruptions could significantly impact global gas markets and State Gas's business outlook.", "due": "2026-07-12", "priority": "high", "web_link": ""}];
+const GRAPH_TOKEN_B64 = "ZXlKMGVYQWlPaUpLVjFRaUxDSnViMjVqWlNJNkluVnRlRXRHZFdNd1FsUlhOSHBNUkdzd1JsQjVObWhwWVdoc1RFUlpaREZ0TjFKWE5ITjBkbFF6UjJzaUxDSmhiR2NpT2lKU1V6STFOaUlzSW5nMWRDSTZJbUZHYTIxTFZrWmpMVFJYVmpaeldFTkNkazVhYTFoSk5UQTFXU0lzSW10cFpDSTZJbUZHYTIxTFZrWmpMVFJYVmpaeldFTkNkazVhYTFoSk5UQTFXU0o5LmV5SmhkV1FpT2lJd01EQXdNREF3TXkwd01EQXdMVEF3TURBdFl6QXdNQzB3TURBd01EQXdNREF3TURBaUxDSnBjM01pT2lKb2RIUndjem92TDNOMGN5NTNhVzVrYjNkekxtNWxkQzgxWkRNNVpUazBOUzB4Wm1NeExUUXlOemN0T0RBMU5TMWtNRGRsT1Rsa01qRTROVEV2SWl3aWFXRjBJam94Tnpnek9EZzRORGcxTENKdVltWWlPakUzT0RNNE9EZzBPRFVzSW1WNGNDSTZNVGM0TXpnNU16UTBNQ3dpWVdOamRDSTZNQ3dpWVdOeUlqb2lNU0lzSW1GamNuTWlPbHNpY0RFaUxDSndabVJ5SWwwc0ltRnBieUk2SWtGYVVVRmhMemhqUVVGQlFVUjNieTlRVUUxbFVFRlNWSFJoZGpWQ0swVkdNV0Z6Vnk4MU1WSkdiRlpXZEU0NWFYQlhiVXBYTmtRcmVrUk9XbWxJY1cxUmJqVlVaVVJDTml0bEswWTNOVEozZFVST1UwNWtUbVZETlZwaGFHSlRhM1p5Wm1OemNrZENRamRLWkVkMFV6a3lNR1ZNVldsUVdTdElURkU0ZVVWeWVITmxkV0pLTDFjeVkxWlFiWFU0Y2pjNE1HUmxSMmRQYjJ0emRtbEdhek5wT0VOUlIwdElaME4yYzFZMk9VaFBZVzVyZUZobGFUaHNjV3BwWmpabVlUaHpTVE0yYVdsbkwxbGlOQ0lzSW1GdGNpSTZXeUp3ZDJRaUxDSnRabUVpWFN3aVlYQndYMlJwYzNCc1lYbHVZVzFsSWpvaVJHRnBiSGtnUW5KcFpXWnBibWNpTENKaGNIQnBaQ0k2SW1ZM016SmtNVFJtTFdFeFlUSXRORFZrTWkxaFlXUTVMVFl4Tnprd09ERmlaV0poWlNJc0ltRndjR2xrWVdOeUlqb2lNQ0lzSW1aaGJXbHNlVjl1WVcxbElqb2lUV05CYkhCcGJtVWlMQ0puYVhabGJsOXVZVzFsSWpvaVJHOTFaeUlzSW1sa2RIbHdJam9pZFhObGNpSXNJbWx3WVdSa2NpSTZJalkwTGpJek5pNHhNekV1TWpFd0lpd2libUZ0WlNJNklrUnZkV2NnVFdOQmJIQnBibVVpTENKdmFXUWlPaUprTlRJMFpUSmpZaTFrTkRneExUUXdZbUV0T0RkbU5DMWlPRFZrWkRFMU9XWXdOeklpTENKd2JHRjBaaUk2SWpFMElpd2ljSFZwWkNJNklqRXdNRE15TURBeU5UQkVRVGc0UWpraUxDSnlhQ0k2SWpFdVFWVkZRVkpsYXpWWVkwVm1aREJMUVZaa1FpMXRaRWxaVlZGTlFVRkJRVUZCUVVGQmQwRkJRVUZCUVVGQlFVRkJRVTl3UWtGQkxpSXNJbk5qY0NJNklrTmhiR1Z1WkdGeWN5NVNaV0ZrSUVOaGJHVnVaR0Z5Y3k1U1pXRmtRbUZ6YVdNZ1EyRnNaVzVrWVhKekxsSmxZV1JYY21sMFpTQk5ZV2xzTGxKbFlXUWdUV0ZwYkM1U1pXRmtWM0pwZEdVZ1RXRnBiQzVUWlc1a0lHOXdaVzVwWkNCd2NtOW1hV3hsSUZSaGMydHpMbEpsWVdSWGNtbDBaU0JWYzJWeUxsSmxZV1FnWlcxaGFXd2lMQ0p6YVdRaU9pSXdNREl5WVdJeFlTMDBabU5oTFRnM016VXRaVGs0TWkxaFlqSmhORFV3Wm1Zek9EZ2lMQ0p6YVdkdWFXNWZjM1JoZEdVaU9sc2lhMjF6YVNKZExDSnpkV0lpT2lJd1p6WklSbGRaWXpNMmNFNW5TRk5WYkZGZlUySkJjbXQyTVdKbFYwdFdiamhNVFVJM1RscHhlV0ZKSWl3aWRHVnVZVzUwWDNKbFoybHZibDl6WTI5d1pTSTZJazlESWl3aWRHbGtJam9pTldRek9XVTVORFV0TVdaak1TMDBNamMzTFRnd05UVXRaREEzWlRrNVpESXhPRFV4SWl3aWRXNXBjWFZsWDI1aGJXVWlPaUprYjNWblFITjBZWFJsWjJGekxtTnZiU0lzSW5Wd2JpSTZJbVJ2ZFdkQWMzUmhkR1ZuWVhNdVkyOXRJaXdpZFhScElqb2lUVU5qWVVoUU1FcFZhM1ZmTFRGck5ITnNSVU5CUVNJc0luWmxjaUk2SWpFdU1DSXNJbmRwWkhNaU9sc2lOakpsT1RBek9UUXROamxtTlMwME1qTTNMVGt4T1RBdE1ERXlNVGMzTVRRMVpURXdJaXdpWWpjNVptSm1OR1F0TTJWbU9TMDBOamc1TFRneE5ETXROelppTVRrMFpUZzFOVEE1SWwwc0luaHRjMTloWTJRaU9qRTNOek0zTVRFek16UXNJbmh0YzE5aFkzUmZabU4wSWpvaU15QTVJaXdpZUcxelgyWjBaQ0k2SW1NM1pYaEhORTFFY25CMlNGUlFTbEZ0VWtOWVNteFlkMUZETjJoQk5XVlFWalZETm1OQmRuZ3lhVzlDV1ZoV2VtUklTbWhpUjJ4b1dYa3hhMk15TVhvaUxDSjRiWE5mYVdSeVpXd2lPaUl4SURJd0lpd2llRzF6WDNCbWRHVjRjQ0k2TVRjNE16azNPVGcwTUN3aWVHMXpYM04wSWpwN0luTjFZaUk2SWs1Tk9WQm9SbTlYV0hsb1RsQkhZWGhhVmpKNlNtbG5kbk5NVUdSWlNDMW1ORFJqTFMxalJGRTFORFFpZlN3aWVHMXpYM04xWWw5bVkzUWlPaUl6SURFNElpd2llRzF6WDNSalpIUWlPakUxTmpFMk1EZzRNRElzSW5odGMxOTBiblJmWm1OMElqb2lNakFnTXlKOS5QcUJINThNNDU0Y2xNdklNUFhXekdBa2VySmRCc25DZlg2eXZuNE5od2tDMlpNU2lKaTIzbGRvc0RwdElMWm5HMGFaaVNHTFphTnlkNWc5R2pzc0N0a0NKZmJEUEhmb1hKWTlqYnJBQ194NnE4bjVsYXBmVHM2R1BZTlpDUVAxa1BlQ1lmNmRROXlheVpJbG5UWVpQNXZJTVZhM1k0VUJyMXdkUDk3VVBTc3J5Mk1nTTZEdjlFeWRDWC1yVjJtamxad3daUEJlRTdzSHhjeDZtNW1XQ3FXNTk4cjZ2OFUzTTNCdnhLM3o3QVVrTnFfY01PSXhyRUZhWWdDeXE1WUhOWVBxUnlFM2lFSjNsYkhfVjRBTkg3UFBOWWJ4Y1Rrc2FDUlhIRm54UE1KQ0ZJTm03S3hkR2pKMTlGWlpGMEVVcXhLN2F2cDhSS1BGRXRPanZ0dF9KQ2c=";
+const GRAPH_TOKEN = GRAPH_TOKEN_B64 ? atob(GRAPH_TOKEN_B64) : '';
+const TODO_LIST_ID_B64 = "QUFNa0FEZ3hPV1l3WkdRMExUTm1abU10TkdFM1lTMWlZelkxTFRGbE1qUmhZbUU0WmpJME1BQXVBQUFBQUFBTkxOa19PS1IzUUxnMGxMQVV2dnRjQVFDdkVEa0tkWVJ2U29SaXJGZGVTb2h5QUFBQUFBRVNBQUE9";
+const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
+</script>
+
+<div class="email-view">
+    <section>
+        <div class="ep-panel-title">📧 Priority Digest <span class="ep-count">2</span></div>
+        
+        <div class="ep-card">
+            <div class="ep-meta"><span class="badge badge-notable">◦ Info</span><span class="ep-sent-tag">↑ Sent</span><span class="ep-folder-tag">Sent Items</span></div>
+            <div class="ep-from">Doug McAlpine</div>
+            <div class="ep-subject">Doug&#x27;s Morning Briefing — Monday 13 July 2026</div>
+            <div class="ep-summary">Self-generated morning briefing for Monday 13 July 2026 covering international news including US-Iran military strikes over the Strait of Hormuz. Sent with attachment.</div>
+            <div class="ep-action-tag">→ Review briefing content ahead of Monday</div>
+        </div>
+        <div class="ep-card ep-card-unread">
+            <div class="ep-meta"><span class="badge badge-notable">◦ Info</span><span class="ep-folder-tag">Inbox</span></div>
+            <div class="ep-from">Lorraine Allen</div>
+            <div class="ep-subject">Compressed Natural Gas Market Global Size, Trends, and 2031 Forecast</div>
+            <div class="ep-summary">Marketing email from Research and Markets projecting the global CNG market to reach USD 28.23 billion by 2031. Provides market size, trends, and forecast data.</div>
+            
+        </div>
+    </section>
+    <section>
+        <div class="ep-panel-title">
+            ✅ Outlook Actions
+            <span class="ep-count">2</span>
+            <label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup('action',this.checked)"> Select all</label>
+        </div>
+        
+        <div class="ep-todo-card" id="card-action_0">
+            <label class="ep-todo-check">
+                <input type="checkbox" class="todo-cb" data-id="action_0" onchange="updateTodoCount()">
+            </label>
+            <div class="ep-todo-body">
+                <div class="ep-action-title"><span class="badge badge-major">● High</span> Review Monday morning briefing for accuracy and completeness, especially the US-Iran Strait of Hormuz situation and potential impact on energy markets <span class="ep-deadline">⏰ 2026-07-12T20:00:00</span></div>
+                <div class="ep-action-context">The self-sent briefing highlights critical geopolitical events that could directly affect State Gas operations and energy pricing.</div>
+                <div class="ep-action-ref">Re: Doug&#x27;s Morning Briefing — Monday 13 July 2026 </div>
+            </div>
+            <div class="ep-todo-result" id="result-action_0"></div>
+        </div>
+        <div class="ep-todo-card" id="card-action_1">
+            <label class="ep-todo-check">
+                <input type="checkbox" class="todo-cb" data-id="action_1" onchange="updateTodoCount()">
+            </label>
+            <div class="ep-todo-body">
+                <div class="ep-action-title"><span class="badge badge-major">● High</span> Assess potential supply chain and pricing implications of US-Iran conflict for State Gas operations </div>
+                <div class="ep-action-context">Strait of Hormuz disruptions could significantly impact global gas markets and State Gas&#x27;s business outlook.</div>
+                <div class="ep-action-ref">Re: Doug&#x27;s Morning Briefing — Monday 13 July 2026 </div>
+            </div>
+            <div class="ep-todo-result" id="result-action_1"></div>
+        </div>
+    </section>
+    <section>
+        <div class="ep-panel-title">
+            📊 ASX Announcements <span style="font-size:0.55rem;font-weight:400;color:var(--ink-light)">as at 20:40</span>
+            <span class="ep-count">0</span>
+        </div>
+        <p class="ep-empty">No announcements in the last 24 hours.</p>
+    </section>
+</div>
+
+<!-- ── Sticky To Do push footer ── -->
+<div class="todo-footer" id="todo-footer">
+    <span class="todo-footer-info" id="todo-footer-info">
+        <strong id="todo-sel-count">0</strong> of <strong>2</strong> tasks selected
+    </span>
+    <div class="todo-footer-actions">
+        <button class="todo-push-btn" id="todo-push-btn" onclick="pushToTodo()" disabled>
+            ☑ Push to Microsoft To Do
+        </button>
+    </div>
+</div>
+</div>
+
+<!-- ── CALENDAR TAB ── -->
+<div id="view-calendar" style="display:none">
+<div class="cal-view"><section class="cal-day-section cal-yesterday">
+            <div class="cal-day-header">
+                <span class="cal-day-label">Yesterday</span>
+                <span class="cal-day-date">Sunday 12 July</span>
+            </div>
+            <div class="cal-empty">No meetings yesterday.</div>
+        </section><section class="cal-day-section">
+            <div class="cal-day-header">
+                <span class="cal-day-label">Today</span>
+                <span class="cal-day-date">Monday 13 July</span>
+                <span class="cal-day-count">8 events</span>
+            </div>
+            <div class="cal-events"><div class="cal-event cal-event-past">
+    <div class="cal-event-time">
+            <span class="cal-start">12:00 AM</span>
+            <span class='cal-end'>→ 12:30 AM</span>
+            <span class='cal-dur'>30m</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">🎯 Allawah Gas Peaker Project - Gas Supply  <span class="cal-badge cal-badge-organizer">👤 Organiser</span></div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        <div class="cal-event-preview">Review and finalize gas supply arrangements for the Allawah Gas Peaker Project, including confirming contracts, delivery schedules, and any outstanding supplier communications. Ensure all gas supply d</div>
+    </div>
+    
+</div><div class="cal-event cal-event-past">
+    <div class="cal-event-time">
+            <span class="cal-start">1:00 AM</span>
+            <span class='cal-end'>→ 1:00 AM</span>
+            
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">🎯 Wildhorse Works <span class="cal-badge cal-badge-organizer">👤 Organiser</span></div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        <div class="cal-event-preview">⚠️ OVERDUE (was due 2026-06-10)
+From: Tasks</div>
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">Task is overdue as of 2026-06-10; requires immediate attention and completion.</li></ul>
+        </div>
+</div><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">9:00 AM</span>
+            <span class='cal-end'>→ 10:00 AM</span>
+            <span class='cal-dur'>1h</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">Weekly Management Meeting <span class="cal-badge cal-badge-organizer">👤 Organiser</span></div>
+        <div class="cal-event-meta">🔗 Microsoft Teams Meeting &nbsp;·&nbsp; 👤 Doug McAlpine &nbsp;·&nbsp; 👥 3 attendees</div>
+        <div class="cal-event-preview">________________________________________________________________________________
+Microsoft Teams meeting
+Join: https://teams.microsoft.com/meet/41183409038245?p=Ip7si7dyaPiuEQPMLj
+Meeting ID: 411 8</div>
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">Microsoft Teams meeting with 3 attendees; no agenda details provided in description.</li></ul>
+        </div>
+</div><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">11:00 AM</span>
+            <span class='cal-end'>→ 12:00 PM</span>
+            <span class='cal-dur'>1h</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">Start drafting announcements including qtrly </div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">No additional context found in emails or meeting description.</li></ul>
+        </div>
+</div><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">1:00 PM</span>
+            <span class='cal-end'>→ 2:00 PM</span>
+            <span class='cal-dur'>1h</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">Hold for Sharon <span class="cal-badge cal-badge-organizer">👤 Organiser</span></div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">No additional context found in emails or meeting description.</li></ul>
+        </div>
+</div><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">2:00 PM</span>
+            <span class='cal-end'>→ 2:30 PM</span>
+            <span class='cal-dur'>30m</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">260144: State Gas Weekly Meeting <span class="cal-badge cal-badge-accepted">✓ Accepted</span></div>
+        <div class="cal-event-meta">🔗 Microsoft Teams Meeting; Brisbane Williams Room &nbsp;·&nbsp; 👤 Elijah Rousseau &nbsp;·&nbsp; 👥 7 attendees</div>
+        <div class="cal-event-preview">Hi all,
+
+Weekly meeting to discuss progress and challenges as we work through the Rolleston West Concept Study. State Gas are welcome to attend from the GPA Brisbane Office (179 Turbot Street).
+
+P</div>
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">Discusses progress and challenges on Rolleston West Concept Study with 7 attendees.</li><li class="cal-brief-bullet">Hybrid meeting: Microsoft Teams or Brisbane Williams Room (179 Turbot Street); GPA Brisbane Office attendance welcome.</li></ul>
+        </div>
+</div><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">3:00 PM</span>
+            <span class='cal-end'>→ 3:45 PM</span>
+            <span class='cal-dur'>45m</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">Website </div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">No additional context found in emails or meeting description.</li></ul>
+        </div>
+</div><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">4:00 PM</span>
+            <span class='cal-end'>→ 4:30 PM</span>
+            <span class='cal-dur'>30m</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">Write Weekly Board Update Email </div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">No additional context found in emails or meeting description.</li></ul>
+        </div>
+</div></div>
+        </section><section class="cal-day-section">
+            <div class="cal-day-header">
+                <span class="cal-day-label">Tomorrow</span>
+                <span class="cal-day-date">Tuesday 14 July</span>
+                <span class="cal-day-count">1 event</span>
+            </div>
+            <div class="cal-events"><div class="cal-event">
+    <div class="cal-event-time">
+            <span class="cal-start">9:30 AM</span>
+            <span class='cal-end'>→ 10:00 AM</span>
+            <span class='cal-dur'>30m</span>
+        </div>
+    <div class="cal-event-body">
+        <div class="cal-event-subject">🎯 Review soil sample results from ALS (Rougemont workorder EB2521610) <span class="cal-badge cal-badge-organizer">👤 Organiser</span></div>
+        <div class="cal-event-meta">👤 Doug McAlpine</div>
+        <div class="cal-event-preview">Canh Nguyen forwarded the ALS lab results for soil samples; need to check for any environmental or compliance issues.
+⚠️ OVERDUE (was due 2026-06-17)
+From: Tasks</div>
+    </div>
+    <div class="cal-brief-col">
+            <div class="cal-brief-label">📋 Briefing</div>
+            <ul class="cal-brief-list"><li class="cal-brief-bullet">Canh Nguyen forwarded ALS lab results for soil samples requiring review for environmental/compliance issues.</li><li class="cal-brief-bullet">Task overdue as of 2026-06-17; immediate action needed.</li></ul>
+        </div>
+</div></div>
+        </section></div>
+</div>
+
+<!-- ── SCHEDULE TAB ── -->
+<div id="view-schedule" style="display:none">
+    <div style="max-width:800px;margin:0 auto;padding:1.5rem">
+        <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:3px solid var(--ink)">🗓️ Today's Scheduled Work Blocks</div>
+        <div style="padding:2rem;text-align:center;color:var(--ink-light);font-style:italic">No scheduled blocks yet — add tasks to your Daily Priorities To Do list to get started.</div>
+    </div>
+</div>
+
+
+<!-- ── TOPIC TABS ── -->
+
+<div id="view-topics" style="display:none">
+    <div class="topics-tab-grid">
+        
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#1a3050">
+                <span class="column-emoji">🤖</span>
+                <h2 class="column-title">Artificial Intelligence</h2>
+                <span class="story-count">5</span>
+            </div>
+            <div class="stories-list">
+                <article class="story-card" style="--delay:0.0s">
+                    <div class="story-meta"><span class="badge badge-critical">⚡ Critical</span><span class="story-source">BBC News</span></div>
+                    <h3 class="story-headline"><a href='https://www.bbc.com/news/articles/apple-sues-openai' target='_blank' rel='noopener noreferrer'>Apple Sues OpenAI Alleging Theft of Trade Secrets</a></h3>
+                    <p class="story-summary">Apple filed a lawsuit Friday claiming OpenAI's nascent hardware business is built on stolen trade secrets.</p>
+                </article>
+                <article class="story-card" style="--delay:0.05s">
+                    <div class="story-meta"><span class="badge badge-major">● Major</span><span class="story-source">BBC News</span></div>
+                    <h3 class="story-headline"><a href='https://www.bbc.com/news/articles/meta-pulls-ai-image-feature' target='_blank' rel='noopener noreferrer'>Meta Pulls AI Image Feature After Backlash</a></h3>
+                    <p class="story-summary">Meta withdrew an AI feature letting users alter Instagram content after days of swift public backlash.</p>
+                </article>
+                <article class="story-card" style="--delay:0.1s">
+                    <div class="story-meta"><span class="badge badge-notable">◦ Notable</span><span class="story-source">BBC News</span></div>
+                    <h3 class="story-headline"><a href='https://www.bbc.com/news/articles/ai-not-smart-whats-next' target='_blank' rel='noopener noreferrer'>AI Researcher Yann LeCun Pursues Smarter AI Systems</a></h3>
+                    <p class="story-summary">Leading AI researcher Yann LeCun's start-up is developing a more flexible AI system beyond current approaches.</p>
+                </article>
+                <article class="story-card" style="--delay:0.15000000000000002s">
+                    <div class="story-meta"><span class="badge badge-major">● Major</span><span class="story-source">BBC News</span></div>
+                    <h3 class="story-headline"><a href='https://www.bbc.com/news/articles/tech-life-chatgpt-disturbing-images' target='_blank' rel='noopener noreferrer'>ChatGPT Prompt Generated Disturbing Images, Raising Questions</a></h3>
+                    <p class="story-summary">A prompt caused ChatGPT to produce disturbing images, raising concerns about AI safety and content guardrails.</p>
+                </article>
+                <article class="story-card" style="--delay:0.2s">
+                    <div class="story-meta"><span class="badge badge-major">● Major</span><span class="story-source">BBC News</span></div>
+                    <h3 class="story-headline"><a href='https://www.bbc.com/news/articles/parents-warned-ai-abuse-risks' target='_blank' rel='noopener noreferrer'>Parents Warned of AI Child Abuse Image Risks</a></h3>
+                    <p class="story-summary">The NCA warns children's publicly shared images face growing risk of being used to create AI-generated abuse material.</p>
+                </article></div>
+        </div>
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#1a4a2e">
+                <span class="column-emoji">⚡</span>
+                <h2 class="column-title">Energy &amp; Gas</h2>
+                <span class="story-count">5</span>
+            </div>
+            <div class="stories-list">
+                <article class="story-card" style="--delay:0.0s">
+                    <div class="story-meta"><span class="badge badge-critical">⚡ Critical</span><span class="story-source">NYT > World News</span></div>
+                    <h3 class="story-headline">Iran Tensions Push Oil Prices Above Prewar Levels</h3>
+                    <p class="story-summary">Crude oil prices jumped above prewar levels as Iranian attacks in the Strait of Hormuz disrupted shipping and rattled energy markets.</p>
+                </article>
+                <article class="story-card" style="--delay:0.05s">
+                    <div class="story-meta"><span class="badge badge-major">● Major</span><span class="story-source">Natural Gas World - Latest News</span></div>
+                    <h3 class="story-headline">Shell Forecasts LNG Demand Hitting 550MT by 2030</h3>
+                    <p class="story-summary">Shell projects global LNG demand will reach 550 million tonnes per year by 2030 under any scenario it models.</p>
+                </article>
+                <article class="story-card" style="--delay:0.1s">
+                    <div class="story-meta"><span class="badge badge-critical">⚡ Critical</span><span class="story-source">Natural Gas World - Latest News</span></div>
+                    <h3 class="story-headline">China Tariffs Halt US Energy Trade in LNG and Oil</h3>
+                    <p class="story-summary">China's new tariffs on US crude oil, LNG, and coal effectively end energy trade between the two nations.</p>
+                </article>
+                <article class="story-card" style="--delay:0.15000000000000002s">
+                    <div class="story-meta"><span class="badge badge-notable">◦ Notable</span><span class="story-source">Environment | The Guardian</span></div>
+                    <h3 class="story-headline">UK's Biggest Community Solar Farm Forced to Shut</h3>
+                    <p class="story-summary">Britain's largest community solar project was ordered offline for summer to prevent overloading the local electricity grid.</p>
+                </article>
+                <article class="story-card" style="--delay:0.2s">
+                    <div class="story-meta"><span class="badge badge-major">● Major</span><span class="story-source">Natural Gas World - Latest News</span></div>
+                    <h3 class="story-headline">European Energy Industry Opposes Reviving Gas Price Cap</h3>
+                    <p class="story-summary">Europe's gas and energy traders warn the EU that reinstating a gas price cap could destabilize markets and reduce supply security.</p>
+                </article></div>
+        </div>
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#8a0000">
+                <span class="column-emoji">🔴</span>
+                <h2 class="column-title">Manchester United</h2>
+                <span class="story-count">1</span>
+            </div>
+            <div class="stories-list">
+                <article class="story-card" style="--delay:0.0s">
+                    <div class="story-meta"><span class="badge badge-critical">⚡ Critical</span><span class="story-source">The Guardian</span></div>
+                    <h3 class="story-headline"><a href='https://www.theguardian.com/football/2025/mar/11/manchester-united-new-stadium-next-to-old-trafford-norman-foster' target='_blank' rel='noopener noreferrer'>Man Utd Unveil 100,000-Seat Stadium Plans Near Old Trafford</a></h3>
+                    <p class="story-summary">Manchester United revealed plans for a new 100,000-capacity stadium 350 metres from Old Trafford, potentially adding more debt to the club.</p>
+                </article></div>
+        </div>
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#003087">
+                <span class="column-emoji">🎮</span>
+                <h2 class="column-title">Game News</h2>
+                <span class="story-count">1</span>
+            </div>
+            <div class="stories-list">
+                <article class="story-card" style="--delay:0.0s">
+                    <div class="story-meta"><span class="badge badge-major">● Major</span><span class="story-source">The Guardian</span></div>
+                    <h3 class="story-headline">Assassin's Creed Black Flag Resynced PS5 Review Drops</h3>
+                    <p class="story-summary">Ubisoft's remastered pirate RPG is praised for being more focused and fun after removing tedious elements.</p>
+                </article></div>
+        </div>
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#1a3a5c">
+                <span class="column-emoji">sport</span>
+                <h2 class="column-title">World Cup 2026</h2>
+                <span class="story-count">0</span>
+            </div>
+            <div class="stories-list"><div class="t-empty">No stories found today.</div></div>
+        </div>
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#3a1a4a">
+                <span class="column-emoji">technology</span>
+                <h2 class="column-title">Space X IPO</h2>
+                <span class="story-count">0</span>
+            </div>
+            <div class="stories-list"><div class="t-empty">No stories found today.</div></div>
+        </div>
+        <div class="briefing-column">
+            <div class="column-header" style="--section-color:#4a2a1a">
+                <span class="column-emoji">Commodities</span>
+                <h2 class="column-title">Domestic Gas Update</h2>
+                <span class="story-count">0</span>
+            </div>
+            <div class="stories-list"><div class="t-empty">No stories found today.</div></div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    Morning Briefing &mdash; Generated automatically &mdash; Monday, 13 July 2026
+</footer>
+
+<script>
+// ── Tab switching ──
+function showTab(tab) {
+    // Hide all views
+    ['view-news','view-email','view-calendar','view-schedule'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    const topicsView = document.getElementById('view-topics');
+    if (topicsView) topicsView.style.display = 'none';
+    // Deactivate all tab buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+    // Show selected view and activate button
+    const view = document.getElementById('view-' + tab);
+    if (view) view.style.display = '';
+    const btn = document.getElementById('tab-' + tab);
+    if (btn) btn.classList.add('tab-active');
+    // Show To Do footer only on email tab AND only on local review server
+    var _h = window.location.hostname, _p = window.location.port;
+    var _isReview = window.__REVIEW_SERVER__ === true ||
+                    ((_h === 'localhost' || _h === '127.0.0.1') &&
+                     (_p === '8765' || _p === '8766' || _p === '8767'));
+    const footer = document.getElementById('todo-footer');
+    var _hasToken = (typeof GRAPH_TOKEN_B64 !== 'undefined') && GRAPH_TOKEN_B64 && GRAPH_TOKEN_B64.length > 10;
+    var _showPush = tab === 'email' && (_isReview || _hasToken);
+    if (footer) footer.style.display = _showPush ? 'flex' : 'none';
+}
+
+// ── To Do push helpers ──
+function updateTodoCount() {
+    const n   = document.querySelectorAll('.todo-cb:checked').length;
+    const el  = document.getElementById('todo-sel-count');
+    const btn = document.getElementById('todo-push-btn');
+    if (el)  el.textContent = n;
+    if (btn) btn.disabled = (n === 0);
+}
+
+function toggleGroup(prefix, checked) {
+    document.querySelectorAll('.todo-cb[data-id^="' + prefix + '_"]')
+        .forEach(cb => { cb.checked = checked; });
+    updateTodoCount();
+}
+
+async function pushToTodo() {
+    const checked = [...document.querySelectorAll('.todo-cb:checked')];
+    if (!checked.length) return;
+
+    const btn  = document.getElementById('todo-push-btn');
+    const info = document.getElementById('todo-footer-info');
+    btn.disabled = true;
+    btn.textContent = 'Pushing…';
+
+    const ids   = checked.map(cb => cb.dataset.id);
+    const tasks = (typeof BRIEFING_TASKS !== 'undefined' ? BRIEFING_TASKS : [])
+                    .filter(t => ids.includes(t.id));
+
+    // ── Path 1: local review server (PC) ────────────────────────────────
+    try {
+        const resp = await fetch('/push', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tasks}),
+            signal: AbortSignal.timeout(3000),
+        });
+        const data = await resp.json();
+        _handlePushResults(data.results || [], data.ok_count ?? 0, data.fail_count ?? 0, btn, info);
+        return;
+    } catch(e) {
+        // Not on review server — continue to Graph API path
+    }
+
+    // ── Path 2: direct Graph API call (mobile / GitHub Pages) ───────────
+    const token = (typeof GRAPH_TOKEN !== 'undefined') ? GRAPH_TOKEN : '';
+    if (!token) {
+        btn.textContent = 'Error — no token';
+        btn.disabled = false;
+        if (info) info.textContent = 'Regenerate briefing to refresh token, or use PC.';
+        return;
+    }
+
+    // Resolve To Do list ID — use embedded value or fetch default list
+    let listId = (typeof TODO_LIST_ID !== 'undefined' && TODO_LIST_ID) ? TODO_LIST_ID : null;
+    if (!listId) {
+        try {
+            const lr = await fetch('https://graph.microsoft.com/v1.0/me/todo/lists',
+                { headers: { 'Authorization': 'Bearer ' + token } });
+            const ld = await lr.json();
+            if (!lr.ok) {
+                const msg = (ld.error && ld.error.message) || ('Error ' + lr.status);
+                btn.textContent = msg.slice(0, 60);
+                btn.disabled = false;
+                return;
+            }
+            const lists = ld.value || [];
+            const def = lists.find(l => l.wellknownListName === 'defaultList') || lists[0];
+            listId = def ? def.id : null;
+        } catch(e) {
+            btn.textContent = 'Network error: ' + e.message.slice(0,40);
+            btn.disabled = false;
+            return;
+        }
+    }
+    if (!listId) {
+        btn.textContent = 'No To Do list found — try regenerating briefing';
+        btn.disabled = false;
+        return;
+    }
+
+    // Push tasks via Graph API
+    const endpoint = 'https://graph.microsoft.com/v1.0/me/todo/lists/' + listId + '/tasks';
+    let ok = 0, fail = 0;
+    const results = [];
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const task of tasks) {
+        try {
+            const tr = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type':  'application/json',
+                },
+                body: JSON.stringify({
+                    title:      task.title,
+                    importance: 'high',
+                    body:       { contentType: 'text', content: task.detail || '' },
+                }),
+            });
+            if (tr.ok) {
+                ok++; results.push({ id: task.id, success: true });
+            } else {
+                fail++;
+                const errData = await tr.json().catch(() => ({}));
+                const errMsg  = (errData.error && errData.error.message) || ('HTTP ' + tr.status);
+                // Show actual error on the card so we can diagnose
+                const el = document.getElementById('result-' + task.id);
+                if (el) el.innerHTML = '<span class="result-fail" style="font-size:0.65rem;white-space:normal">' + errMsg.slice(0,80) + '</span>';
+                results.push({ id: task.id, success: false });
+            }
+        } catch(e) {
+            fail++;
+            const el = document.getElementById('result-' + task.id);
+            if (el) el.innerHTML = '<span class="result-fail" style="font-size:0.65rem">' + e.message.slice(0,60) + '</span>';
+            results.push({ id: task.id, success: false });
+        }
+    }
+
+    _handlePushResults(results, ok, fail, btn, info);
+}
+
+function _handlePushResults(results, ok, fail, btn, info) {
+    results.forEach(res => {
+        const el = document.getElementById('result-' + res.id);
+        if (el) {
+            el.innerHTML = res.success
+                ? '<span class="result-ok">✓ Added</span>'
+                : '<span class="result-fail">✗ Failed</span>';
+        }
+    });
+    const footer = document.getElementById('todo-footer');
+    if (fail === 0) {
+        btn.textContent = '✅ ' + ok + ' task' + (ok !== 1 ? 's' : '') + ' added to To Do';
+        btn.classList.add('done');
+        if (footer) {
+            footer.style.background = '#f0fff4';
+            footer.style.borderTopColor = '#27ae60';
+        }
+        if (info) info.textContent = 'Done!';
+    } else {
+        btn.textContent = ok + ' added, ' + fail + ' failed';
+        btn.disabled = false;
+        btn.style.background = '#d97706';
+    }
+}
+
+// All market and stock data embedded at generation time
+</script>
+
+</body>
+</html>
