@@ -1,0 +1,55 @@
+# .github/workflows/friday_wrap.yml
+#
+# Friday Wrap (D14) — sends the week-in-review email every Friday at
+# ~16:30 AEST (06:30 UTC Friday). New standalone workflow: it does not
+# touch generate.yml or the daily briefing in any way.
+
+name: Friday Wrap
+
+on:
+  schedule:
+    - cron: "30 6 * * 5"        # 06:30 UTC Friday = 16:30 AEST Friday
+  workflow_dispatch: {}
+
+jobs:
+  wrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # IMPORTANT: restore the token cache via Python json round-trip.
+      # Piping the secret through bash `echo` strips newlines from the
+      # multi-line JSON and breaks MSAL token parsing (learned the hard way).
+      - name: Restore Outlook token cache
+        env:
+          OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
+        run: |
+          python - <<'EOF'
+          import json, os
+          raw = os.environ["OUTLOOK_TOKEN_CACHE"]
+          data = json.loads(raw)
+          with open(".outlook_token_cache.bin", "w", encoding="utf-8") as f:
+              json.dump(data, f)
+          print("Token cache restored:", len(raw), "chars")
+          EOF
+
+      - name: Run Friday Wrap
+        env:
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          OUTLOOK_CLIENT_ID:    ${{ secrets.OUTLOOK_CLIENT_ID }}
+          OUTLOOK_TENANT_ID:    ${{ secrets.OUTLOOK_TENANT_ID }}
+          BRIEFING_EMAIL_TO:    ${{ secrets.BRIEFING_EMAIL_TO }}
+          BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
+          CI: "true"
+        run: python weekly_wrap.py

@@ -6,6 +6,9 @@ on:
     # Avoiding top-of-hour — GitHub drops queued jobs during peak load at :00
     # Runs Sunday–Thursday UTC = Monday–Friday AEST
     - cron: '17 17 * * 0-4'
+    # D10 — second lightweight run: 8:15 AM AEST = 10:15 PM UTC (previous day)
+    # Full regeneration (cheap on Haiku) so email/calendar/announcements refresh
+    - cron: '15 22 * * 0-4'
   workflow_dispatch:
     inputs:
       reason:
@@ -36,6 +39,8 @@ jobs:
           cache: 'pip'
 
       # ── 3. Dependencies ────────────────────────────────────────────────────
+      # cryptography — AES encryption for wrap_password.py (B5)
+      # edge-tts     — spoken MP3 briefing edition (D12)
       - name: Install dependencies
         run: |
           pip install \
@@ -44,7 +49,9 @@ jobs:
             requests \
             msal \
             yfinance \
-            python-dotenv
+            python-dotenv \
+            cryptography \
+            edge-tts
 
       # ── 4. Restore Outlook token ───────────────────────────────────────────
       # Uses Python to write the token — bash echo corrupts multi-line JSON
@@ -69,33 +76,12 @@ jobs:
               print("OK: Outlook token cache restored (plain text format)")
           PYEOF
 
-      # ── 5. Restore Google token ────────────────────────────────────────────
-      - name: Restore Google token
-        env:
-          GOOGLE_TOKEN_CACHE: ${{ secrets.GOOGLE_TOKEN_CACHE }}
-        run: |
-          python3 - <<'PYEOF'
-          import os, json, sys
-          raw = os.environ.get("GOOGLE_TOKEN_CACHE", "")
-          if not raw:
-              print("INFO: GOOGLE_TOKEN_CACHE not set — Gmail/Google Calendar skipped")
-              sys.exit(0)
-          try:
-              parsed = json.loads(raw)
-              with open(".google_token_cache.json", "w", encoding="utf-8") as f:
-                  json.dump(parsed, f)
-              print("OK: Google token cache restored")
-          except json.JSONDecodeError:
-              with open(".google_token_cache.json", "w", encoding="utf-8") as f:
-                  f.write(raw)
-              print("OK: Google token cache restored (plain text format)")
-          PYEOF
+      # ── 5. (removed) Google token restore ─────────────────────────────────
+      # Gmail/Google Calendar integration was fully removed (C2) —
+      # gmail_email.py and google_calendar.py no longer exist and nothing
+      # reads GOOGLE_TOKEN_CACHE or gmail_actions.json.
 
-      # ── 6. Restore Gmail actions ───────────────────────────────────────────
-      # gmail_actions.json is committed to the repo and updated via Claude.ai
-      # Nothing to restore here — it's already checked out with the repo
-
-      # ── 7. Run briefing generator ──────────────────────────────────────────
+      # ── 6. Run briefing generator ──────────────────────────────────────────
       - name: Generate briefing
         env:
           CI: "true"
@@ -105,43 +91,96 @@ jobs:
           BRIEFING_EMAIL_TO:    ${{ secrets.BRIEFING_EMAIL_TO }}
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
           BRIEFING_PASSWORD:    ${{ secrets.BRIEFING_PASSWORD }}
-          GMAIL_CLIENT_ID:      ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET:  ${{ secrets.GMAIL_CLIENT_SECRET }}
-          GMAIL_REFRESH_TOKEN:  ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          # D3 — Outlook token expiry countdown (secret set by upload_tokens.py)
+          OUTLOOK_TOKEN_SETUP_DATE: ${{ secrets.OUTLOOK_TOKEN_SETUP_DATE }}
+          # D5/D13 — where gas_history.json / archive.json are fetched back from
+          BRIEFING_SITE_URL: "https://dmcalpine76-create.github.io/morning-briefing"
         run: python briefing.py
 
-      # ── 8. Wrap output with password protection ────────────────────────────
-      - name: Wrap with password
+      # ── 7. Wrap output + stage publish files ───────────────────────────────
+      # Wraps the briefing (and the dated archive copy) with AES password
+      # protection, stages the D5/D13 artifacts at the site root, then removes
+      # the raw working folder so the UNWRAPPED briefing.html and the emailed
+      # MP3 are never published. (Previously the timestamped subfolder — with
+      # the unprotected briefing inside — was deployed to gh-pages.)
+      - name: Wrap with password and stage publish files
         env:
           BRIEFING_PASSWORD: ${{ secrets.BRIEFING_PASSWORD }}
         run: |
-          # Find today's briefing HTML in the output folder
-          OUTPUT_DIR=$(ls -td output/*/  2>/dev/null | head -1)
+          OUTPUT_DIR=$(ls -td output/*/ 2>/dev/null | head -1)
           if [ -z "$OUTPUT_DIR" ]; then
             echo "ERROR: No output folder found"
             exit 1
           fi
           echo "Output folder: $OUTPUT_DIR"
-          # Wrap the briefing with password protection
+
+          # Main page — wrapped to index.html at the site root
           python wrap_password.py "${OUTPUT_DIR}briefing.html" "${OUTPUT_DIR}index.html" "$BRIEFING_PASSWORD"
-          # Copy index.html to output root so GitHub Pages serves it at the base URL
           cp "${OUTPUT_DIR}index.html" output/index.html
-          echo "Password wrap complete — index.html at output root"
 
-      # ── 9. Commit updated gmail_actions.json back to main ────────────────────
-      - name: Commit Gmail actions
-        run: |
-          git config user.name "Morning Briefing Bot"
-          git config user.email "actions@github.com"
-          git add gmail_actions.json || true
-          git diff --staged --quiet || git commit -m "Auto-refresh Gmail actions [skip ci]"
-          git push origin main || true
+          # D5 — rolling gas price history (sparkline source)
+          cp "${OUTPUT_DIR}gas_history.json" output/ 2>/dev/null || true
 
-      # ── 10. Deploy to GitHub Pages ──────────────────────────────────────────
+          # D13 — archive manifest + index + today's dated copy (wrapped too)
+          cp "${OUTPUT_DIR}archive.json" output/ 2>/dev/null || true
+          cp "${OUTPUT_DIR}archive.html" output/ 2>/dev/null || true
+          for f in "${OUTPUT_DIR}"briefing_*.html; do
+            [ -e "$f" ] || continue
+            python wrap_password.py "$f" "output/$(basename "$f")" "$BRIEFING_PASSWORD"
+            echo "Wrapped archive copy: $(basename "$f")"
+          done
+
+          # Remove the raw working folder — contains the unwrapped briefing
+          # and briefing.mp3 (emailed, not published)
+          rm -rf "$OUTPUT_DIR"
+          echo "Publish staging complete:"
+          ls -la output/
+
+      # ── 8. Deploy to GitHub Pages ──────────────────────────────────────────
+      # keep_files (replacing force_orphan) preserves previous days' dated
+      # archive copies on gh-pages — otherwise each deploy would wipe them
+      # and the D13 archive index would link to missing pages.
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir:  ./output
           publish_branch: gh-pages
-          force_orphan: true
+          keep_files: true
+
+      # ── 9. Notify briefing published (D11) ──────────────────────────────────
+      # Requires an NTFY_TOPIC secret (your private ntfy.sh topic name).
+      # Skips silently if the secret isn't set.
+      - name: Notify briefing published
+        if: success()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "NTFY_TOPIC secret not set — skipping notification"
+            exit 0
+          fi
+          curl -s \
+            -H "Title: Morning Briefing ready" \
+            -H "Tags: newspaper" \
+            -H "Click: https://dmcalpine76-create.github.io/morning-briefing" \
+            -d "Today's briefing is published." \
+            "ntfy.sh/$NTFY_TOPIC"
+
+      # ── 10. Alert on failure (D1) ────────────────────────────────────────────
+      # Runs ONLY if any step above failed — a ping instead of silence at 5:30am.
+      - name: Alert on failure
+        if: failure()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "NTFY_TOPIC secret not set — skipping alert"
+            exit 0
+          fi
+          curl -s \
+            -H "Title: Morning Briefing FAILED" \
+            -H "Priority: high" \
+            -H "Tags: rotating_light" \
+            -d "Run failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "ntfy.sh/$NTFY_TOPIC"
