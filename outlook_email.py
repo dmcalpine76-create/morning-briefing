@@ -31,6 +31,7 @@ SEND_TO_GMAIL = os.environ.get("BRIEFING_EMAIL_GMAIL", "dmcalpine76@gmail.com") 
 SCOPES     = ["Mail.Read", "Mail.Send", "User.Read", "Tasks.ReadWrite"]
 CACHE_FILE = Path(__file__).parent / ".outlook_token_cache.bin"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+DAYFMT     = "%#d" if os.name == "nt" else "%-d"   # no-pad day: Windows vs Linux
 
 # Tuning
 MAX_EMAILS       = 80   # max emails to analyse
@@ -105,6 +106,14 @@ def setup_auth():
     result = app.acquire_token_by_device_flow(flow)
     if "access_token" in result:
         _save_cache(cache)
+        # Record the setup date so the briefing can count down the ~90-day
+        # refresh-token window (see upload_tokens.py, which mirrors this
+        # to the OUTLOOK_TOKEN_SETUP_DATE GitHub secret).
+        try:
+            (Path(__file__).parent / ".outlook_token_setup").write_text(
+                datetime.date.today().isoformat(), encoding="utf-8")
+        except Exception:
+            pass
         try:
             me    = requests.get(f"{GRAPH_BASE}/me",
                                  headers={"Authorization": f"Bearer {result['access_token']}"},
@@ -161,7 +170,7 @@ def fetch_recent_emails(token: str, hours_back: int = 48) -> list:
       3. Top-level custom folders (flat, no recursion, capped at MAX_FOLDERS)
     Fast and predictable — no recursive folder crawling.
     """
-    since     = datetime.datetime.utcnow() - datetime.timedelta(hours=hours_back)
+    since     = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours_back)
     since_str = since.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     base_params = {
@@ -290,7 +299,7 @@ EMAILS:
 
     try:
         message = client.messages.create(
-            model      = "claude-opus-4-6",
+            model      = "claude-haiku-4-5-20251001",
             max_tokens = 4000,
             messages   = [{"role": "user", "content": prompt}],
         )
@@ -316,6 +325,7 @@ def get_email_analysis(client: anthropic.Anthropic) -> dict:
     if CACHE_FILE.exists():
         size = CACHE_FILE.stat().st_size
         print(f"   📁  Token cache file: {CACHE_FILE} ({size} bytes)")
+        content = ""
         try:
             content = CACHE_FILE.read_text(encoding="utf-8")
             import json as _json
@@ -384,7 +394,7 @@ def _build_email_body(analysis: dict, sections: dict, generated_at: datetime.dat
       - Work actions digest (action items + people to contact)
     No JavaScript, no tabs — renders cleanly in any email client.
     """
-    date_str = generated_at.strftime("%A %#d %B %Y")
+    date_str = generated_at.strftime(f"%A {DAYFMT} %B %Y")
     time_str = generated_at.strftime("%H:%M AEST")
 
     # ── Styles (inline-friendly) ──
@@ -516,7 +526,8 @@ in a browser for the full interactive briefing with all topic tabs.
 def send_briefing_email(briefing_html: str, out_dir_name: str,
                          generated_at: datetime.datetime,
                          sections: dict = None,
-                         analysis: dict = None) -> bool:
+                         analysis: dict = None,
+                         extra_attachments: list = None) -> bool:
     """
     Send the morning briefing with:
       - HTML body: readable news stories + work actions (works in any email client)
@@ -531,7 +542,7 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
     try:
         import base64
         token    = get_access_token()
-        date_str = generated_at.strftime("%A %#d %B %Y")
+        date_str = generated_at.strftime(f"%A {DAYFMT} %B %Y")
         subject  = f"Doug's Morning Briefing — {date_str}"
         filename = f"Morning_Briefing_{generated_at.strftime('%Y-%m-%d')}.html"
 
@@ -541,6 +552,31 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
         # Encode full HTML as attachment
         html_b64 = base64.b64encode(briefing_html.encode("utf-8")).decode("ascii")
 
+        attachments = [
+            {
+                "@odata.type":  "#microsoft.graph.fileAttachment",
+                "name":         filename,
+                "contentType":  "text/html",
+                "contentBytes": html_b64,
+            }
+        ]
+        # Optional extra attachments — list of Path objects (e.g. audio MP3)
+        for extra in (extra_attachments or []):
+            try:
+                epath = Path(extra)
+                if not epath.exists():
+                    continue
+                mime = "audio/mpeg" if epath.suffix.lower() == ".mp3" else \
+                       "application/octet-stream"
+                attachments.append({
+                    "@odata.type":  "#microsoft.graph.fileAttachment",
+                    "name":         epath.name,
+                    "contentType":  mime,
+                    "contentBytes": base64.b64encode(epath.read_bytes()).decode("ascii"),
+                })
+            except Exception as _ae:
+                print(f"   ⚠️  Could not attach {extra}: {_ae}")
+
         message = {
             "subject":    subject,
             "importance": "normal",
@@ -549,14 +585,7 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
                 "content":     body_html,
             },
             "toRecipients": [{"emailAddress": {"address": a}} for a in recipients],
-            "attachments": [
-                {
-                    "@odata.type":  "#microsoft.graph.fileAttachment",
-                    "name":         filename,
-                    "contentType":  "text/html",
-                    "contentBytes": html_b64,
-                }
-            ],
+            "attachments": attachments,
         }
 
         resp = requests.post(

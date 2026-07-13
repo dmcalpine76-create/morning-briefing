@@ -40,6 +40,7 @@ GRAPH_BASE   = "https://graph.microsoft.com/v1.0"
 AEST_OFFSET  = datetime.timezone(datetime.timedelta(hours=10))
 BLOCK_TAG    = "🎯"          # used to identify scheduler-created events
 REQUEST_TIMEOUT = 15
+DAYFMT       = "%#d" if os.name == "nt" else "%-d"   # no-pad day: Windows vs Linux
 
 
 # ── AUTH ─────────────────────────────────────────────────────────────────────
@@ -348,12 +349,13 @@ def find_free_slots(events: list[dict], rules: dict, days_ahead: int = 5) -> lis
         # Build list of blocked periods for this day
         blocked = []
 
-        # From actual calendar events
+        # From actual calendar events — including previously-created 🎯 scheduler
+        # blocks. Once a block has been pushed to the real calendar it's a genuine
+        # commitment, so it must block new bookings the same as any other event
+        # (otherwise a later run/dashboard session can schedule right on top of it).
         for ev in events:
             if ev["start_dt"].date() != date:
                 continue
-            if ev["is_scheduler_block"]:
-                continue  # don't block on existing scheduler blocks (we'll overwrite)
             buf_end = ev["end_dt"] + datetime.timedelta(minutes=buffer_mins)
             blocked.append((ev["start_dt"], buf_end))
 
@@ -418,16 +420,208 @@ def _parse_time_on_date(date: datetime.date, time_str: str) -> datetime.datetime
 
 
 def _snap_forward(dt: datetime.datetime, snap_mins: int) -> datetime.datetime:
-    """Snap datetime forward to next snap_mins boundary."""
+    """
+    Snap datetime forward to the next snap_mins boundary.
+    Uses timedelta arithmetic so a snap past midnight rolls into the next
+    day instead of crashing on hour=24 (e.g. running the scheduler at 23:45).
+    """
+    base = dt.replace(hour=0, minute=0, second=0, microsecond=0)
     mins = dt.hour * 60 + dt.minute
+    if dt.second or dt.microsecond:
+        mins += 1   # never snap backwards past a partial minute
     snapped = ((mins + snap_mins - 1) // snap_mins) * snap_mins
-    return dt.replace(
-        hour=snapped // 60, minute=snapped % 60,
-        second=0, microsecond=0
+    return base + datetime.timedelta(minutes=snapped)
+
+
+# ── DURATION LEARNING (D8) ────────────────────────────────────────────────────
+# Logs every block the scheduler creates, marks blocks that were flagged as
+# unfinished the next morning, and feeds a short calibration summary back
+# into the AI scheduling prompt so duration estimates improve over time.
+
+DURATION_HISTORY_FILE = Path(__file__).parent / "duration_history.json"
+
+
+def _load_duration_history() -> list[dict]:
+    if not DURATION_HISTORY_FILE.exists():
+        return []
+    try:
+        return json.loads(DURATION_HISTORY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _save_duration_history(entries: list[dict]) -> None:
+    try:
+        DURATION_HISTORY_FILE.write_text(
+            json.dumps(entries[-100:], indent=1, ensure_ascii=False),
+            encoding="utf-8")
+    except Exception as e:
+        print(f"  ⚠️  Could not save duration history: {e}")
+
+
+def _log_scheduled_duration(title: str, mins: int) -> None:
+    """Record a block the moment it's pushed to the calendar."""
+    entries = _load_duration_history()
+    entries.append({
+        "date":    datetime.date.today().isoformat(),
+        "title":   title.replace(BLOCK_TAG, "").strip()[:80],
+        "mins":    int(mins),
+        "outcome": "scheduled",
+    })
+    _save_duration_history(entries)
+
+
+def _record_flagged_outcomes(flagged: list[dict]) -> None:
+    """Mark yesterday's unfinished blocks so the AI learns they ran over."""
+    if not flagged:
+        return
+    entries = _load_duration_history()
+    if not entries:
+        return
+    changed = False
+    for ev in flagged:
+        title = ev["subject"].replace(BLOCK_TAG, "").strip()[:80]
+        for entry in reversed(entries):
+            if entry["title"] == title and entry.get("outcome") == "scheduled":
+                entry["outcome"] = "unfinished"
+                changed = True
+                break
+    if changed:
+        _save_duration_history(entries)
+
+
+def _duration_hints(max_lines: int = 12) -> str:
+    """Compact calibration summary of recent history for the AI prompt."""
+    entries = _load_duration_history()
+    if not entries:
+        return ""
+    lines = []
+    for e in entries[-max_lines:]:
+        outcome = "was NOT finished in the allocated time" \
+            if e.get("outcome") == "unfinished" else "was completed"
+        lines.append(f"  - \"{e['title']}\" allocated {e['mins']}min — {outcome}")
+    return (
+        "\nRECENT DURATION HISTORY (use this to calibrate your estimates — "
+        "if similar tasks ran over, allocate MORE time):\n" + "\n".join(lines) + "\n"
     )
 
 
 # ── AI SCHEDULING ─────────────────────────────────────────────────────────────
+
+def _resolve_overlaps(candidates: list[dict]) -> list[dict]:
+    """
+    Guard against the AI assigning two different tasks into overlapping time
+    ranges (e.g. picking the same slot twice, or two slots that touch).
+    Keeps items in the order the AI returned them — earlier items (its own
+    priority order) win the time; anything that would overlap an already-
+    accepted item is dropped here rather than silently double-booked. Dropped
+    tasks aren't lost — they come back as unscheduled and get picked up by
+    the next (wider) scheduling pass in schedule_with_retry().
+    """
+    accepted = []
+    for item in candidates:
+        overlap = any(
+            item["start_dt"] < a["end_dt"] and item["end_dt"] > a["start_dt"]
+            for a in accepted
+        )
+        if overlap:
+            continue
+        accepted.append(item)
+    return accepted
+
+
+def _subtract_booked(slots: list[dict], booked_ranges: list[tuple],
+                      min_block: int = 30) -> list[dict]:
+    """
+    Trim or drop the portion of each free slot that overlaps a range already
+    booked earlier in this scheduling run. Needed because widening the search
+    window re-derives slots from the real calendar only — it has no idea
+    about tasks this same run already placed a moment ago — so without this,
+    a second (wider) pass could offer the same minutes to a different task.
+    """
+    if not booked_ranges:
+        return slots
+    out = []
+    for slot in slots:
+        pieces = [(slot["start_dt"], slot["end_dt"])]
+        for b_start, b_end in booked_ranges:
+            next_pieces = []
+            for p_start, p_end in pieces:
+                if b_end <= p_start or b_start >= p_end:
+                    next_pieces.append((p_start, p_end))   # no overlap
+                    continue
+                if b_start > p_start:
+                    next_pieces.append((p_start, b_start))  # slice before
+                if b_end < p_end:
+                    next_pieces.append((b_end, p_end))      # slice after
+            pieces = next_pieces
+        for p_start, p_end in pieces:
+            dur = int((p_end - p_start).total_seconds() / 60)
+            if dur >= min_block:
+                trimmed = dict(slot)
+                trimmed["start_dt"]      = p_start
+                trimmed["end_dt"]        = p_end
+                trimmed["duration_mins"] = dur
+                out.append(trimmed)
+    return out
+
+
+def schedule_with_retry(
+    tasks: list[dict],
+    events: list[dict],
+    rules: dict,
+    api_key: str,
+    scheduler_fn,
+    initial_days: int,
+    max_days: int,
+    verbose: bool = False,
+) -> tuple[list[dict], list[dict]]:
+    """
+    Run `scheduler_fn` (ai_schedule_tasks or ai_schedule_tasks_with_durations),
+    widening the free-slot search window whenever tasks are left unplaced —
+    pushing them further into the future — instead of giving up after the
+    first pass. `events` should already cover the full range up to max_days.
+
+    Returns (scheduled, unscheduled). Tasks only end up unscheduled if they
+    genuinely don't fit anywhere inside `max_days` (with the default of 60
+    days — about two months of working days — this should essentially never
+    happen short of every day being disabled in scheduling_rules.json).
+    """
+    min_block = rules.get("global", {}).get("min_block", 30)
+    remaining = list(tasks)
+    scheduled = []
+    booked    = []
+    window    = initial_days
+
+    while remaining and window <= max_days:
+        slots = find_free_slots(events, rules, days_ahead=window)
+        slots = _subtract_booked(slots, booked, min_block=min_block)
+
+        if slots:
+            newly = scheduler_fn(remaining, slots, rules, api_key)
+            if newly:
+                scheduled.extend(newly)
+                booked.extend((s["start_dt"], s["end_dt"]) for s in newly)
+                placed_ids = {s["task"]["id"] for s in newly}
+                remaining  = [t for t in remaining if t["id"] not in placed_ids]
+
+        if not remaining or window >= max_days:
+            break
+        if verbose:
+            print(f"   ↳ {len(remaining)} task(s) still unplaced — "
+                  f"widening search to {min(window + initial_days, max_days)} days")
+        window += initial_days
+
+    unscheduled = [
+        {
+            "task": t,
+            "reason": (f"no suitable slot found within {max_days} days — "
+                       f"check scheduling_rules.json isn't over-restrictive"),
+        }
+        for t in remaining
+    ]
+    return scheduled, unscheduled
+
 
 def ai_schedule_tasks(
     tasks: list[dict],
@@ -493,7 +687,7 @@ SCHEDULING RULES:
 
 TASK TYPE DURATION GUIDE:
 {tt_lines}
-
+{_duration_hints()}
 AVAILABLE SLOTS (use slot index S1, S2 etc):
 {slot_lines}
 
@@ -528,7 +722,7 @@ Respond ONLY as JSON — no markdown, no preamble:
     try:
         client  = _anthropic.Anthropic(api_key=api_key)
         resp    = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-haiku-4-5-20251001",
             max_tokens=2000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -573,7 +767,8 @@ Respond ONLY as JSON — no markdown, no preamble:
         except (IndexError, KeyError, ValueError):
             continue
 
-    return results
+    # Guard against the AI assigning two tasks into overlapping time ranges
+    return _resolve_overlaps(results)
 
 
 def _build_event_body(task: dict, cal_blocks: dict) -> str:
@@ -630,6 +825,7 @@ def create_calendar_events(token: str, scheduled: list[dict], rules: dict) -> tu
             }
 
             _graph_post(token, "/me/events", body)
+            _log_scheduled_duration(item["title"], item["estimated_mins"])
             ok += 1
             print(f"   ✓ Created: {item['title'][:60]} @ "
                   f"{item['start_dt'].strftime('%a %d %b %H:%M')}")
@@ -775,7 +971,7 @@ def save_plan(result: dict) -> None:
         ]
 
     plan = {
-        "generated_at": datetime.datetime.now(AEST_OFFSET).strftime("%A %#d %B %Y, %H:%M AEST"),
+        "generated_at": datetime.datetime.now(AEST_OFFSET).strftime(f"%A {DAYFMT} %B %Y, %H:%M AEST"),
         "scheduled":    _clean_scheduled(result.get("scheduled", [])),
         "unscheduled":  _clean_unscheduled(result.get("unscheduled", [])),
         "flagged":      _clean_flagged(result.get("flagged", [])),
@@ -816,8 +1012,11 @@ def run_scheduler(
         result["error"] = "scheduling_rules.json not found — run the Scheduling Rules dashboard first"
         return result
 
-    global_rules = rules.get("global", {})
-    days_ahead   = global_rules.get("days_ahead", 5)
+    global_rules   = rules.get("global", {})
+    days_ahead     = global_rules.get("days_ahead", 5)
+    # Safety-valve horizon for the "keep pushing into the future" retry below —
+    # override with global.max_days_ahead in scheduling_rules.json if needed.
+    max_days_ahead = max(global_rules.get("max_days_ahead", 60), days_ahead)
 
     try:
         token = _get_token()
@@ -834,12 +1033,15 @@ def run_scheduler(
 
     if verbose:
         print("📅  Fetching calendar events…")
-    events = fetch_upcoming_events(token, days=days_ahead + 1)
+    # Fetch the full possible search window up front, not just the initial
+    # days_ahead window, so widening the search later doesn't miss real events.
+    events = fetch_upcoming_events(token, days=max_days_ahead + 1)
     if verbose:
         print(f"   {len(events)} events found")
 
     # Flag yesterday's unfinished blocks
     flagged = get_flagged_blocks(events)
+    _record_flagged_outcomes(flagged)   # duration learning (D8)
     if verbose and flagged:
         print(f"   ⚑  {len(flagged)} unfinished block(s) from yesterday flagged")
 
@@ -852,25 +1054,15 @@ def run_scheduler(
 
     if verbose:
         print("🧩  Finding free slots…")
-    slots = find_free_slots(events, rules, days_ahead=days_ahead)
-    if verbose:
-        print(f"   {len(slots)} free slots found across {days_ahead} days")
-
-    if not slots:
-        result["error"] = "No free slots found in the scheduling window"
-        result["flagged"] = flagged
-        return result
-
-    if verbose:
         print("🤖  AI scheduling tasks into slots…")
-    scheduled = ai_schedule_tasks(tasks, slots, rules, api_key)
 
-    # Identify unscheduled tasks
-    scheduled_task_ids = {s["task"]["id"] for s in scheduled}
-    unscheduled = [
-        {"task": t, "reason": "no suitable slot available"}
-        for t in tasks if t["id"] not in scheduled_task_ids
-    ]
+    scheduled, unscheduled = schedule_with_retry(
+        tasks, events, rules, api_key,
+        scheduler_fn=ai_schedule_tasks,
+        initial_days=days_ahead,
+        max_days=max_days_ahead,
+        verbose=verbose,
+    )
 
     if verbose:
         print(f"   {len(scheduled)} tasks scheduled, {len(unscheduled)} unscheduled")
@@ -1030,7 +1222,8 @@ Respond ONLY as JSON:
         except (IndexError, KeyError, ValueError):
             continue
 
-    return results
+    # Guard against the AI assigning two tasks into overlapping time ranges
+    return _resolve_overlaps(results)
 
 
 def _auto_describe_task(title: str, body: str, due: str, overdue: bool,
@@ -1160,7 +1353,14 @@ def serve_dashboard(api_key: str) -> None:
                 "reminderMinutesBeforeStart": reminder,
                 "categories": ["Scheduled Task"],
             }
-            _graph_post(token, "/me/events", body)
+            # Fresh token per push (A6) — MSAL silent-refreshes, so a
+            # dashboard left open for hours keeps working.
+            try:
+                _tok = _get_token()
+            except Exception:
+                _tok = token
+            _graph_post(_tok, "/me/events", body)
+            _log_scheduled_duration(f"{prefix}{title}", dur_mins)
             print(f"   ✓  Created: {prefix}{title[:50]} @ {date_str} {time_str}")
             return {"success": True}
         except Exception as e:
@@ -1183,7 +1383,11 @@ def serve_dashboard(api_key: str) -> None:
                 _qs = parse_qs(urlparse(self.path).query)
                 _lb = int(_qs.get("lookback", ["48"])[0])
                 try:
-                    raw_tasks = fetch_todo_tasks(token, rules, lookback_hours=_lb)
+                    try:
+                        _tok = _get_token()
+                    except Exception:
+                        _tok = token
+                    raw_tasks = fetch_todo_tasks(_tok, rules, lookback_hours=_lb)
                     tasks_out = [
                         {
                             "id":        t["id"],
@@ -1219,10 +1423,16 @@ def serve_dashboard(api_key: str) -> None:
                 lookback_hours = int(payload.get("lookback_hours", 48))
                 print(f"\n   🧠  Scheduling {len(user_tasks)} user-reviewed tasks (lookback {lookback_hours}h)…")
                 try:
-                    # Fetch calendar events for slot finding
-                    events = fetch_upcoming_events(token, days=rules.get("global", {}).get("days_ahead", 5) + 1)
-                    slots  = find_free_slots(events, rules, days_ahead=rules.get("global", {}).get("days_ahead", 5))
-                    print(f"   📅  {len(slots)} free slots found")
+                    days_ahead     = rules.get("global", {}).get("days_ahead", 5)
+                    max_days_ahead = max(rules.get("global", {}).get("max_days_ahead", 60), days_ahead)
+
+                    # Fetch the full possible search window up front so widening
+                    # the search later doesn't miss real events further out.
+                    try:
+                        _tok = _get_token()
+                    except Exception:
+                        _tok = token
+                    events = fetch_upcoming_events(_tok, days=max_days_ahead + 1)
 
                     # Build task dicts from user inputs, overriding AI estimates
                     reviewed_tasks = []
@@ -1240,16 +1450,17 @@ def serve_dashboard(api_key: str) -> None:
                             "user_duration_mins": ut.get("duration_mins", 0),
                         })
 
-                    # Run AI scheduling — pass user durations via extra instruction
-                    scheduled = ai_schedule_tasks_with_durations(
-                        reviewed_tasks, slots, rules, api_key)
+                    # Run AI scheduling — widening the window until every task
+                    # is placed (or max_days_ahead is hit), pushing tasks that
+                    # don't fit the near-term calendar further into the future.
+                    scheduled, unscheduled = schedule_with_retry(
+                        reviewed_tasks, events, rules, api_key,
+                        scheduler_fn=ai_schedule_tasks_with_durations,
+                        initial_days=days_ahead,
+                        max_days=max_days_ahead,
+                        verbose=True,
+                    )
                     flagged = get_flagged_blocks(events)
-
-                    unscheduled_ids = {s["task"]["id"] for s in scheduled}
-                    unscheduled = [
-                        {"task": t, "reason": "no suitable slot"}
-                        for t in reviewed_tasks if t["id"] not in unscheduled_ids
-                    ]
 
                     result = {
                         "scheduled":   scheduled,
@@ -1259,7 +1470,8 @@ def serve_dashboard(api_key: str) -> None:
                     save_plan(result)
                     plan_json = PLAN_FILE.read_text(encoding="utf-8") if PLAN_FILE.exists() else json.dumps({})
                     self._serve_json(plan_json)
-                    print(f"   ✓  Scheduled {len(scheduled)} tasks")
+                    print(f"   ✓  Scheduled {len(scheduled)} tasks"
+                          + (f", {len(unscheduled)} still unplaced" if unscheduled else ""))
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
@@ -1268,6 +1480,93 @@ def serve_dashboard(api_key: str) -> None:
             elif self.path == "/push_event":
                 result = _create_one_event(payload)
                 self._serve_json(json.dumps(result))
+
+            elif self.path == "/carry_forward":
+                # D7 — convert yesterday's flagged 🎯 blocks into tasks and
+                # schedule them into upcoming free slots, keeping each block's
+                # original duration. Returns the updated plan JSON.
+                print("\n   ⚑  Carrying forward yesterday's unfinished blocks…")
+                try:
+                    try:
+                        _tok = _get_token()
+                    except Exception:
+                        _tok = token
+                    days_ahead     = rules.get("global", {}).get("days_ahead", 5)
+                    max_days_ahead = max(rules.get("global", {}).get("max_days_ahead", 60), days_ahead)
+                    events  = fetch_upcoming_events(_tok, days=max_days_ahead + 1)
+                    flagged = get_flagged_blocks(events)
+                    if not flagged:
+                        self._serve_json(json.dumps({"error": "No unfinished blocks from yesterday to carry forward."}))
+                        return
+                    today_iso = datetime.date.today().isoformat()
+                    carry_tasks = []
+                    for i, ev in enumerate(flagged):
+                        dur = max(30, int((ev["end_dt"] - ev["start_dt"]).total_seconds() / 60))
+                        carry_tasks.append({
+                            "id":         f"carry_{i}",
+                            "title":      ev["subject"].replace(BLOCK_TAG, "").strip(),
+                            "body":       "Carried forward — yesterday's block was not completed.",
+                            "due_date":   today_iso,
+                            "priority":   "high",
+                            "list_name":  "Carried forward",
+                            "is_overdue": True,
+                            "list_id":    "",
+                            "user_duration_mins": dur,
+                        })
+                    scheduled, unscheduled = schedule_with_retry(
+                        carry_tasks, events, rules, api_key,
+                        scheduler_fn=ai_schedule_tasks_with_durations,
+                        initial_days=days_ahead,
+                        max_days=max_days_ahead,
+                        verbose=True,
+                    )
+                    # Merge into the existing saved plan so the dashboard
+                    # shows carried blocks alongside the day's normal plan.
+                    existing = {}
+                    if PLAN_FILE.exists():
+                        try:
+                            existing = json.loads(PLAN_FILE.read_text(encoding="utf-8"))
+                        except Exception:
+                            existing = {}
+                    merged = {
+                        "scheduled":   scheduled,
+                        "unscheduled": unscheduled,
+                        "flagged":     [],
+                    }
+                    save_plan(merged)
+                    new_plan = json.loads(PLAN_FILE.read_text(encoding="utf-8"))
+                    new_plan["scheduled"]   = (existing.get("scheduled", []) or []) + new_plan["scheduled"]
+                    new_plan["unscheduled"] = (existing.get("unscheduled", []) or []) + new_plan["unscheduled"]
+                    PLAN_FILE.write_text(json.dumps(new_plan, indent=2, default=str), encoding="utf-8")
+                    print(f"   ✓  {len(scheduled)} block(s) carried forward"
+                          + (f", {len(unscheduled)} could not be placed" if unscheduled else ""))
+                    self._serve_json(json.dumps(new_plan, default=str))
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    self._serve_json(json.dumps({"error": str(e)}))
+
+            elif self.path == "/complete_task":
+                # D9 — mark a Microsoft To Do task as completed straight
+                # from the dashboard. Payload: {list_id, task_id}
+                list_id = payload.get("list_id", "")
+                task_id = payload.get("task_id", "")
+                if not list_id or not task_id:
+                    self._serve_json(json.dumps({"success": False, "error": "list_id and task_id required"}))
+                    return
+                try:
+                    try:
+                        _tok = _get_token()
+                    except Exception:
+                        _tok = token
+                    _graph_patch(_tok, f"/me/todo/lists/{list_id}/tasks/{task_id}",
+                                 {"status": "completed"})
+                    print(f"   ✓  Task marked complete: {task_id[:20]}…")
+                    self._serve_json(json.dumps({"success": True}))
+                except Exception as e:
+                    print(f"   ✗  Complete failed: {e}")
+                    self._serve_json(json.dumps({"success": False, "error": str(e)}))
+
             else:
                 self.send_response(404); self.end_headers()
 

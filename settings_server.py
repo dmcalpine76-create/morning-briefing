@@ -40,7 +40,6 @@ DEFAULT_SETTINGS = {
                 "https://feeds.bbci.co.uk/news/world/rss.xml",
                 "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
                 "https://www.theguardian.com/world/rss",
-                "https://feeds.reuters.com/reuters/worldNews",
                 "https://www.aljazeera.com/xml/rss/all.xml",
             ],
         },
@@ -51,7 +50,6 @@ DEFAULT_SETTINGS = {
             "feeds": [
                 "https://www.abc.net.au/news/feed/2942460/rss.xml",
                 "https://www.smh.com.au/rss/feed.xml",
-                "https://www.theaustralian.com.au/feed",
                 "https://feeds.skynews.com.au/feeds/news.xml",
                 "https://www.theguardian.com/australia-news/rss",
             ],

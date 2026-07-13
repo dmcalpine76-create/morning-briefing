@@ -139,6 +139,24 @@ def main():
         except Exception as e:
             print(f"  ❌  Error: {e}")
 
+    # ── Token setup date (for the briefing's expiry countdown) ───────────
+    # outlook_email.py setup writes .outlook_token_setup; mirror it to a
+    # GitHub secret so the CI-generated briefing can count down the ~90 days.
+    import datetime
+    setup_file = Path(".outlook_token_setup")
+    setup_date = (setup_file.read_text(encoding="utf-8").strip()
+                  if setup_file.exists() else datetime.date.today().isoformat())
+    print(f"\n  Uploading OUTLOOK_TOKEN_SETUP_DATE = {setup_date}…")
+    try:
+        if put_secret(github_token, key_id, public_key,
+                      "OUTLOOK_TOKEN_SETUP_DATE", setup_date):
+            print("  ✓ OUTLOOK_TOKEN_SETUP_DATE updated in GitHub")
+            uploaded += 1
+        else:
+            print("  ❌  Upload failed for OUTLOOK_TOKEN_SETUP_DATE")
+    except Exception as e:
+        print(f"  ❌  Error: {e}")
+
     # ── Done ──────────────────────────────────────────────────────────────
     print()
     if uploaded:

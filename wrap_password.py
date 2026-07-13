@@ -1,38 +1,67 @@
 """
-wrap_password.py  —  Wrap briefing HTML with password protection
-----------------------------------------------------------------
-Called by GitHub Actions to add a password gate to the briefing
-before publishing to GitHub Pages.
+wrap_password.py  —  Encrypt briefing HTML behind a password  (B5)
+------------------------------------------------------------------
+Called by GitHub Actions to protect the briefing before publishing
+to GitHub Pages.
 
-Usage:
+Usage (unchanged from the previous version — no workflow edits needed):
     python wrap_password.py <input.html> <output.html> <password>
 
-The password is hashed client-side using SHA-256.
-The correct hash is embedded in the page.
-When the user enters the correct password, the briefing is shown.
-The password itself never appears in the HTML source.
+WHAT CHANGED vs the old version
+    Previously the page embedded the full briefing as base64 with a
+    SHA-256 password *gate* — anyone reading the page source could decode
+    the content without the password. Now the briefing is genuinely
+    encrypted with AES-256-GCM; the key is derived from the password via
+    PBKDF2-SHA256 (310,000 iterations). Without the password the payload
+    is unreadable.
 
-On mobile: password is remembered in localStorage so you only
-need to enter it once per device.
+RENDERING
+    After decrypting, the page is rendered by parsing the HTML and
+    replacing the document element directly, then re-executing the
+    briefing's inline scripts. It deliberately does NOT use an iframe or
+    document.write — both corrupt the briefing's formatting on GitHub
+    Pages (learned the hard way).
+
+REMEMBER-ME
+    On successful unlock the derived AES key (never the password) is
+    stored in localStorage, so each device only prompts once. "Log out"
+    by clearing site data.
+
+REQUIREMENTS
+    pip install cryptography     (add `cryptography` to requirements.txt)
 """
 
 import sys
-import hashlib
+import os
+import base64
 from pathlib import Path
 
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-def sha256(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
+PBKDF2_ITERATIONS = 310_000
+
+
+def encrypt_html(briefing_html: str, password: str) -> tuple[str, str, str]:
+    """Returns (salt_b64, iv_b64, ciphertext_b64)."""
+    salt = os.urandom(16)
+    iv   = os.urandom(12)
+    kdf  = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=PBKDF2_ITERATIONS,
+    )
+    key        = kdf.derive(password.encode("utf-8"))
+    ciphertext = AESGCM(key).encrypt(iv, briefing_html.encode("utf-8"), None)
+    b64 = lambda b: base64.b64encode(b).decode("ascii")
+    return b64(salt), b64(iv), b64(ciphertext)
 
 
 def wrap(input_path: str, output_path: str, password: str):
     briefing_html = Path(input_path).read_text(encoding="utf-8")
-    correct_hash  = sha256(password)
-
-    # Escape the briefing HTML for embedding in a JS string
-    # We base64-encode it so no escaping issues
-    import base64
-    encoded = base64.b64encode(briefing_html.encode("utf-8")).decode("ascii")
+    salt_b64, iv_b64, ct_b64 = encrypt_html(briefing_html, password)
 
     wrapper = f"""<!DOCTYPE html>
 <html lang="en">
@@ -58,111 +87,127 @@ def wrap(input_path: str, output_path: str, password: str):
             text-align: center;
         }}
         .lock-icon {{ font-size: 2.5rem; margin-bottom: 1rem; }}
-        h1 {{
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 0.4rem;
+        .lock-title {{ color: #eee; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }}
+        .lock-sub {{ color: #888; font-size: 0.8rem; margin-bottom: 1.5rem; }}
+        input[type=password] {{
+            width: 100%; padding: 0.7rem 0.9rem;
+            background: #1a1a1a; border: 1px solid #444; border-radius: 6px;
+            color: #eee; font-size: 1rem; margin-bottom: 0.9rem; outline: none;
         }}
-        .subtitle {{
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.4);
-            margin-bottom: 1.5rem;
-        }}
-        input[type="password"] {{
-            width: 100%;
-            padding: 0.75rem 1rem;
-            background: #1a1a1a;
-            border: 1px solid #444;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 1rem;
-            margin-bottom: 0.75rem;
-            outline: none;
-            transition: border-color 0.15s;
-        }}
-        input[type="password"]:focus {{ border-color: #c0392b; }}
+        input[type=password]:focus {{ border-color: #c0392b; }}
         button {{
-            width: 100%;
-            padding: 0.75rem;
-            background: #c0392b;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            transition: background 0.15s;
+            width: 100%; padding: 0.7rem;
+            background: #c0392b; color: #fff; border: none; border-radius: 6px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer;
         }}
-        button:hover {{ background: #a93226; }}
-        .error {{
-            color: #e74c3c;
-            font-size: 0.8rem;
-            margin-top: 0.75rem;
-            display: none;
-        }}
-        #briefing-container {{ display: none; }}
+        button:disabled {{ opacity: 0.6; cursor: wait; }}
+        .lock-error {{ color: #e74c3c; font-size: 0.8rem; margin-top: 0.8rem; display: none; }}
     </style>
 </head>
 <body>
-
-<div id="lock-screen" class="lock-box">
-    <div class="lock-icon">🔐</div>
-    <h1>Morning Briefing</h1>
-    <p class="subtitle">Enter your password to continue</p>
-    <input type="password" id="pwd" placeholder="Password"
-           autofocus autocomplete="current-password"
-           onkeydown="if(event.key==='Enter') unlock()">
-    <button onclick="unlock()">Open Briefing</button>
-    <p class="error" id="err">Incorrect password</p>
-</div>
-
-<iframe id="briefing-frame" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;z-index:9999;background:#fff;" title="Morning Briefing"></iframe>
+    <div class="lock-box" id="lock-box">
+        <div class="lock-icon">🔒</div>
+        <div class="lock-title">Doug's Morning Briefing</div>
+        <div class="lock-sub">Enter password to decrypt</div>
+        <input type="password" id="pw" placeholder="Password" autofocus
+               autocomplete="current-password">
+        <button id="unlock-btn" onclick="unlock()">Unlock</button>
+        <div class="lock-error" id="err">Incorrect password — try again.</div>
+    </div>
 
 <script>
-const CORRECT_HASH = "{correct_hash}";
-const STORAGE_KEY  = "briefing_auth";
-const ENCODED      = "{encoded}";
+const SALT_B64 = "{salt_b64}";
+const IV_B64   = "{iv_b64}";
+const CT_B64   = "{ct_b64}";
+const ITERS    = {PBKDF2_ITERATIONS};
+const LS_KEY   = "briefing_aes_key_v2";
 
-async function sha256(str) {{
-    const buf = await crypto.subtle.digest('SHA-256',
-        new TextEncoder().encode(str));
-    return Array.from(new Uint8Array(buf))
-        .map(b => b.toString(16).padStart(2,'0')).join('');
+function b64ToBuf(b64) {{
+    const bin = atob(b64);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return buf;
 }}
 
-function showBriefing() {{
-    document.getElementById('lock-screen').style.display = 'none';
-    document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;background:#fff;';
-    const bytes = Uint8Array.from(atob(ENCODED), c => c.charCodeAt(0));
-    const blob  = new Blob([bytes], {{type: 'text/html; charset=utf-8'}});
-    const url   = URL.createObjectURL(blob);
-    const frame = document.getElementById('briefing-frame');
-    frame.src   = url;
-    frame.style.display = 'block';
+async function deriveKey(password) {{
+    const enc = new TextEncoder();
+    const baseKey = await crypto.subtle.importKey(
+        "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+        {{ name: "PBKDF2", salt: b64ToBuf(SALT_B64), iterations: ITERS, hash: "SHA-256" }},
+        baseKey,
+        {{ name: "AES-GCM", length: 256 }},
+        true,                       // extractable, so it can be remembered
+        ["decrypt"]);
 }}
 
-async function unlock() {{
-    const pwd = document.getElementById('pwd').value;
-    if (!pwd) return;
-    const hash = await sha256(pwd);
-    if (hash === CORRECT_HASH) {{
-        localStorage.setItem(STORAGE_KEY, hash);
-        showBriefing();
-    }} else {{
-        document.getElementById('err').style.display = 'block';
-        document.getElementById('pwd').value = '';
-        document.getElementById('pwd').focus();
+async function decryptWith(key) {{
+    const plainBuf = await crypto.subtle.decrypt(
+        {{ name: "AES-GCM", iv: b64ToBuf(IV_B64) }}, key, b64ToBuf(CT_B64));
+    return new TextDecoder().decode(plainBuf);
+}}
+
+function render(html) {{
+    // Replace the document element directly, then re-execute the briefing's
+    // inline scripts. NOT an iframe, NOT document.write — both corrupt the
+    // briefing's formatting on GitHub Pages.
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    document.replaceChild(
+        document.adoptNode(parsed.documentElement),
+        document.documentElement);
+    // Scripts inserted via DOM replacement don't auto-run — re-create them
+    // in order so tab switching, To Do push etc. all work.
+    const scripts = Array.from(document.querySelectorAll("script"));
+    for (const old of scripts) {{
+        const s = document.createElement("script");
+        for (const attr of old.attributes) s.setAttribute(attr.name, attr.value);
+        s.textContent = old.textContent;
+        old.parentNode.replaceChild(s, old);
     }}
 }}
 
-// Auto-unlock if password was saved on this device
-(async () => {{
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && saved === CORRECT_HASH) {{
-        showBriefing();
+async function unlock() {{
+    const btn = document.getElementById("unlock-btn");
+    const err = document.getElementById("err");
+    const pw  = document.getElementById("pw").value;
+    if (!pw) return;
+    btn.disabled = true; btn.textContent = "Decrypting…"; err.style.display = "none";
+    try {{
+        const key  = await deriveKey(pw);
+        const html = await decryptWith(key);
+        try {{
+            const raw = await crypto.subtle.exportKey("raw", key);
+            localStorage.setItem(LS_KEY,
+                btoa(String.fromCharCode(...new Uint8Array(raw))));
+        }} catch (e) {{ /* remember-me unavailable — still unlock */ }}
+        render(html);
+    }} catch (e) {{
+        btn.disabled = false; btn.textContent = "Unlock";
+        err.style.display = "block";
+        document.getElementById("pw").value = "";
+        document.getElementById("pw").focus();
+    }}
+}}
+
+document.getElementById("pw").addEventListener("keydown",
+    e => {{ if (e.key === "Enter") unlock(); }});
+
+// Auto-unlock if this device has decrypted before (stored key, not password)
+(async function () {{
+    if (!window.crypto || !crypto.subtle) {{
+        document.querySelector(".lock-sub").textContent =
+            "This browser doesn't support WebCrypto — open over HTTPS.";
+        return;
+    }}
+    const stored = localStorage.getItem(LS_KEY);
+    if (!stored) return;
+    try {{
+        const key = await crypto.subtle.importKey(
+            "raw", b64ToBuf(stored), {{ name: "AES-GCM" }}, false, ["decrypt"]);
+        const html = await decryptWith(key);
+        render(html);
+    }} catch (e) {{
+        localStorage.removeItem(LS_KEY);   // stale key (password changed)
     }}
 }})();
 </script>
@@ -170,8 +215,8 @@ async function unlock() {{
 </html>"""
 
     Path(output_path).write_text(wrapper, encoding="utf-8")
-    print(f"✅  Password-protected page written to {output_path}")
-    print(f"    Password hash: {correct_hash[:16]}...")
+    kb = len(wrapper) // 1024
+    print(f"✓ Encrypted briefing written to {output_path} ({kb} KB, AES-256-GCM)")
 
 
 if __name__ == "__main__":

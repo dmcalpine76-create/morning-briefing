@@ -39,6 +39,7 @@ AUTHORITY   = f"https://login.microsoftonline.com/{TENANT_ID}" if TENANT_ID else
 SCOPES      = ["Calendars.Read", "User.Read"]
 CACHE_FILE  = Path(__file__).parent / ".outlook_token_cache.bin"
 GRAPH_BASE  = "https://graph.microsoft.com/v1.0"
+DAYFMT      = "%#d" if os.name == "nt" else "%-d"   # no-pad day: Windows vs Linux
 AEST_OFFSET = datetime.timezone(datetime.timedelta(hours=10))
 REQUEST_TIMEOUT = 12
 
@@ -260,6 +261,11 @@ def fetch_calendar_events(days_ahead: int = 2) -> dict:
 # ── HTML rendering ───────────────────────────────────────────────────────────
 
 
+def _briefing_key(subject: str, start_time: str) -> str:
+    """Composite key so recurring meetings (same subject on multiple days /
+    times) don't share or overwrite each other's briefing bullets."""
+    return f"{subject}|{start_time}"
+
 def analyse_calendar_events(events: list[dict], email_context: list[dict] = None) -> dict:
     """
     Use Claude to generate 2-3 bullet briefings per calendar event.
@@ -281,6 +287,7 @@ def analyse_calendar_events(events: list[dict], email_context: list[dict] = None
     event_summaries = []
     for ev in events:
         parts = [f"Meeting: {ev['subject']}"]
+        parts.append(f"Start: {ev['start_time'] or 'All day'}")
         if not ev["is_all_day"]:
             parts.append(f"Time: {ev['start_time']} – {ev['end_time']}")
         if ev["organizer"]:
@@ -334,6 +341,7 @@ Respond ONLY as JSON in this exact format (no markdown, no preamble):
   "briefings": [
     {{
       "subject": "<exact meeting subject>",
+      "start": "<exact Start value shown for that meeting>",
       "bullets": ["bullet 1", "bullet 2"]
     }}
   ]
@@ -353,10 +361,17 @@ Respond ONLY as JSON in this exact format (no markdown, no preamble):
         data = __import__("json").loads(raw)
         result = {}
         for item in data.get("briefings", []):
-            result[item["subject"]] = {
+            start = item.get("start", "").replace("All day", "").strip()
+            key = _briefing_key(item.get("subject", ""), start or "All day")
+            result[key] = {
                 "bullets": item.get("bullets", []),
                 "error":   None,
             }
+            # Subject-only fallback so a mangled "start" echo still matches one event
+            result.setdefault(item.get("subject", ""), {
+                "bullets": item.get("bullets", []),
+                "error":   None,
+            })
         return result
     except Exception as e:
         # Return empty rather than crashing — calendar tab degrades gracefully
@@ -381,6 +396,14 @@ def _response_badge(status: str) -> str:
         "organizer":    ('<span class="cal-badge cal-badge-organizer">👤 Organiser</span>', ),
     }
     return badges.get(status, ("",))[0]
+
+
+def _brief_for(briefings: dict, ev: dict) -> dict:
+    """Look up an event's briefing by composite key, falling back to subject."""
+    if not briefings:
+        return {}
+    key = _briefing_key(ev["subject"], ev["start_time"] or "All day")
+    return briefings.get(key) or briefings.get(ev["subject"], {})
 
 
 def _event_card(ev: dict, is_past: bool = False, briefing: dict = None) -> str:
@@ -479,7 +502,7 @@ def build_calendar_tab_html(calendar_data: dict, briefings: dict = None) -> str:
         yesterday_html = f"""<section class="cal-day-section cal-yesterday">
             <div class="cal-day-header">
                 <span class="cal-day-label">Yesterday</span>
-                <span class="cal-day-date">{yest_dt.strftime("%A %#d %B")}</span>
+                <span class="cal-day-date">{yest_dt.strftime(f"%A {DAYFMT} %B")}</span>
                 <span class="cal-day-count">{len(yesterday_events)} event{"s" if len(yesterday_events) != 1 else ""}</span>
             </div>
             <div class="cal-events">{cards}</div>
@@ -488,7 +511,7 @@ def build_calendar_tab_html(calendar_data: dict, briefings: dict = None) -> str:
         yesterday_html = f"""<section class="cal-day-section cal-yesterday">
             <div class="cal-day-header">
                 <span class="cal-day-label">Yesterday</span>
-                <span class="cal-day-date">{yest_dt.strftime("%A %#d %B")}</span>
+                <span class="cal-day-date">{yest_dt.strftime(f"%A {DAYFMT} %B")}</span>
             </div>
             <div class="cal-empty">No meetings yesterday.</div>
         </section>"""
@@ -498,12 +521,12 @@ def build_calendar_tab_html(calendar_data: dict, briefings: dict = None) -> str:
         cards = ""
         for ev in today_events:
             is_past = (not ev["is_all_day"]) and (ev["end_dt"] < now_aest)
-            brief   = (briefings or {}).get(ev["subject"], {})
+            brief   = _brief_for(briefings, ev)
             cards += _event_card(ev, is_past=is_past, briefing=brief)
         today_html = f"""<section class="cal-day-section">
             <div class="cal-day-header">
                 <span class="cal-day-label">Today</span>
-                <span class="cal-day-date">{now_aest.strftime("%A %#d %B")}</span>
+                <span class="cal-day-date">{now_aest.strftime(f"%A {DAYFMT} %B")}</span>
                 <span class="cal-day-count">{len(today_events)} event{"s" if len(today_events) != 1 else ""}</span>
             </div>
             <div class="cal-events">{cards}</div>
@@ -512,7 +535,7 @@ def build_calendar_tab_html(calendar_data: dict, briefings: dict = None) -> str:
         today_html = f"""<section class="cal-day-section">
             <div class="cal-day-header">
                 <span class="cal-day-label">Today</span>
-                <span class="cal-day-date">{now_aest.strftime("%A %#d %B")}</span>
+                <span class="cal-day-date">{now_aest.strftime(f"%A {DAYFMT} %B")}</span>
             </div>
             <div class="cal-empty">🎉 No meetings today — enjoy the clear run!</div>
         </section>"""
@@ -520,11 +543,11 @@ def build_calendar_tab_html(calendar_data: dict, briefings: dict = None) -> str:
     # ── Tomorrow section ─────────────────────────────────────────────────────
     tomorrow_dt = now_aest + datetime.timedelta(days=1)
     if tomorrow_events:
-        cards = "".join(_event_card(ev, briefing=(briefings or {}).get(ev["subject"], {})) for ev in tomorrow_events)
+        cards = "".join(_event_card(ev, briefing=_brief_for(briefings, ev)) for ev in tomorrow_events)
         tomorrow_html = f"""<section class="cal-day-section">
             <div class="cal-day-header">
                 <span class="cal-day-label">Tomorrow</span>
-                <span class="cal-day-date">{tomorrow_dt.strftime("%A %#d %B")}</span>
+                <span class="cal-day-date">{tomorrow_dt.strftime(f"%A {DAYFMT} %B")}</span>
                 <span class="cal-day-count">{len(tomorrow_events)} event{"s" if len(tomorrow_events) != 1 else ""}</span>
             </div>
             <div class="cal-events">{cards}</div>
@@ -533,123 +556,12 @@ def build_calendar_tab_html(calendar_data: dict, briefings: dict = None) -> str:
         tomorrow_html = f"""<section class="cal-day-section">
             <div class="cal-day-header">
                 <span class="cal-day-label">Tomorrow</span>
-                <span class="cal-day-date">{tomorrow_dt.strftime("%A %#d %B")}</span>
+                <span class="cal-day-date">{tomorrow_dt.strftime(f"%A {DAYFMT} %B")}</span>
             </div>
             <div class="cal-empty">No meetings scheduled for tomorrow.</div>
         </section>"""
 
     return f'<div class="cal-view">{yesterday_html}{today_html}{tomorrow_html}</div>'
-
-
-# ── Calendar tab CSS (injected into briefing.py's <style> block) ─────────────
-
-CALENDAR_CSS = """
-        /* ── CALENDAR TAB ── */
-        .cal-view { padding: 0; }
-        .cal-day-section { margin-bottom: 0; border-bottom: 1px solid var(--rule); }
-        .cal-day-header {
-            display: flex; align-items: baseline; gap: 0.75rem;
-            padding: 0.65rem 1.25rem;
-            background: var(--paper-2);
-            border-bottom: 1px solid var(--rule);
-            position: sticky; top: 0; z-index: 10;
-        }
-        .cal-day-label {
-            font-family: var(--font-display); font-size: 0.75rem;
-            font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
-            color: var(--ink);
-        }
-        .cal-day-date { font-size: 0.78rem; color: var(--ink-light); }
-        .cal-day-count {
-            margin-left: auto; font-size: 0.62rem; font-weight: 700;
-            letter-spacing: 0.1em; text-transform: uppercase;
-            color: var(--ink-light); background: var(--white);
-            border: 1px solid var(--rule); padding: 0.12rem 0.5rem;
-            border-radius: 2rem;
-        }
-
-        .cal-events { padding: 0.5rem 0; }
-        .cal-event {
-            display: flex; gap: 1rem; align-items: flex-start;
-            padding: 0.7rem 1.25rem;
-            border-bottom: 1px solid var(--rule);
-            transition: background 0.15s;
-        }
-        .cal-event:last-child { border-bottom: none; }
-        .cal-event:hover { background: var(--paper-2); }
-        .cal-event-past { opacity: 0.45; }
-
-        .cal-event-time {
-            min-width: 90px; flex-shrink: 0;
-            display: flex; flex-direction: column; gap: 2px;
-            padding-top: 1px;
-        }
-        .cal-start { font-size: 0.82rem; font-weight: 700; color: var(--ink); }
-        .cal-end   { font-size: 0.72rem; color: var(--ink-light); }
-        .cal-dur   {
-            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
-            text-transform: uppercase; color: var(--ink-light);
-            background: var(--paper-2); border: 1px solid var(--rule);
-            padding: 0.08rem 0.35rem; border-radius: 3px; align-self: flex-start;
-            margin-top: 2px;
-        }
-        .cal-all-day {
-            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
-            text-transform: uppercase; color: var(--ink-light);
-        }
-
-        .cal-event-body  { flex: 1; min-width: 0; }
-        .cal-event-subject {
-            font-size: 0.88rem; font-weight: 700; color: var(--ink);
-            line-height: 1.3; margin-bottom: 4px;
-        }
-        .cal-event-meta {
-            font-size: 0.75rem; color: var(--ink-light); margin-bottom: 3px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .cal-join-link {
-            color: #2980b9; text-decoration: none; font-weight: 600;
-        }
-        .cal-join-link:hover { text-decoration: underline; }
-        .cal-event-preview {
-            font-size: 0.74rem; color: var(--ink-light);
-            display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden;
-            margin-top: 3px; line-height: 1.4;
-        }
-
-        /* Response badges */
-        .cal-badge {
-            display: inline-block; font-size: 0.58rem; font-weight: 700;
-            letter-spacing: 0.08em; text-transform: uppercase;
-            padding: 0.1rem 0.4rem; border-radius: 3px;
-            vertical-align: middle; margin-left: 5px;
-        }
-        .cal-badge-accepted   { background: #eafaf1; color: #27ae60; border: 1px solid #a9dfbf; }
-        .cal-badge-declined   { background: #fdecea; color: #c0392b; border: 1px solid #f1948a; }
-        .cal-badge-tentative  { background: #fef9e7; color: #b7770d; border: 1px solid #f9e79f; }
-        .cal-badge-pending    { background: var(--paper-2); color: var(--ink-light); border: 1px solid var(--rule); }
-        .cal-badge-organizer  { background: #eaf2ff; color: #2471a3; border: 1px solid #aed6f1; }
-
-        .cal-empty {
-            padding: 1.5rem 1.25rem; font-size: 0.82rem;
-            color: var(--ink-light); font-style: italic;
-        }
-
-        .cal-error {
-            padding: 1.5rem 1.25rem; color: #c0392b; font-size: 0.85rem;
-        }
-        .cal-error-hint { color: var(--ink-light); font-size: 0.8rem; margin-top: 0.5rem; }
-        .cal-error code {
-            background: var(--paper-2); padding: 0.1rem 0.3rem;
-            border-radius: 3px; font-family: monospace; font-size: 0.85em;
-        }
-
-        @media (max-width: 700px) {
-            .cal-event { flex-direction: column; gap: 0.3rem; }
-            .cal-event-time { min-width: unset; flex-direction: row; align-items: center; gap: 0.5rem; }
-        }
-"""
 
 
 # ── CLI test ─────────────────────────────────────────────────────────────────

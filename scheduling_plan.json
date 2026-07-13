@@ -1,19 +1,25 @@
 {
-  "generated_at": "Monday 6 July 2026, 09:27 AEST",
-  "scheduled": [],
-  "unscheduled": [
+  "generated_at": "Thursday 9 July 2026, 08:33 AEST",
+  "scheduled": [
     {
       "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhIAAA=",
-        "title": "O'Neill CCA",
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANi48yoAAA=",
+        "title": "New Queensland Petroleum and Gas Safety and Health Fee Return Form - Ref ID 10126",
         "body": "",
-        "due_date": "2026-07-05",
+        "due_date": "2026-06-28",
         "priority": "urgent",
         "list_name": "Flagged Emails",
         "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
+        "list_id": "",
+        "user_duration_mins": 30
       },
-      "reason": "no suitable slot available"
+      "date": "2026-07-09",
+      "start_time": "09:00",
+      "end_time": "09:30",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf New Queensland Petroleum and Gas Safety and Health Fee Return Form - Ref ID 10126",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-06-28)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANi48yoAAA=/details",
+      "reason": "Urgent QPME regulatory form (overdue 2026-06-28) must be scheduled immediately in deep work morning slot; 30min fits with 30min buffer before next task."
     },
     {
       "task": {
@@ -24,22 +30,234 @@
         "priority": "urgent",
         "list_name": "Flagged Emails",
         "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
+        "list_id": "",
+        "user_duration_mins": 30
       },
-      "reason": "no suitable slot available"
+      "date": "2026-07-10",
+      "start_time": "09:00",
+      "end_time": "09:30",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf C-CPLRC-100962325 State Gas Limited EA0002523 (ATP 2062)",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-07-05)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhHAAA=/details",
+      "reason": "Urgent State Gas EA compliance matter (overdue 2026-07-05) scheduled in deep work morning slot on 2026-07-10; fits within 120min available with buffer."
     },
     {
       "task": {
-        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhGAAA=",
-        "title": "Denison Gas - Assets",
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANU7WKrAAA=",
+        "title": "Formal warning WARN-E-100999663 - EA0002523 - State Gas Limited ",
+        "body": "",
+        "due_date": "2026-07-06",
+        "priority": "urgent",
+        "list_name": "Flagged Emails",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 30
+      },
+      "date": "2026-07-10",
+      "start_time": "09:00",
+      "end_time": "09:30",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf Formal warning WARN-E-100999663 - EA0002523 - State Gas Limited ",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-07-06)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANU7WKrAAA=/details",
+      "reason": "Urgent formal warning follow-up (overdue 2026-07-06) scheduled in same deep work slot after 30min buffer; cumulative 60min fits within S3's 120min window."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANPsNU1AAA=",
+        "title": "cr154499 State Gas- request for reserves report resubmission",
+        "body": "",
+        "due_date": "2026-07-06",
+        "priority": "urgent",
+        "list_name": "Flagged Emails",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 60
+      },
+      "date": "2026-07-13",
+      "start_time": "10:30",
+      "end_time": "11:30",
+      "estimated_mins": 60,
+      "title": "\ud83c\udfaf cr154499 State Gas- request for reserves report resubmission",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-07-06)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANPsNU1AAA=/details",
+      "reason": "Urgent State Gas reserves report resubmission (overdue 2026-07-06) scheduled in deep work morning slot 2026-07-13; 60min fits within 90min available."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhPAAA=",
+        "title": "State Gas - Background Information ",
         "body": "",
         "due_date": "2026-07-05",
         "priority": "urgent",
         "list_name": "Flagged Emails",
         "is_overdue": true,
-        "list_id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MAAuAAAAAAANLNk_OKR3QLg0lLAUvvtcAQCvEDkKdYRvSoRirFdeSohyAAAAAWf7AAA="
+        "list_id": "",
+        "user_duration_mins": 30
       },
-      "reason": "no suitable slot available"
+      "date": "2026-07-13",
+      "start_time": "13:00",
+      "end_time": "13:30",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf State Gas - Background Information ",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-07-05)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhPAAA=/details",
+      "reason": "Urgent State Gas background information (overdue 2026-07-05) scheduled in afternoon admin slot on 2026-07-13."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANgcTH3AAA=",
+        "title": "2026 Resource Operations/Projects Employment Survey (State Gas)",
+        "body": "",
+        "due_date": "2026-07-07",
+        "priority": "urgent",
+        "list_name": "Flagged Emails",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 30
+      },
+      "date": "2026-07-13",
+      "start_time": "15:00",
+      "end_time": "15:30",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf 2026 Resource Operations/Projects Employment Survey (State Gas)",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-07-07)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANgcTH3AAA=/details",
+      "reason": "Urgent employment survey (overdue 2026-07-07) scheduled in afternoon admin slot on 2026-07-13 with 30min buffer after S6."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANeMKMtAAA=",
+        "title": "Provide comments on draft Nyanda CCA to Rees Jones",
+        "body": "Erin Slade (Rees Jones paralegal) is chasing Doug's review of the draft CCA for the Nyanda matter. Continuation of prior open action (act-related dormant matter). No deadline stated but multiple chasers suggest urgency.",
+        "due_date": "2026-06-29",
+        "priority": "high",
+        "list_name": "Tasks",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 60
+      },
+      "date": "2026-07-10",
+      "start_time": "13:30",
+      "end_time": "14:30",
+      "estimated_mins": 60,
+      "title": "\ud83c\udfaf Provide comments on draft Nyanda CCA to Rees Jones",
+      "description": "Erin Slade (Rees Jones paralegal) is chasing Doug's review of the draft CCA for the Nyanda matter. Continuation of prior open action (act-related dormant matter). No deadline stated but multiple chasers suggest urgency.\n\u26a0\ufe0f OVERDUE (was due 2026-06-29)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANeMKMtAAA=/details",
+      "reason": "High priority Nyanda CCA review (overdue 2026-06-29) scheduled in afternoon slot 2026-07-10; 60min fits within 150min available."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANZozL3AAA=",
+        "title": "notice of completion of production testing",
+        "body": "",
+        "due_date": "2026-06-29",
+        "priority": "high",
+        "list_name": "Tasks",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 30
+      },
+      "date": "2026-07-10",
+      "start_time": "13:30",
+      "end_time": "14:00",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf notice of completion of production testing",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-06-29)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANZozL3AAA=/details",
+      "reason": "High priority production testing notice (overdue 2026-06-29) scheduled in same afternoon slot after 30min buffer; cumulative 90min fits within S4's 150min window."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANhFHmBAAA=",
+        "title": "State Gas - follow up to departmental letter",
+        "body": "",
+        "due_date": "2026-06-29",
+        "priority": "high",
+        "list_name": "Flagged Emails",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 30
+      },
+      "date": "2026-07-10",
+      "start_time": "13:30",
+      "end_time": "14:00",
+      "estimated_mins": 30,
+      "title": "\ud83c\udfaf State Gas - follow up to departmental letter",
+      "description": "\u26a0\ufe0f OVERDUE (was due 2026-06-29)\nFrom To Do list: Flagged Emails\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANhFHmBAAA=/details",
+      "reason": "High priority departmental letter follow-up (overdue 2026-06-29) scheduled in same afternoon slot after 30min buffer; cumulative 120min fits within S4's 150min window."
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANPsPSqAAA=",
+        "title": "Review soil sample results from ALS (Rougemont workorder EB2521610)",
+        "body": "Canh Nguyen forwarded the ALS lab results for soil samples; need to check for any environmental or compliance issues.",
+        "due_date": "2026-06-28",
+        "priority": "normal",
+        "list_name": "Tasks",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 60
+      },
+      "date": "2026-07-09",
+      "start_time": "13:30",
+      "end_time": "14:30",
+      "estimated_mins": 60,
+      "title": "\ud83c\udfaf Review soil sample results from ALS (Rougemont workorder EB2521610)",
+      "description": "Canh Nguyen forwarded the ALS lab results for soil samples; need to check for any environmental or compliance issues.\n\u26a0\ufe0f OVERDUE (was due 2026-06-28)\nFrom To Do list: Tasks\n\nView in To Do: https://to-do.office.com/tasks/id/AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANPsPSqAAA=/details",
+      "reason": "Normal priority soil sample review (overdue 2026-06-28) scheduled in afternoon slot 2026-07-09; 60min fits exactly within S2."
+    }
+  ],
+  "unscheduled": [
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANNXGBdAAA=",
+        "title": "Background to MAHE",
+        "body": "",
+        "due_date": "2026-06-28",
+        "priority": "normal",
+        "list_name": "Tasks",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 60
+      },
+      "reason": "no suitable slot"
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAAM7z2hUAAA=",
+        "title": "Complete R&D Tax Incentive Portal access renewal (steps 3 and 4) and notify BDO",
+        "body": "BDO's portal access has lapsed, blocking the FY2025 R&D claim extension lodgement.",
+        "due_date": "2026-06-28",
+        "priority": "normal",
+        "list_name": "Tasks",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 30
+      },
+      "reason": "no suitable slot"
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAWf7AACvEDkKdYRvSoRirFdeSohyAANnehhJAAA=",
+        "title": "ACCC Gas Inquiry - S95ZK Notice - 1 July 2026 - State Gas Limited [SEC=OFFICIAL]",
+        "body": "",
+        "due_date": "2026-07-05",
+        "priority": "normal",
+        "list_name": "Flagged Emails",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 60
+      },
+      "reason": "no suitable slot"
+    },
+    {
+      "task": {
+        "id": "AAMkADgxOWYwZGQ0LTNmZmMtNGE3YS1iYzY1LTFlMjRhYmE4ZjI0MABGAAAAAAANLNk_OKR3QLg0lLAUvvtcBwCvEDkKdYRvSoRirFdeSohyAAAAAAESAACvEDkKdYRvSoRirFdeSohyAANneiw4AAA=",
+        "title": "Draft and circulate ASX announcement re LEIP EOI lodgement for directors' consideration",
+        "body": "Doug flagged in the 28 June board update that he would draft an ASX announcement following LEIP EOI lodgement for directors' review. This is a key milestone requiring a public announcement. Continuation of act-088.",
+        "due_date": "2026-07-07",
+        "priority": "normal",
+        "list_name": "Tasks",
+        "is_overdue": true,
+        "list_id": "",
+        "user_duration_mins": 60
+      },
+      "reason": "no suitable slot"
     }
   ],
   "flagged": [],

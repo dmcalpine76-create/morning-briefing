@@ -250,6 +250,11 @@ body { background:var(--paper); color:var(--ink); font-family:var(--font-b); fon
     <div class="sec-head" style="color:var(--orange);border-color:var(--orange)">
       ⚑ Yesterday's Unfinished Blocks
       <span class="sec-count" id="flagged-count"></span>
+      <button class="btn btn-secondary" id="carry-btn" onclick="carryForward()"
+        style="font-size:0.6rem;padding:0.24rem 0.65rem;display:flex;align-items:center;gap:0.4rem">
+        <span class="btn-label">⚑ Carry forward into today</span>
+        <span class="spinner"></span>
+      </button>
     </div>
     <div id="flagged-list"></div>
   </div>
@@ -384,6 +389,9 @@ function renderTaskReview() {
       <div class="task-title">${esc(t.title)}</div>
       ${bodyHtml}
     </div>
+    <button class="btn btn-ghost" id="done-${i}" onclick="markComplete(${i}, this)"
+      title="Mark this task complete in Microsoft To Do"
+      style="font-size:0.58rem;padding:0.18rem 0.5rem;flex-shrink:0">✓ Done</button>
     <span class="task-list">${esc(t.list_name)}</span>
   </div>
   <div class="task-fields" id="trf-${i}">
@@ -674,6 +682,62 @@ async function pushSelected() {
     showToast(`${ok} event(s) added to your calendar`);
   } else {
     setStatus('error', `${ok} added, ${fail} failed`);
+  }
+}
+
+// ── CARRY FORWARD (D7) ────────────────────────────────────────────────────
+
+async function carryForward() {
+  const btn = document.getElementById('carry-btn');
+  if (!btn || btn.disabled || pushing) return;
+  btn.classList.add('busy-btn'); btn.disabled = true;
+  setStatus('busy', 'Carrying forward unfinished blocks…');
+  try {
+    const r = await fetch(`${SERVER}/carry_forward`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: '{}',
+    });
+    if (!r.ok) throw new Error(`Server error ${r.status}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    plan = d;
+    renderSchedule();
+    showStep(2);
+    setStatus('ok', 'Blocks carried forward');
+    showToast('Carried blocks added at the BOTTOM of the schedule — select those and push. Anything already pushed earlier will duplicate if pushed again.');
+  } catch(e) {
+    setStatus('error', 'Carry forward failed');
+    showToast('Error: ' + e.message);
+    btn.classList.remove('busy-btn'); btn.disabled = false;
+  }
+}
+
+// ── MARK COMPLETE IN TO DO (D9) ───────────────────────────────────────────
+
+async function markComplete(i, btn) {
+  const t = tasks[i];
+  if (!t || !t.id || !t.list_id) { showToast('Task is missing its To Do ids'); return; }
+  if (!confirm(`Mark "${t.title}" as complete in Microsoft To Do?`)) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch(`${SERVER}/complete_task`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({list_id: t.list_id, task_id: t.id}),
+    });
+    if (!r.ok) throw new Error(`Server error ${r.status}`);
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'unknown error');
+    btn.textContent = '✓ Completed';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    const cb = document.querySelector(`.task-skip-check[data-idx="${i}"]`);
+    if (cb) { cb.checked = false; toggleTaskInclude(i, false); cb.disabled = true; }
+    showToast(`"${t.title}" marked complete in To Do`);
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '✓ Done';
+    showToast('Complete failed: ' + e.message);
   }
 }
 
