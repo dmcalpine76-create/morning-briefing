@@ -280,6 +280,28 @@ NEWS ITEMS:
 """
 
 
+def _clean_stories(raw) -> list[dict]:
+    """
+    Normalise the AI's JSON so downstream rendering can never hit a None.
+    Haiku sometimes returns "link": null (or omits fields) — .get(key, "")
+    does NOT protect against explicit nulls, so coerce every string field.
+    """
+    if not isinstance(raw, list):
+        return []
+    cleaned = []
+    for s in raw:
+        if not isinstance(s, dict):
+            continue
+        cleaned.append({
+            "headline":     str(s.get("headline") or "").strip(),
+            "summary":      str(s.get("summary") or "").strip(),
+            "source":       str(s.get("source") or "").strip(),
+            "link":         str(s.get("link") or "").strip(),
+            "significance": str(s.get("significance") or "notable").strip().lower(),
+        })
+    return [s for s in cleaned if s["headline"]]
+
+
 def summarise_category(client: anthropic.Anthropic, category_name: str,
                         items: list[dict], top_n: int) -> list[dict]:
     """Call the Anthropic API to select and summarise top stories. Retries on connection error."""
@@ -297,7 +319,7 @@ def summarise_category(client: anthropic.Anthropic, category_name: str,
             )
             raw = message.content[0].text.strip()
             raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-            return json.loads(raw)
+            return _clean_stories(json.loads(raw))
         except Exception as e:
             print(f"  ⚠️  Attempt {attempt+1}/3 failed for {category_name}: {e}")
             if attempt < 2:
@@ -974,12 +996,12 @@ SIGNIFICANCE_BADGE = {
 
 
 def story_card_html(story: dict, index: int) -> str:
-    sig   = story.get("significance", "notable").lower()
+    sig   = (story.get("significance") or "notable").lower()
     badge = SIGNIFICANCE_BADGE.get(sig, SIGNIFICANCE_BADGE["notable"])
-    link  = story.get("link", "").strip()
-    src   = story.get("source", "")
-    headline = story.get("headline", "")
-    summary  = story.get("summary", "")
+    link  = (story.get("link") or "").strip()
+    src   = story.get("source") or ""
+    headline = story.get("headline") or ""
+    summary  = story.get("summary") or ""
     # Only render as a link if we have a real http URL
     if link and link.startswith("http"):
         hl_html = f'<a href="{link}" target="_blank" rel="noopener noreferrer">{headline}</a>'
@@ -1031,12 +1053,12 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
         name    = topic["name"].replace("&", "&amp;")
         cards   = ""
         for i, s in enumerate(stories):
-            sig     = s.get("significance", "notable").lower()
+            sig     = (s.get("significance") or "notable").lower()
             badge   = SIGNIFICANCE_BADGE.get(sig, SIGNIFICANCE_BADGE["notable"])
-            link    = s.get("link", "#")
-            src     = s.get("source", "")
-            hl      = s.get("headline", "")
-            summary = s.get("summary", "")
+            link    = s.get("link") or "#"
+            src     = s.get("source") or ""
+            hl      = s.get("headline") or ""
+            summary = s.get("summary") or ""
             cards += f"""
                 <article class="story-card" style="--delay:{i*0.05}s">
                     <div class="story-meta">{badge}<span class="story-source">{src}</span></div>
@@ -2178,7 +2200,7 @@ def summarise_topic(client: anthropic.Anthropic, topic: dict,
             )
             raw = message.content[0].text.strip()
             raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-            return json.loads(raw)
+            return _clean_stories(json.loads(raw))
         except Exception as e:
             print(f"  ⚠️  Attempt {attempt+1}/3 failed for topic '{topic['name']}': {e}")
             if attempt < 2:
