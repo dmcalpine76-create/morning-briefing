@@ -2724,7 +2724,8 @@ def main():
         import audio_briefing
         print("\n🎧  Generating audio briefing…")
         audio_path = audio_briefing.generate_mp3(all_sections, email_analysis,
-                                                 out_dir, api_key)
+                                                 out_dir, api_key,
+                                                 active_topics, all_topic_stories)
         if audio_path:
             print(f"   ✓ Audio briefing: {audio_path.name}")
     except ImportError:
