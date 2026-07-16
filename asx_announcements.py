@@ -1,8 +1,9 @@
 """
 asx_announcements.py  —  Overnight ASX announcements for the watchlist (D4)
 ----------------------------------------------------------------------------
-Fetches recent company announcements for each watchlist ticker from the
-public ASX JSON endpoint, flags price-sensitive items, and uses Claude
+Fetches recent company announcements for each watchlist ticker from
+HotCopper's per-stock announcement pages (the old public ASX JSON API is
+dead — see note above _fetch_for_code), flags price-sensitive items, and uses Claude
 (Haiku) to write a one-line plain-English summary for each headline.
 
 briefing.py already imports this module and renders the results as the
@@ -26,6 +27,8 @@ Usage:
 
 import os
 import json
+import re
+import html as html_mod
 import datetime
 import requests
 from pathlib import Path
@@ -58,57 +61,104 @@ HOURS_BACK      = 30     # include announcements from the last N hours
 REQUEST_TIMEOUT = 12
 AEST_OFFSET     = datetime.timezone(datetime.timedelta(hours=10))
 
-# The ASX website's public JSON API. Unofficial but long-standing; every
-# call is wrapped so a change on their side degrades to an empty column,
-# never a failed briefing run.
-ASX_API = "https://www.asx.com.au/asx/1/company/{code}/announcements"
+# Source: HotCopper's per-stock announcement pages (server-rendered HTML).
+# The old asx.com.au JSON API (/asx/1/company/{code}/announcements) is dead —
+# ASX now 404s it and TLS-fingerprints/blocks Python requests from server IPs.
+# HotCopper republishes the full ASX announcement feed per ticker, including
+# the price-sensitive flag, and serves plain HTML that parses with regex.
+# Every call is wrapped so a change on their side degrades to an empty
+# column, never a failed briefing run.
+HOTCOPPER_URL = "https://hotcopper.com.au/asx/{code}/announcements/"
 
 _HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                    "AppleWebKit/537.36 (KHTML, like Gecko) "
                    "Chrome/126.0.0.0 Safari/537.36"),
-    "Accept": "application/json",
+    "Accept": "text/html,application/xhtml+xml",
 }
+
+_THREAD_RE = re.compile(
+    r'href="(?:https?://hotcopper\.com\.au)?/threads/(\d+)/?"[^>]*>(.*?)</a>',
+    re.IGNORECASE | re.DOTALL)
+_DATE_RE = re.compile(r">\s*(\d{2}/\d{2}/\d{2})\s*<")
+_TIME_RE = re.compile(r">\s*(\d{1,2}:\d{2})\s*<")
+_TAG_RE  = re.compile(r"<[^>]+>")
+
+
+def _clean(text: str) -> str:
+    """Strip tags/entities and collapse whitespace from an HTML fragment."""
+    return " ".join(html_mod.unescape(_TAG_RE.sub(" ", text)).split())
 
 
 def _fetch_for_code(code: str) -> list[dict]:
-    """Fetch recent announcements for one ticker. Returns [] on any failure."""
+    """Fetch recent announcements for one ticker from HotCopper.
+    Returns [] on any failure."""
     try:
         resp = requests.get(
-            ASX_API.format(code=code),
-            params={"count": MAX_PER_STOCK, "market_sensitive": "false"},
+            HOTCOPPER_URL.format(code=code.lower()),
             headers=_HEADERS,
             timeout=REQUEST_TIMEOUT,
         )
         resp.raise_for_status()
-        data = resp.json()
+        page = resp.text
     except Exception as e:
-        print(f"   ⚠️  ASX {code}: {e}")
+        print(f"   ⚠️  HotCopper {code}: {e}")
         return []
 
-    cutoff = datetime.datetime.now(AEST_OFFSET) - datetime.timedelta(hours=HOURS_BACK)
-    out = []
-    for a in data.get("data", []):
-        # release_date format e.g. "2026-07-13T08:31:00+1000"
-        raw_date = a.get("document_release_date", a.get("release_date", ""))
-        try:
-            rel = datetime.datetime.fromisoformat(raw_date)
-            if rel.tzinfo is None:
-                rel = rel.replace(tzinfo=AEST_OFFSET)
-        except Exception:
-            rel = None
-        if rel and rel < cutoff:
+    now    = datetime.datetime.now(AEST_OFFSET)
+    cutoff = now - datetime.timedelta(hours=HOURS_BACK)
+
+    out, seen = [], set()
+    # Announcements are table rows; each appears twice (desktop + mobile
+    # markup), so dedupe on the HotCopper thread id.
+    for row in re.findall(r"<tr[^>]*>.*?</tr>", page, re.DOTALL):
+        m = _THREAD_RE.search(row)
+        if not m:
             continue
+        thread_id = m.group(1)
+        if thread_id in seen:
+            continue
+        headline = _clean(m.group(2))
+        if not headline:
+            continue
+        seen.add(thread_id)
+
+        # Same-day rows show a time ("09:33"); older rows show "DD/MM/YY".
+        # Date-only rows are pinned to midday AEST so the HOURS_BACK window
+        # cleanly includes yesterday and excludes the day before.
+        rel = None
+        dm = _DATE_RE.search(row)
+        if dm:
+            try:
+                d = datetime.datetime.strptime(dm.group(1), "%d/%m/%y")
+                rel = d.replace(hour=12, tzinfo=AEST_OFFSET)
+            except ValueError:
+                pass
+        else:
+            tm = _TIME_RE.search(row)
+            if tm:
+                try:
+                    hh, mm = tm.group(1).split(":")
+                    rel = now.replace(hour=int(hh), minute=int(mm),
+                                      second=0, microsecond=0)
+                except ValueError:
+                    pass
+
+        if rel and rel < cutoff:
+            # Page is newest-first — everything after this is older still.
+            break
+
         out.append({
             "ticker":             code,
             "company":            COMPANY_NAMES.get(code, code),
-            "headline":           (a.get("header") or a.get("headline") or "").strip(),
-            "is_price_sensitive": bool(a.get("market_sensitive")
-                                       or a.get("price_sensitive")),
-            "date":               (rel or datetime.datetime.now(AEST_OFFSET)).isoformat(),
-            "url":                a.get("url", ""),
+            "headline":           headline,
+            "is_price_sensitive": "PRICE SENSITIVE" in row.upper(),
+            "date":               (rel or now).isoformat(),
+            "url":                f"https://hotcopper.com.au/threads/{thread_id}/",
             "summary":            "",
         })
+        if len(out) >= MAX_PER_STOCK:
+            break
     return out
 
 

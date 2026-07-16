@@ -577,114 +577,72 @@ def fetch_weather() -> list[dict]:
 # EAST COAST GAS PRICE
 # ─────────────────────────────────────────────
 
+# ── New fetch_au_gas_price ────────────────────────────────────────────
+STTM_EX_ANTE_CSV = ("https://www.nemweb.com.au/Reports/CURRENT/STTM/"
+                    "int651_v1_ex_ante_market_price_rpt_1.csv")
+
+
 def fetch_au_gas_price() -> dict:
     """
-    Fetch Australian East Coast STTM gas spot price from NEMweb.
-    Downloads CURRENTDAY.ZIP from www.nemweb.com.au/Reports/CURRENT/STTM/,
-    extracts the ex ante market price CSV, and returns the Brisbane hub price.
-    This is a public file updated daily around 6am AEST — no login required.
+    Fetch the STTM Brisbane ex ante gas price from NEMweb.
+
+    Endpoint verified July 2026 — the INT651 report is a *plain* CSV
+    (no AEMO C/I/D framing), rolling ~30 days, newest rows first:
+
+        gas_date, hub_identifier, hub_name, schedule_identifier,
+        ex_ante_market_price, administered_price_period, cap_applied,
+        administered_price_cap, schedule_price, approval_datetime,
+        report_datetime
+
+    gas_date is formatted "09 Jun 2026"; prices are in $/GJ. We take the
+    first row where hub_name == "Brisbane" (i.e. the most recent Brisbane
+    gas day), falling back to the first row of any hub.
+
     Returns dict: {price, unit, hub, date, source} or {} on failure.
     """
-    import datetime, io, zipfile, csv
+    import csv, io, datetime
 
     today = datetime.date.today().isoformat()
-    url = "http://www.nemweb.com.au/Reports/CURRENT/STTM/CURRENTDAY.ZIP"
-
     try:
-        resp = requests.get(url, timeout=15, headers={
+        resp = requests.get(STTM_EX_ANTE_CSV, timeout=15, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         })
         resp.raise_for_status()
 
-        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-            # Find the ex ante price file — named like int111_v4_exante_...csv
-            price_files = [n for n in z.namelist()
-                           if "exante" in n.lower() and n.lower().endswith(".csv")]
-            # Fallback to any price-related file
-            if not price_files:
-                price_files = [n for n in z.namelist()
-                               if "price" in n.lower() and n.lower().endswith(".csv")]
-            if not price_files:
-                return {}
+        reader = csv.DictReader(io.StringIO(resp.text))
+        target, first_row = None, None
+        for row in reader:
+            if first_row is None:
+                first_row = row
+            if (row.get("hub_name") or "").strip().lower() == "brisbane":
+                target = row      # newest first → first Brisbane hit wins
+                break
+        target = target or first_row
+        if not target:
+            return {}
 
-            with z.open(price_files[0]) as f:
-                # AEMO CSVs have a header structure: first row is "C,..." metadata,
-                # then "I,..." column headers, then "D,..." data rows
-                text = f.read().decode("utf-8", errors="replace")
-                lines = text.splitlines()
+        raw_price = (target.get("ex_ante_market_price") or "").strip()
+        if not raw_price:
+            return {}
 
-                # Find column header row (starts with "I,")
-                header_row = None
-                data_rows = []
-                for line in lines:
-                    if line.startswith("I,"):
-                        header_row = line
-                    elif line.startswith("D,") and header_row:
-                        data_rows.append(line)
+        raw_date = (target.get("gas_date") or "").strip()
+        try:
+            gas_date = datetime.datetime.strptime(raw_date, "%d %b %Y").date().isoformat()
+        except ValueError:
+            gas_date = today
 
-                if not header_row or not data_rows:
-                    # Try plain CSV fallback
-                    reader = csv.DictReader(lines)
-                    rows = list(reader)
-                    if rows:
-                        r = rows[0]
-                        price_key = next((k for k in r if "price" in k.lower()), None)
-                        if price_key and r[price_key]:
-                            return {
-                                "price": round(float(r[price_key]), 2),
-                                "unit": "$/GJ", "hub": "STTM",
-                                "date": today, "source": "NEMweb STTM"
-                            }
-                    return {}
-
-                # Parse AEMO format: columns from header row, values from data rows
-                cols = [c.strip() for c in header_row.split(",")]
-                # Prefer Brisbane hub; fall back to any hub
-                brisbane_row = None
-                any_row = None
-                for line in data_rows:
-                    vals = [v.strip() for v in line.split(",")]
-                    row = dict(zip(cols, vals))
-                    hub_val = row.get("HUB_NAME", row.get("STTM_REGION", "")).upper()
-                    if any_row is None:
-                        any_row = row
-                    if "BRISBANE" in hub_val or "QLD" in hub_val:
-                        brisbane_row = row
-                        break
-
-                target = brisbane_row or any_row
-                if not target:
-                    return {}
-
-                price_key = next(
-                    (k for k in target if "price" in k.lower() and target.get(k, "").strip()),
-                    None
-                )
-                hub_key = next(
-                    (k for k in target if any(x in k.upper() for x in ["HUB", "REGION", "LOCATION"])),
-                    None
-                )
-                date_key = next(
-                    (k for k in target if "date" in k.lower() or "gasdate" in k.lower().replace("_","")),
-                    None
-                )
-
-                if price_key and target[price_key].strip():
-                    price_val = float(target[price_key].strip())
-                    hub_name  = target[hub_key].strip() if hub_key else "STTM"
-                    gas_date  = target[date_key].strip()[:10] if date_key else today
-                    return {
-                        "price":  round(price_val, 2),
-                        "unit":   "$/GJ",
-                        "hub":    hub_name or "STTM Brisbane",
-                        "date":   gas_date,
-                        "source": "NEMweb STTM",
-                    }
-
+        hub = (target.get("hub_name") or "").strip() or "STTM Brisbane"
+        return {
+            "price":  round(float(raw_price), 2),
+            "unit":   "$/GJ",
+            "hub":    f"{hub} STTM" if "STTM" not in hub.upper() else hub,
+            "date":   gas_date,
+            "source": "NEMweb STTM (INT651)",
+        }
     except Exception as e:
         print(f"   ⚠️  NEMweb STTM fetch error: {e}")
-
     return {}
+# ── End fetch_au_gas_price ────────────────────────────────────────────
 
 
 # Keep old name as alias for backwards compat
@@ -729,103 +687,124 @@ BRIEFING_SITE_URL = os.environ.get(
 ).rstrip("/")
 
 
+# ── New fetch_wallumbilla_price ───────────────────────────────────────
+GSH_BENCHMARK_DIR = "http://nemweb.com.au/Reports/CURRENT/GSH/Benchmark_Price/"
+
+
 def fetch_wallumbilla_price() -> dict:
     """
     Fetch the Wallumbilla Gas Supply Hub benchmark price.
-    Tries the AEMO visualisation API endpoints first, then scrapes the
-    NEMweb GSH report directory. Returns {price, unit, hub, date, source}
-    or {} on failure — the briefing degrades gracefully without it.
+
+    Source verified July 2026 — NEMweb publishes a daily ZIP to
+    Reports/CURRENT/GSH/Benchmark_Price/, named:
+
+        PUBLIC_WALLUMBILLABENCHMARKPRICE_YYYYMMDD[_<seq>].zip
+
+    (each day appears twice — a plain and a sequence-numbered copy of the
+    same report). We scrape the IIS directory listing, take the newest file
+    by the YYYYMMDD in the filename, unzip it, and parse the AEMO C/I/D CSV
+    inside: "I," rows carry column headers, "D," rows carry data. The report
+    covers the Wallumbilla and SEQ trading locations, so rows are filtered
+    to those containing "WAL", and we take the latest-dated priced row.
+
+    Returns {price, unit, hub, date, source} or {} on failure — the
+    briefing degrades gracefully without it.
     """
-    import io, zipfile, csv as _csv
+    import io, zipfile, csv as _csv, datetime
 
-    # ── Attempt 1: AEMO visualisation API (JSON) ──
-    for endpoint in (
-        "https://visualisations.aemo.com.au/aemo/apps/api/report/GSH_BENCHMARK_PRICE",
-        "https://visualisations.aemo.com.au/aemo/apps/api/report/GAS_GSH_BENCHMARK",
-    ):
-        try:
-            r = requests.get(endpoint, timeout=10,
-                             headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
-            if not r.ok:
-                continue
-            data = r.json()
-            records = data if isinstance(data, list) else data.get("data", [])
-            wal = next((x for x in records if "WAL" in str(x).upper()), None) or \
-                  (records[0] if records else None)
-            if not wal:
-                continue
-            price_val = next(
-                (wal[k] for k in wal
-                 if "price" in k.lower() and str(wal[k]).replace(".", "", 1).replace("-", "", 1).isdigit()),
-                None,
-            )
-            if price_val is not None:
-                return {
-                    "price":  round(float(price_val), 2),
-                    "unit":   "$/GJ",
-                    "hub":    "Wallumbilla",
-                    "date":   str(wal.get("GAS_DATE", wal.get("gas_date", "")))[:10]
-                              or datetime.date.today().isoformat(),
-                    "source": "AEMO GSH",
-                }
-        except Exception:
-            continue
+    def _parse_rows(text: str) -> list[dict]:
+        """AEMO C/I/D csv → list of dicts (upper-cased keys). Falls back to
+        plain DictReader if no I/D framing is present. Handles multiple I
+        blocks by pairing each D row with the most recent header."""
+        lines = text.splitlines()
+        header, rows = None, []
+        for line in lines:
+            if line.startswith("I,"):
+                header = [c.strip().upper() for c in line.split(",")]
+            elif line.startswith("D,") and header:
+                vals = [v.strip().strip('"') for v in line.split(",")]
+                rows.append(dict(zip(header, vals)))
+        if not rows:
+            reader = _csv.DictReader(lines)
+            rows = [{(k or "").strip().upper(): (v or "").strip()
+                     for k, v in r.items()} for r in reader]
+        return rows
 
-    # ── Attempt 2: NEMweb GSH report directory scrape ──
+    def _row_date(row: dict) -> str:
+        """Best-effort sortable date string from a row (YYYY-MM-DD…)."""
+        for k in row:
+            if "DATE" in k:
+                v = row[k].replace("/", "-")
+                if len(v) >= 10 and v[:4].isdigit():
+                    return v[:10]
+        return ""
+
     try:
-        base = "http://www.nemweb.com.au/Reports/CURRENT/GSH/"
-        listing = requests.get(base, timeout=12,
+        listing = requests.get(GSH_BENCHMARK_DIR, timeout=12,
                                headers={"User-Agent": "Mozilla/5.0"}).text
-        files = re.findall(r'href="([^"]+\.(?:zip|ZIP|csv|CSV))"', listing)
-        # Prefer trade/price summary files, newest last in listing
-        cands = [f for f in files if any(k in f.upper() for k in ("TRADE", "PRICE", "BENCH"))]
-        if not cands:
-            cands = files
-        for fname in reversed(cands[-5:]):
-            url = fname if fname.startswith("http") else (
-                "http://www.nemweb.com.au" + fname if fname.startswith("/") else base + fname)
+        fnames = re.findall(
+            r'(PUBLIC_WALLUMBILLABENCHMARKPRICE_(\d{8})[^"\'<>\s]*\.zip)',
+            listing, re.IGNORECASE)
+        if not fnames:
+            print("   ⚠️  NEMweb GSH: no benchmark price files in listing")
+            return {}
+
+        # Newest date first; try up to the 3 most recent distinct files in
+        # case the very latest upload is truncated/corrupt.
+        fnames.sort(key=lambda t: (t[1], t[0]), reverse=True)
+        tried, seen_dates = 0, set()
+        for fname, fdate in fnames:
+            if fdate in seen_dates:
+                continue
+            seen_dates.add(fdate)
+            tried += 1
+            if tried > 3:
+                break
             try:
-                r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+                r = requests.get(GSH_BENCHMARK_DIR + fname, timeout=20,
+                                 headers={"User-Agent": "Mozilla/5.0"})
                 r.raise_for_status()
-                if url.lower().endswith(".zip"):
-                    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-                        csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
-                        if not csvs:
-                            continue
-                        text = z.read(csvs[0]).decode("utf-8", errors="replace")
-                else:
-                    text = r.text
-                lines = text.splitlines()
-                header, rows = None, []
-                for line in lines:
-                    if line.startswith("I,"):
-                        header = [c.strip().upper() for c in line.split(",")]
-                    elif line.startswith("D,") and header:
-                        rows.append(dict(zip(header, [v.strip() for v in line.split(",")])))
-                if not rows:
-                    reader = _csv.DictReader(lines)
-                    rows = [{k.upper(): v for k, v in r2.items() if k} for r2 in reader]
-                wal_rows = [r2 for r2 in rows
-                            if any("WAL" in str(v).upper() for v in r2.values())] or rows
-                for r2 in reversed(wal_rows):
-                    pk = next((k for k in r2 if "PRICE" in k and str(r2[k]).strip()), None)
-                    if pk:
+                with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+                    csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
+                    if not csvs:
+                        continue
+                    text = z.read(csvs[0]).decode("utf-8", errors="replace")
+
+                rows = _parse_rows(text)
+                # Wallumbilla rows only (report also carries SEQ)
+                wal_rows = [rw for rw in rows
+                            if any("WAL" in str(v).upper() for v in rw.values())]
+                if not wal_rows:
+                    wal_rows = rows
+                # Latest gas date last
+                wal_rows.sort(key=_row_date)
+
+                for rw in reversed(wal_rows):
+                    # Prefer an explicit benchmark price column
+                    price_keys = ([k for k in rw if "BENCHMARK" in k and "PRICE" in k]
+                                  or [k for k in rw if "PRICE" in k])
+                    for pk in price_keys:
+                        val = str(rw.get(pk, "")).strip()
                         try:
-                            return {
-                                "price":  round(float(r2[pk]), 2),
-                                "unit":   "$/GJ",
-                                "hub":    "Wallumbilla",
-                                "date":   datetime.date.today().isoformat(),
-                                "source": "NEMweb GSH",
-                            }
+                            price = float(val)
                         except ValueError:
                             continue
+                        gas_date = _row_date(rw) or (
+                            f"{fdate[:4]}-{fdate[4:6]}-{fdate[6:8]}")
+                        return {
+                            "price":  round(price, 2),
+                            "unit":   "$/GJ",
+                            "hub":    "Wallumbilla",
+                            "date":   gas_date,
+                            "source": "NEMweb GSH Benchmark",
+                        }
             except Exception:
                 continue
     except Exception as e:
         print(f"   ⚠️  NEMweb GSH fetch error: {e}")
 
     return {}
+# ── End fetch_wallumbilla_price ───────────────────────────────────────
 
 
 def load_gas_history() -> dict:
