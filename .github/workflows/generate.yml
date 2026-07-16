@@ -75,7 +75,6 @@ jobs:
           BRIEFING_PASSWORD:    ${{ secrets.BRIEFING_PASSWORD }}
           OUTLOOK_TOKEN_SETUP_DATE: ${{ secrets.OUTLOOK_TOKEN_SETUP_DATE }}
           BRIEFING_SITE_URL: "https://dmcalpine76-create.github.io/morning-briefing"
-          AUDIO_VOICE: ${{ secrets.AUDIO_VOICE }}
         run: python briefing.py
 
       - name: Wrap with password and stage publish files
