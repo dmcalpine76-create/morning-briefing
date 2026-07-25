@@ -1,6 +1,11 @@
 {
  "items": [
   {
+   "date": "2026-07-26",
+   "label": "Sunday 26 July 2026",
+   "file": "briefing_2026-07-26.html"
+  },
+  {
    "date": "2026-07-25",
    "label": "Saturday 25 July 2026",
    "file": "briefing_2026-07-25.html"
