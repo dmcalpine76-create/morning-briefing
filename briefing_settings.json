@@ -13,7 +13,6 @@
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
         "https://www.theguardian.com/world/rss",
-        "https://feeds.reuters.com/reuters/worldNews",
         "https://www.aljazeera.com/xml/rss/all.xml"
       ]
     },
@@ -24,8 +23,6 @@
       "feeds": [
         "https://www.abc.net.au/news/feed/2942460/rss.xml",
         "https://www.smh.com.au/rss/feed.xml",
-        "https://www.theaustralian.com.au/feed",
-        "https://feeds.skynews.com.au/feeds/news.xml",
         "https://www.theguardian.com/australia-news/rss"
       ]
     },
@@ -34,14 +31,9 @@
       "emoji": "📈",
       "color": "#3a1a4a",
       "feeds": [
-        "https://www.abc.net.au/news/business/rss.xml",
         "https://www.theage.com.au/rss/business.xml",
-        "https://www.news.com.au/content-feeds/latest-news-finance/",
-        "https://financialnewswire.com.au/feed",
         "https://afndaily.com.au/feed",
-        "https://www.rba.gov.au/rss/media-releases.xml",
-        "https://au.investing.com/rss/news.rss",
-        "https://www.asx.com.au/asx/1/news/rss"
+        "https://au.investing.com/rss/news.rss"
       ]
     }
   ],
