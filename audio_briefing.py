@@ -61,7 +61,10 @@ except ImportError:
     _ANTHROPIC_AVAILABLE = False
 
 # Voice — override via AUDIO_VOICE env var or .env
-VOICE      = os.environ.get("AUDIO_VOICE", "en-AU-WilliamNeural")
+DEFAULT_VOICE = "en-AU-WilliamNeural"
+# `or` (not a .get default) so an empty GitHub secret also falls back;
+# strip removes stray spaces/newlines/quotes pasted into the secret.
+VOICE      = (os.environ.get("AUDIO_VOICE") or DEFAULT_VOICE).strip().strip('"').strip("'") or DEFAULT_VOICE
 RATE       = "+4%"          # slightly brisk, radio-news pace
 MAX_MP3_MB = 8              # sanity cap for the email attachment
 
@@ -170,8 +173,16 @@ Respond with ONLY the script text."""
 
 
 async def _render(script: str, mp3_path: Path) -> None:
-    communicate = edge_tts.Communicate(script, VOICE, rate=RATE)
-    await communicate.save(str(mp3_path))
+    try:
+        await edge_tts.Communicate(script, VOICE, rate=RATE).save(str(mp3_path))
+    except edge_tts.exceptions.NoAudioReceived:
+        if VOICE == DEFAULT_VOICE:
+            raise
+        # Usually an invalid AUDIO_VOICE name — retry once with the default
+        print(f"   ⚠️  Voice '{VOICE}' returned no audio "
+              f"(len {len(VOICE)}) — retrying with {DEFAULT_VOICE}")
+        mp3_path.unlink(missing_ok=True)
+        await edge_tts.Communicate(script, DEFAULT_VOICE, rate=RATE).save(str(mp3_path))
 
 
 def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
