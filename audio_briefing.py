@@ -67,6 +67,9 @@ DEFAULT_VOICE = "en-AU-WilliamNeural"
 VOICE      = (os.environ.get("AUDIO_VOICE") or DEFAULT_VOICE).strip().strip('"').strip("'") or DEFAULT_VOICE
 RATE       = "+4%"          # slightly brisk, radio-news pace
 MAX_MP3_MB = 8              # sanity cap for the email attachment
+# GitHub Actions runners use UTC — the 5am/8am AEST runs are still
+# "yesterday" in UTC, so always take the date from Brisbane time.
+BRISBANE_TZ = datetime.timezone(datetime.timedelta(hours=10))   # QLD has no daylight saving
 
 
 def _collect_material(sections: dict, analysis: dict,
@@ -75,14 +78,14 @@ def _collect_material(sections: dict, analysis: dict,
     """Flatten the day's content into raw material for the script writer."""
     lines = []
 
-    # ── News categories: top 3 per category ──
+    # ── News categories: all summarised stories (top 5 per category) ──
     for cat, stories in (sections or {}).items():
-        for s in (stories or [])[:3]:
+        for s in (stories or [])[:5]:
             sig = s.get("significance") or ""
             lines.append(f"[{cat}] ({sig}) {s.get('headline') or ''} — "
                          f"{(s.get('summary') or '')[:220]}")
 
-    # ── Personal topics: top 2 per topic ──
+    # ── Personal topics: top 3 per topic ──
     if active_topics and topic_stories:
         lines.append("")
         lines.append("PERSONAL WATCH TOPICS:")
@@ -92,7 +95,7 @@ def _collect_material(sections: dict, analysis: dict,
             stories = (topic_stories or {}).get(tid, [])
             if not stories:
                 continue
-            for s in stories[:2]:
+            for s in stories[:3]:
                 sig = s.get("significance") or ""
                 lines.append(f"[Topic: {name}] ({sig}) "
                              f"{s.get('headline') or ''} — "
@@ -122,7 +125,9 @@ def _collect_material(sections: dict, analysis: dict,
 def _write_script(material: str, generated_at: datetime.datetime,
                   api_key: str) -> str:
     """Ask Haiku for a flowing spoken script; fall back to a plain read-out."""
-    date_spoken = generated_at.strftime("%A the %d of %B")
+    day = generated_at.day
+    suffix = "th" if 11 <= day % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    date_spoken = f"{generated_at.strftime('%A')} the {day}{suffix} of {generated_at.strftime('%B')}"
     if _ANTHROPIC_AVAILABLE and api_key:
         try:
             client = _anthropic.Anthropic(api_key=api_key)
@@ -131,23 +136,26 @@ at State Gas, a junior Queensland gas explorer focused on the Taroom Trough.
 It will be read aloud by a text-to-speech voice, so write for the EAR:
 
 - Open with: "Good morning Doug, it's {date_spoken}. Here's your briefing."
-- 550 to 700 words total (about four minutes spoken)
+- 800 to 1000 words total (about six minutes spoken)
 - Flowing conversational prose. No headings, no bullet points, no asterisks,
   no emoji, no URLs, and never spell out ticker codes letter by letter —
   say the company name instead.
 - Structure the briefing in this order:
-  1. Gas & energy news first — especially anything touching Queensland gas,
-     the Taroom Trough or his watchlist companies (State Gas, Comet Ridge,
-     Beach Energy, Santos, Blue Energy).
-  2. AI and technology news.
-  3. One or two other notable stories.
-  4. Personal topics segment: transition with something like "Now, a few
-     highlights from your watch topics." Cover 2–3 of the most significant
-     items from the PERSONAL WATCH TOPICS section — keep it punchy, about
-     one minute. If a topic overlaps with something already covered (e.g.
-     gas or AI), don't repeat it — just note the connection.
-  5. Today's work actions, most urgent first.
-  6. A one-line sign-off.
+  1. Headlines: the day's biggest NEW news across all three news sections
+     (International News, Australian News, Australian Finance & Markets).
+     Cover at least two stories from EACH section, leading with anything
+     marked critical or major, whatever the subject.
+  2. Markets & business: the key Australian finance and markets stories.
+  3. Watch topics: transition with something like "Now, to your watch
+     topics." Cover the most significant items from the PERSONAL WATCH
+     TOPICS section (energy and gas, AI, and the others), giving priority
+     to anything touching Queensland gas, the Taroom Trough or State Gas,
+     Comet Ridge, Beach Energy, Santos or Blue Energy. About two minutes.
+     Don't repeat a story already covered — just note the connection.
+  4. Today's work actions, most urgent first (skip if none).
+  5. A one-line sign-off.
+- Energy and gas must NOT dominate the headlines segment — give broad
+  news its fair share.
 
 TODAY'S MATERIAL:
 {material}
@@ -155,7 +163,7 @@ TODAY'S MATERIAL:
 Respond with ONLY the script text."""
             resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=1600,
+                max_tokens=2200,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=90,
             )
@@ -200,7 +208,7 @@ def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
         if not material.strip():
             print("   ⚠️  No material for audio briefing — skipping")
             return None
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(BRISBANE_TZ)
         script = _write_script(material, now, api_key)
         mp3_path = out_dir / "briefing.mp3"
         print(f"   🎙️  Voice: {VOICE}  Rate: {RATE}")
