@@ -1,5 +1,5 @@
 {
-  "_comment": "Your personal watch topics. Edit directly or use: python manage_topics.py",
+  "_comment": "Watch topics for Morning Briefing. Edit here or via settings dashboard.",
   "topics": [
     {
       "id": "artificial-intelligence",
@@ -20,30 +20,6 @@
         "GPT",
         "deep learning",
         "AI model"
-      ],
-      "added": "2025-03-17",
-      "active": true
-    },
-    {
-      "id": "energy-and-gas",
-      "name": "Energy & Gas",
-      "emoji": "⚡",
-      "color": "#1a4a2e",
-      "keywords": [
-        "energy",
-        "natural gas",
-        "LNG",
-        "oil price",
-        "renewable energy",
-        "solar",
-        "wind power",
-        "coal",
-        "electricity",
-        "gas market",
-        "energy transition",
-        "petroleum",
-        "ASX gas",
-        "gas exploration"
       ],
       "added": "2025-03-17",
       "active": true
@@ -91,25 +67,6 @@
       "active": true
     },
     {
-      "id": "space-x-ipo",
-      "name": "Space X IPO",
-      "emoji": "🚀",
-      "color": "#3a1a4a",
-      "keywords": [
-        "SpaceX",
-        "Space X",
-        "SpaceX IPO",
-        "Starlink IPO",
-        "Elon Musk SpaceX",
-        "SpaceX listing",
-        "SpaceX valuation",
-        "Starlink"
-      ],
-      "notes": "",
-      "added": "2026-06-15",
-      "active": true
-    },
-    {
       "id": "domestic-gas-update",
       "name": "Domestic Gas Update",
       "emoji": "🔥",
@@ -133,6 +90,20 @@
       "notes": "",
       "added": "2026-06-15",
       "active": true
+    },
+    {
+      "id": "ai-data-centres-australia",
+      "name": "AI Data Centres Australia",
+      "emoji": "📌",
+      "color": "#1a3a5c",
+      "keywords": [
+        "ai data centres australia",
+        "ai data centres",
+        "firmus"
+      ],
+      "notes": "",
+      "active": true,
+      "added": "2026-09-21"
     }
   ]
 }
