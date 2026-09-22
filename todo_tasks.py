@@ -145,6 +145,13 @@ def fetch_todo_tasks(list_name: str = None, include_completed: bool = False) -> 
         due = _parse_due(t)
         bucket, delta = _bucket(due, today)
         body = (t.get("body") or {}).get("content", "") or ""
+        lm = None
+        raw_lm = t.get("lastModifiedDateTime") or ""
+        if raw_lm:
+            try:
+                lm = datetime.datetime.fromisoformat(raw_lm.replace("Z", "+00:00")).date()
+            except Exception:
+                lm = None
         tasks.append({
             "id":           t.get("id", ""),
             "title":        (t.get("title") or "").strip(),
@@ -156,6 +163,7 @@ def fetch_todo_tasks(list_name: str = None, include_completed: bool = False) -> 
             "days_until":   delta if bucket in ("next-7", "later") else 0,
             "is_completed": (t.get("status") or "") == "completed",
             "source":       "todo",
+            "last_modified": lm,
         })
 
     order = {"overdue": 0, "today": 1, "next-7": 2, "no-date": 3, "later": 4}
