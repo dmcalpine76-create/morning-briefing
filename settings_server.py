@@ -97,8 +97,18 @@ def load_settings() -> dict:
 
 
 def save_settings(data: dict):
-    data["_updated"] = datetime.datetime.now().isoformat(timespec="seconds")
-    SETTINGS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Merge into what is already on disk so keys the dashboard does not
+    # know about (topic_search_feeds, calendar_lanes, personal_calendar)
+    # are not destroyed every time you press Save.
+    existing = {}
+    if SETTINGS_FILE.exists():
+        try:
+            existing = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            existing = {}
+    existing.update(data)
+    existing["_updated"] = datetime.datetime.now().isoformat(timespec="seconds")
+    SETTINGS_FILE.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"   💾  Settings saved → {SETTINGS_FILE.resolve()}")
     print(f"       Categories: {len(data.get('categories', []))}  "
           f"Tickers: {len(data.get('market_tickers', []))}  "

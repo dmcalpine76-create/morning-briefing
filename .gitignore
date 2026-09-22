@@ -23,3 +23,22 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# ── Local runtime state — contains real mailbox / calendar content.
+# ── This repository is PUBLIC. Nothing below may ever be committed.
+.folder_cache.json
+.inbox_actions.json
+inbox_state.json
+inbox_dashboard.html
+inbox_decision_log.txt
+inbox_action_report.txt
+inbox_action_summary.md
+duration_history.json
+gmail_actions.json
+onenote_transcriptions.json
+scheduling_plan.json
+
+# Editor / tooling leftovers
+*.bak-*
+zip files/
+.git/_claude_junk/

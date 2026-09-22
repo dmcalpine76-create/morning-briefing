@@ -2069,6 +2069,28 @@ TOPIC_SEARCH_FEEDS = [
 ]
 
 
+# Apply any topic-feed override from briefing_settings.json.
+# Declared HERE, after the literal above, not inside _load_settings():
+# _load_settings() runs near the top of the file, so anything it assigned to
+# TOPIC_SEARCH_FEEDS would be clobbered when this literal is evaluated.
+def _load_topic_search_feeds():
+    global TOPIC_SEARCH_FEEDS
+    if not SETTINGS_FILE.exists():
+        return
+    try:
+        s = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"  WARNING: could not read briefing_settings.json for topic feeds: {e}")
+        return
+    feeds = [f.strip() for f in s.get("topic_search_feeds", [])
+             if isinstance(f, str) and f.strip()]
+    if feeds:
+        TOPIC_SEARCH_FEEDS = feeds
+
+
+_load_topic_search_feeds()
+
+
 def load_topics() -> list[dict]:
     """Load active watch topics from topics.json."""
     if not TOPICS_FILE.exists():
