@@ -128,5 +128,110 @@
       "label": "Blue Energy"
     }
   ],
-  "_updated": "2026-09-22T06:36:46"
+  "_updated": "2026-09-22T06:36:46",
+  "personal_calendar": {
+    "enabled": true,
+    "lane": "Personal",
+    "show_titles": true,
+    "count_capacity": true,
+    "work_day_start": "08:00",
+    "work_day_end": "18:00",
+    "work_days": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "redacted_label": "Personal — busy"
+  },
+  "calendar_lanes": {
+    "unfiled_lane_visible": true,
+    "lanes": [
+      {
+        "id": "board",
+        "name": "Board & Governance",
+        "color": "#1a3a5c",
+        "keywords": [
+          "board",
+          "audit",
+          "risk committee",
+          "agm",
+          "directors",
+          "governance"
+        ],
+        "domains": []
+      },
+      {
+        "id": "investors",
+        "name": "Investors & External",
+        "color": "#3a1a4a",
+        "keywords": [
+          "investor",
+          "roadshow",
+          "broker",
+          "analyst",
+          "substantial holder",
+          "capital raise",
+          "shareholder"
+        ],
+        "domains": []
+      },
+      {
+        "id": "regulatory",
+        "name": "Regulatory & Government",
+        "color": "#4a2a1a",
+        "keywords": [
+          "submission",
+          "tenure",
+          "eis",
+          "atp ",
+          "pl ",
+          "renewal",
+          "dnrm",
+          "regulator",
+          "compliance",
+          "lodgement"
+        ],
+        "domains": [
+          "resources.qld.gov.au",
+          "qld.gov.au",
+          "dnrme.qld.gov.au"
+        ]
+      },
+      {
+        "id": "internal",
+        "name": "Internal & Team",
+        "color": "#1a4a2e",
+        "keywords": [
+          "stand-up",
+          "standup",
+          "ops review",
+          "all-hands",
+          "team",
+          "1:1"
+        ],
+        "domains": [
+          "stategas.com"
+        ]
+      },
+      {
+        "id": "travel",
+        "name": "Travel & Site",
+        "color": "#15514f",
+        "keywords": [
+          "site visit",
+          "travel",
+          "flight",
+          "rig",
+          "field",
+          "accommodation",
+          "rolleston",
+          "reid's dome"
+        ],
+        "domains": []
+      }
+    ],
+    "overrides": {}
+  }
 }

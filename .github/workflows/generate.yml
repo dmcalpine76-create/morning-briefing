@@ -53,7 +53,9 @@ jobs:
             python-dotenv \
             cryptography \
             edge-tts \
-            curl_cffi
+            curl_cffi \
+            icalendar \
+            recurring-ical-events
 
       # ── 4. Restore Outlook token ───────────────────────────────────────────
       # Uses Python to write the token — bash echo corrupts multi-line JSON
