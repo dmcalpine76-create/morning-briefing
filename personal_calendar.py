@@ -293,5 +293,10 @@ def _self_test(source: str = None):
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    try:
+        _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     args = [a for a in sys.argv[1:] if a != "--test"]
     sys.exit(_self_test(args[0] if args else None))

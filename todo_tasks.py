@@ -258,4 +258,9 @@ def _self_test():
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    try:
+        _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     sys.exit(_self_test())
