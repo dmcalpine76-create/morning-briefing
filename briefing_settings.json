@@ -134,7 +134,7 @@
     "lane": "Personal",
     "show_titles": true,
     "count_capacity": true,
-    "work_day_start": "08:00",
+    "work_day_start": "07:00",
     "work_day_end": "18:00",
     "work_days": [
       0,
