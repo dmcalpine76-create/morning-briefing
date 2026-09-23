@@ -501,10 +501,10 @@ input[type="number"] { width: 80px; }
 
       <div class="card" style="margin-bottom:.9rem">
         <div style="font-weight:600;font-size:.85rem;margin-bottom:.35rem">Companies</div>
-        <p class="section-desc" style="margin-bottom:.6rem">All three lists are comma-separated. <b>Aliases</b> catch the story — legal name, the short name the press uses, project and JV names, any former name. <b>Must also mention</b> is the fix for a name that is ordinary English: “State Gas” on its own matches Ohio state gas regulators, so it requires <span class="mono">Queensland</span>, <span class="mono">ASX</span>, <span class="mono">Rolleston</span> or the full <span class="mono">State Gas Limited</span> to be present too. Any <em>one</em> of them is enough, and listing the unambiguous form of the name there means a clean headline still passes. Leave it empty for distinctive names like Comet Ridge. <b>Never mention</b> drops an item outright — Santos carries <span class="mono">football, Neymar, Brazil</span> for the São Paulo club.</p>
+        <p class="section-desc" style="margin-bottom:.6rem">Every list is comma-separated. The split between the first two columns is what makes this work. <b>Names that stand alone</b> are unambiguous — “State Gas Limited”, “Comet Ridge”, a ticker like <span class="mono">ASX:GAS</span>. A match is enough on its own. <b>Project &amp; asset names</b> are everything that is also ordinary English or famous elsewhere — “Barossa” is a wine region, “Atlas” is a robot, “Sapphire” is a Pokémon, “Scarborough” is a suburb. A match there only counts if one of the <b>context terms</b> appears as well; leave context empty to use the default gas-industry vocabulary. <b>Never mention</b> kills an item outright. One rule: never put a project name into its own context list — it would satisfy its own test and the filter stops doing anything. The self-test checks for that and will tell you.</p>
         <table class="ticker-table" id="mw-co-table">
           <thead>
-            <tr><th style="width:15%">Company</th><th style="width:7%">Code</th><th>Aliases, project and JV names</th><th>Must also mention</th><th>Never mention</th><th></th></tr>
+            <tr><th style="width:13%">Company</th><th style="width:6%">Code</th><th>Names that stand alone</th><th>Project &amp; asset names</th><th>Context terms</th><th>Never mention</th><th></th></tr>
           </thead>
           <tbody id="mw-co-body"></tbody>
         </table>
@@ -516,7 +516,7 @@ input[type="number"] { width: 80px; }
         <p class="section-desc" style="margin-bottom:.6rem">Themes rather than companies — policy, regulation, market structure. Keywords and the two qualifier columns work exactly as they do for companies above.</p>
         <table class="ticker-table" id="mw-topic-table">
           <thead>
-            <tr><th style="width:20%">Topic</th><th>Keywords</th><th>Must also mention</th><th>Never mention</th><th></th></tr>
+            <tr><th style="width:17%">Topic</th><th>Phrases that stand alone</th><th>Broader phrases</th><th>Context terms</th><th>Never mention</th><th></th></tr>
           </thead>
           <tbody id="mw-topic-body"></tbody>
         </table>
@@ -976,6 +976,10 @@ function renderMarket() {
            oninput="mwSetList('companies',${i},'aliases',this.value)"
            placeholder="Legal name, projects, JVs, former name"></td>
       <td><input style="width:100%" type="text"
+           value="${esc((c.weak_aliases || []).join(', '))}"
+           oninput="mwSetList('companies',${i},'weak_aliases',this.value)"
+           placeholder="Barossa, Atlas, Sapphire"></td>
+      <td><input style="width:100%" type="text"
            value="${esc((c.require || []).join(', '))}"
            oninput="mwSetList('companies',${i},'require',this.value)"
            placeholder="Leave empty if the name is distinctive"></td>
@@ -994,6 +998,10 @@ function renderMarket() {
            value="${esc((t.keywords || []).join(', '))}"
            oninput="mwSetList('topics',${i},'keywords',this.value)"
            placeholder="phrase one, phrase two, abbreviation"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((t.weak_keywords || []).join(', '))}"
+           oninput="mwSetList('topics',${i},'weak_keywords',this.value)"
+           placeholder="takeover, placement"></td>
       <td><input style="width:100%" type="text"
            value="${esc((t.require || []).join(', '))}"
            oninput="mwSetList('topics',${i},'require',this.value)"
@@ -1016,13 +1024,13 @@ function mwRemove(list, i) {
 }
 
 function addMwCompany() {
-  mwCfg().companies.push({ name: '', code: '', aliases: [], require: [], exclude: [] });
+  mwCfg().companies.push({ name: '', code: '', aliases: [], weak_aliases: [], require: [], exclude: [] });
   renderMarket();
   markDirty('market');
 }
 
 function addMwTopic() {
-  mwCfg().topics.push({ name: '', keywords: [], require: [], exclude: [] });
+  mwCfg().topics.push({ name: '', keywords: [], weak_keywords: [], require: [], exclude: [] });
   renderMarket();
   markDirty('market');
 }

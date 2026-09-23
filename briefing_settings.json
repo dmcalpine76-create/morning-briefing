@@ -291,152 +291,158 @@
         "aliases": [
           "State Gas Limited",
           "Rolleston West",
-          "Reid's Dome",
-          "Nyanda"
+          "Reid's Dome"
         ],
         "require": [
-          "State Gas Limited",
+          "Queensland",
+          "petroleum",
+          "CSG",
+          "coal seam gas",
+          "Bowen Basin",
+          "ASX",
           "Rolleston",
           "Reid's Dome",
-          "Queensland",
-          "Australian",
-          "Australia",
-          "ASX",
-          "GAS.AX"
+          "exploration",
+          "drilling"
         ],
         "exclude": [
           "Ohio",
           "Texas",
           "Pennsylvania",
           "state gas tax"
+        ],
+        "weak_aliases": [
+          "State Gas",
+          "Nyanda"
         ]
       },
       {
         "name": "Comet Ridge",
         "code": "COI",
         "aliases": [
+          "Comet Ridge",
           "Comet Ridge Limited",
-          "Mahalo",
           "Mahalo North",
           "Mahalo East"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Mahalo"
+        ]
       },
       {
         "name": "Blue Energy",
         "code": "BLU",
         "aliases": [
-          "Blue Energy Limited",
+          "Blue Energy Limited"
+        ],
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
+          "Blue Energy",
           "Sapphire",
           "Lancewood"
-        ],
-        "require": [
-          "Blue Energy Limited",
-          "Bowen Basin",
-          "Sapphire",
-          "Lancewood",
-          "Queensland",
-          "ASX",
-          "Australian"
-        ],
-        "exclude": []
+        ]
       },
       {
         "name": "Omega Oil & Gas",
         "code": "OMA",
         "aliases": [
+          "Omega Oil & Gas",
           "Omega Oil and Gas",
-          "Taroom Trough",
-          "Canyon-2",
-          "Canyon-3"
+          "Taroom Trough"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Canyon-2",
+          "Canyon-3"
+        ]
       },
       {
         "name": "Elixir Energy",
         "code": "EXR",
         "aliases": [
-          "Elixir Energy Limited",
+          "Elixir Energy",
+          "Elixir Energy Limited"
+        ],
+        "require": [],
+        "exclude": [
+          "Mongolia"
+        ],
+        "weak_aliases": [
           "Grandis",
           "Daydream",
           "Daydream-2"
-        ],
-        "require": [
-          "Elixir Energy",
-          "Grandis",
-          "Daydream",
-          "Queensland",
-          "Bowen",
-          "ASX",
-          "Australian"
-        ],
-        "exclude": [
-          "Mongolia"
         ]
       },
       {
         "name": "Galilee Energy",
         "code": "GLL",
         "aliases": [
+          "Galilee Basin",
+          "Galilee Energy",
           "Galilee Energy Limited",
-          "Glenaras",
-          "Galilee Basin"
+          "Glenaras"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": []
       },
       {
         "name": "Denison Gas",
         "code": "",
         "aliases": [
           "Denison Gas",
-          "Denison Trough",
-          "Baffle Creek"
+          "Denison Trough"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Baffle Creek"
+        ]
       },
       {
         "name": "ADZ Energy",
         "code": "",
         "aliases": [
-          "ADZ Energy",
-          "Kincora",
-          "Myall Creek"
+          "ADZ Energy"
         ],
         "require": [
-          "ADZ Energy",
-          "Kincora",
-          "Myall Creek",
           "Queensland",
           "Surat",
-          "gas"
+          "gas",
+          "petroleum",
+          "CSG"
         ],
-        "exclude": []
+        "exclude": [
+          "copper",
+          "porphyry",
+          "TSXV",
+          "gold"
+        ],
+        "weak_aliases": [
+          "Kincora",
+          "Myall Creek"
+        ]
       },
       {
         "name": "Santos",
         "code": "STO",
         "aliases": [
-          "Santos Limited",
-          "GLNG",
-          "Barossa",
           "Cooper Basin",
-          "Narrabri"
+          "Santos Limited",
+          "GLNG"
         ],
         "require": [
-          "Santos Limited",
-          "GLNG",
-          "Barossa",
-          "Cooper Basin",
+          "gas",
           "LNG",
-          "ASX",
-          "Australia",
-          "Australian",
-          "Darwin",
-          "Papua"
+          "petroleum",
+          "GLNG",
+          "Cooper Basin",
+          "Queensland",
+          "ASX:STO"
         ],
         "exclude": [
           "Santos FC",
@@ -444,44 +450,58 @@
           "Neymar",
           "Sao Paulo",
           "Brazil",
-          "Palmeiras"
+          "Palmeiras",
+          "Michelin",
+          "winery",
+          "wine"
+        ],
+        "weak_aliases": [
+          "Santos",
+          "Barossa",
+          "Narrabri"
         ]
       },
       {
         "name": "Beach Energy",
         "code": "BPT",
         "aliases": [
-          "Beach Energy Limited",
-          "Waitsia",
           "Otway",
-          "Bass Basin"
+          "Beach Energy",
+          "Beach Energy Limited",
+          "Waitsia"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Bass Basin"
+        ]
       },
       {
         "name": "Amplitude Energy",
         "code": "AEL",
         "aliases": [
-          "Amplitude Energy Limited",
-          "Cooper Energy",
+          "Amplitude Energy",
+          "Cooper Energy"
+        ],
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
           "Sole",
           "Athena",
           "Orbost"
-        ],
-        "require": [],
-        "exclude": []
+        ]
       },
       {
         "name": "Origin Energy",
         "code": "ORG",
         "aliases": [
-          "Origin Energy Limited",
+          "Origin Energy",
           "APLNG",
           "Australia Pacific LNG"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": []
       },
       {
         "name": "Senex Energy",
@@ -489,288 +509,296 @@
         "aliases": [
           "Senex",
           "Senex Energy",
-          "Atlas",
           "Roma North"
         ],
-        "require": [
-          "Senex",
-          "Atlas",
-          "Roma North",
-          "Surat",
-          "Queensland",
-          "gas",
-          "POSCO",
-          "Hancock"
-        ],
-        "exclude": []
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
+          "Atlas"
+        ]
       },
       {
         "name": "Arrow Energy",
         "code": "",
         "aliases": [
           "Arrow Energy",
-          "Surat Gas Project",
-          "Daandine",
-          "Tipton"
+          "Surat Gas Project"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Daandine",
+          "Tipton"
+        ]
       },
       {
         "name": "Shell QGC",
         "code": "",
         "aliases": [
-          "QGC",
           "Queensland Gas Company",
           "QCLNG",
-          "Curtis Island"
+          "Shell QGC"
         ],
-        "require": [
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
           "QGC",
-          "Queensland",
-          "Surat",
-          "Curtis Island",
-          "LNG",
-          "Australia",
-          "Australian"
-        ],
-        "exclude": []
+          "Curtis Island"
+        ]
       },
       {
         "name": "Australia Pacific LNG",
         "code": "",
         "aliases": [
           "APLNG",
-          "Australia Pacific LNG",
-          "Walloons"
+          "Australia Pacific LNG"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Walloons"
+        ]
       },
       {
         "name": "Bridgeport Energy",
         "code": "",
-        "aliases": [
-          "Bridgeport Energy"
-        ],
+        "aliases": [],
         "require": [
-          "Australia",
-          "Australian",
           "Cooper Basin",
           "Queensland",
           "Surat",
+          "gas",
+          "petroleum",
+          "oil and gas",
           "New Hope"
         ],
         "exclude": [
           "Connecticut",
           "power plant"
+        ],
+        "weak_aliases": [
+          "Bridgeport Energy"
         ]
       },
       {
         "name": "Vintage Energy",
         "code": "VEN",
         "aliases": [
-          "Vintage Energy Ltd",
+          "Vintage Energy"
+        ],
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
           "Vali",
           "Odin",
           "Nangwarry"
-        ],
-        "require": [],
-        "exclude": []
+        ]
       },
       {
         "name": "Central Petroleum",
         "code": "CTP",
         "aliases": [
-          "Central Petroleum Limited",
-          "Mereenie",
-          "Palm Valley",
-          "Amadeus"
+          "Central Petroleum",
+          "Mereenie"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Palm Valley",
+          "Amadeus"
+        ]
       },
       {
         "name": "Woodside Energy",
         "code": "WDS",
         "aliases": [
-          "Woodside Energy Group",
-          "Scarborough",
-          "North West Shelf",
-          "Pluto"
+          "Woodside",
+          "Woodside Energy",
+          "North West Shelf"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Scarborough",
+          "Pluto"
+        ]
       },
       {
         "name": "Strike Energy",
         "code": "STX",
         "aliases": [
           "Strike Energy Limited",
+          "Strike Energy Ltd",
           "West Erregulla",
           "South Erregulla",
           "Walyering"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [
+          "Iran",
+          "Iraq",
+          "Pakistan",
+          "Russia",
+          "Ukraine",
+          "Zelenskiy"
+        ],
+        "weak_aliases": [
+          "Strike Energy"
+        ]
       },
       {
         "name": "Tamboran Resources",
         "code": "TBN",
         "aliases": [
-          "Tamboran Resources",
           "Beetaloo",
+          "Tamboran",
+          "Tamboran Resources",
           "Shenandoah South",
           "Sturt Plateau"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": []
       },
       {
         "name": "Beetaloo Energy Australia",
         "code": "BTL",
         "aliases": [
           "Beetaloo Energy",
-          "Empire Energy",
-          "Carpentaria",
           "Beetaloo Sub-basin"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Empire Energy",
+          "Carpentaria"
+        ]
       },
       {
         "name": "Mineral Resources",
         "code": "MIN",
         "aliases": [
-          "Mineral Resources Limited",
           "Lockyer Deep",
-          "Norwest",
           "Perth Basin gas"
         ],
         "require": [
-          "Lockyer Deep",
-          "Perth Basin",
           "gas",
-          "Norwest",
-          "Erregulla"
+          "petroleum",
+          "Perth Basin",
+          "Erregulla",
+          "LNG"
         ],
         "exclude": [
           "lithium",
-          "iron ore"
+          "iron ore",
+          "shooting",
+          "police"
+        ],
+        "weak_aliases": [
+          "Mineral Resources",
+          "Norwest"
         ]
       },
       {
         "name": "APA Group",
         "code": "APA",
         "aliases": [
-          "APA Group",
           "South West Queensland Pipeline",
           "SWQP",
           "Wallumbilla",
           "Moomba Sydney Pipeline"
         ],
-        "require": [
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
           "APA Group",
-          "pipeline",
-          "gas",
-          "Wallumbilla",
-          "Queensland",
-          "Australia"
-        ],
-        "exclude": []
+          "APA"
+        ]
       },
       {
         "name": "Jemena",
         "code": "",
         "aliases": [
           "Jemena",
-          "SGSP",
           "Queensland Gas Pipeline",
           "Northern Gas Pipeline",
           "Eastern Gas Pipeline"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "SGSP"
+        ]
       },
       {
         "name": "Squadron Energy",
         "code": "",
         "aliases": [
           "Squadron Energy",
-          "Port Kembla Energy Terminal",
-          "Tattarang"
+          "Port Kembla Energy Terminal"
         ],
         "require": [],
-        "exclude": []
+        "exclude": [],
+        "weak_aliases": [
+          "Tattarang"
+        ]
       },
       {
         "name": "AGL Energy",
         "code": "AGL",
         "aliases": [
-          "AGL Energy Limited"
+          "AGL Energy"
         ],
-        "require": [
-          "AGL Energy",
-          "gas",
-          "contract",
-          "supply",
-          "Australia"
-        ],
-        "exclude": []
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
+          "AGL"
+        ]
       },
       {
         "name": "CleanCo / Stanwell / CS Energy",
         "code": "",
         "aliases": [
-          "CleanCo",
-          "Stanwell",
-          "CS Energy",
           "Kogan Creek"
         ],
-        "require": [
-          "Queensland",
-          "gas",
-          "generation",
-          "contract",
-          "electricity"
-        ],
-        "exclude": []
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
+          "CleanCo",
+          "Stanwell",
+          "CS Energy"
+        ]
       },
       {
         "name": "Dyno Nobel",
         "code": "DNL",
         "aliases": [
           "Dyno Nobel",
-          "Incitec Pivot",
+          "Incitec Pivot"
+        ],
+        "require": [],
+        "exclude": [],
+        "weak_aliases": [
           "Gibson Island",
           "Phosphate Hill",
           "Moranbah"
-        ],
-        "require": [
-          "gas",
-          "supply",
-          "contract",
-          "Queensland",
-          "ammonia",
-          "ammonium nitrate"
-        ],
-        "exclude": []
+        ]
       },
       {
         "name": "Orica",
         "code": "ORI",
         "aliases": [
-          "Orica Limited",
+          "Orica"
+        ],
+        "require": [],
+        "exclude": [
+          "hydrogen truck",
+          "electrolyser",
+          "Plug Power"
+        ],
+        "weak_aliases": [
           "Yarwun"
-        ],
-        "require": [
-          "gas",
-          "supply",
-          "contract",
-          "ammonium nitrate",
-          "Queensland"
-        ],
-        "exclude": []
+        ]
       }
     ],
     "topics": [
@@ -779,18 +807,18 @@
         "keywords": [
           "east coast gas",
           "gas shortfall",
-          "supply adequacy",
           "GSOO",
           "gas market review"
         ],
-        "require": [
-          "Australia",
-          "Australian",
-          "ACCC",
-          "AEMO",
-          "east coast"
+        "require": [],
+        "exclude": [
+          "United States",
+          "Utah",
+          "BLM"
         ],
-        "exclude": []
+        "weak_keywords": [
+          "supply adequacy"
+        ]
       },
       {
         "name": "Domestic gas policy",
@@ -799,256 +827,339 @@
           "domestic gas security mechanism",
           "gas market code",
           "mandatory code of conduct",
-          "price cap",
           "gas reservation"
         ],
-        "require": [
-          "Australia",
-          "Australian",
-          "Commonwealth",
-          "federal"
-        ],
-        "exclude": []
+        "require": [],
+        "exclude": [],
+        "weak_keywords": [
+          "price cap"
+        ]
       },
       {
         "name": "Queensland tenure and acreage",
         "keywords": [
           "ATP tender",
           "acreage release",
-          "petroleum lease",
-          "PL grant",
           "domestic gas condition",
-          "relinquishment"
+          "petroleum lease"
         ],
         "require": [
           "Queensland",
-          "Qld"
+          "gas",
+          "petroleum"
         ],
-        "exclude": []
+        "exclude": [],
+        "weak_keywords": [
+          "PL grant",
+          "relinquishment"
+        ]
       },
       {
         "name": "Queensland royalties and budget",
         "keywords": [
           "petroleum royalty",
-          "royalty rate",
-          "Queensland budget",
-          "resources royalty"
+          "resources royalty",
+          "Queensland budget"
         ],
         "require": [
           "Queensland",
-          "Qld",
+          "petroleum",
           "gas",
-          "petroleum"
+          "coal seam gas",
+          "resources sector"
         ],
-        "exclude": []
+        "exclude": [
+          "Utah",
+          "BLM",
+          "federal oil and gas leasing",
+          "United States"
+        ],
+        "weak_keywords": [
+          "royalty rate"
+        ]
       },
       {
         "name": "CSG water and environment",
         "keywords": [
-          "associated water",
           "UWIR",
           "OGIA",
-          "make good",
-          "EPBC",
           "water trigger",
-          "environmental authority"
+          "associated water"
         ],
         "require": [
-          "Queensland",
           "coal seam gas",
           "CSG",
-          "Australia"
+          "gas",
+          "petroleum",
+          "Queensland"
         ],
-        "exclude": []
+        "exclude": [
+          "solar",
+          "wind",
+          "battery",
+          "BESS"
+        ],
+        "weak_keywords": [
+          "make good",
+          "EPBC",
+          "environmental authority"
+        ]
       },
       {
         "name": "Pipeline capacity and tariffs",
         "keywords": [
-          "pipeline capacity",
+          "SWQP",
           "capacity trading",
           "access arrangement",
-          "pipeline tariff",
-          "SWQP",
-          "compression"
+          "pipeline tariff"
         ],
         "require": [
-          "Australia",
-          "Australian",
-          "AER",
-          "gas"
+          "gas",
+          "LNG",
+          "petroleum",
+          "Queensland",
+          "Australia"
         ],
-        "exclude": []
+        "exclude": [
+          "Brazil",
+          "Petrobras"
+        ],
+        "weak_keywords": [
+          "pipeline capacity",
+          "compression"
+        ]
       },
       {
         "name": "Gas prices and benchmarks",
         "keywords": [
           "Wallumbilla",
           "Gas Supply Hub",
-          "netback",
-          "gas netback price",
-          "JKM",
+          "gas netback",
           "short term trading market"
         ],
         "require": [
+          "gas",
+          "LNG",
           "Australia",
-          "Australian",
-          "gas"
+          "Queensland"
         ],
-        "exclude": []
+        "exclude": [
+          "cricket",
+          "Caribbean Premier League"
+        ],
+        "weak_keywords": [
+          "netback",
+          "JKM"
+        ]
       },
       {
         "name": "LNG exports and spot cargoes",
         "keywords": [
-          "spot cargo",
-          "LNG export",
-          "uncontracted LNG",
           "Curtis Island",
-          "Gladstone LNG"
+          "Gladstone LNG",
+          "uncontracted LNG"
         ],
         "require": [
           "Australia",
-          "Australian",
-          "Queensland"
+          "Queensland",
+          "Gladstone"
         ],
-        "exclude": []
+        "exclude": [],
+        "weak_keywords": [
+          "spot cargo",
+          "LNG export"
+        ]
       },
       {
         "name": "Gas M&A and farm-ins",
-        "keywords": [
+        "keywords": [],
+        "require": [
+          "gas",
+          "petroleum",
+          "oil and gas",
+          "LNG",
+          "basin",
+          "acreage",
+          "CSG"
+        ],
+        "exclude": [
+          "lithium",
+          "gold",
+          "copper",
+          "education",
+          "insurance",
+          "retail"
+        ],
+        "weak_keywords": [
           "farm-in",
           "farmout",
           "joint venture",
           "scheme of arrangement",
-          "takeover"
-        ],
-        "require": [
-          "gas",
-          "petroleum",
-          "oil",
-          "basin",
-          "ASX",
-          "Australia"
-        ],
-        "exclude": []
+          "takeover",
+          "acquisition"
+        ]
       },
       {
         "name": "Drilling and services capacity",
         "keywords": [
           "rig availability",
-          "drilling rig",
-          "well services",
-          "completion costs",
           "rig contract"
         ],
         "require": [
           "Australia",
-          "Australian",
           "Queensland",
+          "onshore gas",
           "gas",
-          "onshore"
+          "CSG",
+          "coal seam gas"
         ],
-        "exclude": []
+        "exclude": [
+          "Canada",
+          "Permian",
+          "Occidental",
+          "Zimbabwe"
+        ],
+        "weak_keywords": [
+          "drilling rig",
+          "well services",
+          "completion costs"
+        ]
       },
       {
         "name": "Small-cap energy capital markets",
-        "keywords": [
+        "keywords": [],
+        "require": [
+          "gas",
+          "petroleum",
+          "oil and gas",
+          "LNG",
+          "CSG"
+        ],
+        "exclude": [
+          "lithium",
+          "gold",
+          "copper",
+          "vanadium",
+          "tungsten",
+          "food",
+          "farms"
+        ],
+        "weak_keywords": [
           "capital raising",
           "placement",
           "entitlement offer",
           "rights issue",
           "equity raising"
-        ],
-        "require": [
-          "ASX",
-          "energy",
-          "gas",
-          "oil",
-          "explorer",
-          "junior"
-        ],
-        "exclude": []
+        ]
       },
       {
         "name": "Emissions policy",
         "keywords": [
           "Safeguard Mechanism",
-          "fugitive emissions",
-          "methane intensity",
           "MMRV",
           "ACCU"
         ],
         "require": [
-          "Australia",
-          "Australian",
           "gas",
-          "petroleum"
+          "petroleum",
+          "LNG",
+          "Australia"
         ],
-        "exclude": []
+        "exclude": [],
+        "weak_keywords": [
+          "fugitive emissions",
+          "methane intensity"
+        ]
       },
       {
         "name": "Land access and native title",
         "keywords": [
-          "conduct and compensation",
-          "cultural heritage",
-          "native title",
-          "land access",
-          "ILUA"
+          "ILUA",
+          "conduct and compensation"
         ],
         "require": [
-          "Queensland",
           "gas",
           "petroleum",
-          "resources"
+          "CSG",
+          "Queensland",
+          "Surat",
+          "Bowen Basin"
         ],
-        "exclude": []
+        "exclude": [
+          "Rio Tinto",
+          "carbon credit",
+          "Mid West"
+        ],
+        "weak_keywords": [
+          "cultural heritage",
+          "native title",
+          "land access"
+        ]
       },
       {
         "name": "Gas-fired generation",
         "keywords": [
           "gas peaker",
-          "peaking plant",
-          "firming capacity",
-          "gas generation",
-          "capacity investment scheme"
+          "capacity investment scheme",
+          "gas-fired generation",
+          "gas generation"
         ],
         "require": [
-          "Australia",
-          "Australian",
+          "gas",
+          "Queensland",
           "NEM",
-          "Queensland"
+          "Australia"
         ],
-        "exclude": []
+        "exclude": [],
+        "weak_keywords": [
+          "peaking plant",
+          "firming capacity"
+        ]
       },
       {
         "name": "LNG import terminals",
         "keywords": [
           "LNG import terminal",
           "FSRU",
-          "Port Kembla",
           "regasification"
         ],
         "require": [
-          "Australia",
-          "Australian",
-          "east coast"
+          "LNG",
+          "gas",
+          "import",
+          "terminal"
         ],
-        "exclude": []
+        "exclude": [
+          "court",
+          "festival",
+          "community investment"
+        ],
+        "weak_keywords": [
+          "Port Kembla"
+        ]
       },
       {
         "name": "Energy policy and politics",
         "keywords": [
-          "energy policy",
-          "gas strategy",
           "future gas strategy",
-          "energy minister"
+          "gas strategy"
         ],
         "require": [
-          "Australia",
-          "Australian",
+          "gas",
+          "LNG",
+          "petroleum",
           "Queensland",
-          "gas"
+          "Australia"
         ],
-        "exclude": []
+        "exclude": [
+          "fuel prices",
+          "pump",
+          "petrol"
+        ],
+        "weak_keywords": [
+          "energy policy",
+          "energy minister"
+        ]
       }
     ],
     "mute": []

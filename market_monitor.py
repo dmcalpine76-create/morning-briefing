@@ -115,6 +115,16 @@ DEFAULT_CFG = {
     "mute": [],
 }
 
+# Context vocabulary for weak aliases. Kept narrow on purpose: "energy" and
+# "oil" appear in far too much unrelated copy to qualify anything, and letting
+# them in is how "Iraq, Pakistan Strike Energy Deals With Iran" got through.
+DEFAULT_CONTEXT = [
+    "gas", "LNG", "petroleum", "oil and gas", "CSG", "coal seam gas",
+    "gas field", "gas project", "gasfield", "pipeline", "wellhead",
+    "Queensland", "Surat", "Bowen Basin", "Cooper Basin", "Perth Basin",
+    "Galilee Basin", "Beetaloo Sub-basin", "Amadeus Basin",
+]
+
 _PUNCT = re.compile(r"[^a-z0-9 ]+")
 _WS    = re.compile(r"\s+")
 
@@ -156,9 +166,19 @@ def _entities(cfg: dict) -> list:
         if not name:
             continue
         terms = _dedupe_terms([name] + [a for a in (c.get("aliases") or []) if str(a).strip()])
+        code  = (c.get("code") or "").strip().upper()
+        # A headline carrying the ticker is unambiguously about the company,
+        # whatever else it says. "Blue Energy" needs context; "ASX:BLU" does
+        # not, and analyst copy leans on the ticker far more than on basins.
+        if code:
+            terms += [f"ASX:{code}", f"{code}.AX"]
+            terms = _dedupe_terms(terms)
+        weak  = _dedupe_terms([w for w in (c.get("weak_aliases") or []) if str(w).strip()])
+        # a term listed both ways is weak - the cautious reading wins
+        terms = [t for t in terms if _norm(t) not in {_norm(w) for w in weak}]
         out.append({"kind": "company", "name": name,
-                    "code": (c.get("code") or "").strip().upper(),
-                    "terms": terms,
+                    "code": code,
+                    "terms": terms, "weak_terms": weak,
                     "require": [r for r in (c.get("require") or []) if str(r).strip()],
                     "exclude": [x for x in (c.get("exclude") or []) if str(x).strip()]})
     for t in cfg.get("topics", []) or []:
@@ -166,7 +186,10 @@ def _entities(cfg: dict) -> list:
         if not name:
             continue
         terms = _dedupe_terms([k for k in (t.get("keywords") or []) if str(k).strip()] or [name])
+        weak  = _dedupe_terms([w for w in (t.get("weak_keywords") or []) if str(w).strip()])
+        terms = [t2 for t2 in terms if _norm(t2) not in {_norm(w) for w in weak}]
         out.append({"kind": "topic", "name": name, "code": "", "terms": terms,
+                    "weak_terms": weak,
                     "require": [r for r in (t.get("require") or []) if str(r).strip()],
                     "exclude": [x for x in (t.get("exclude") or []) if str(x).strip()]})
     return out
@@ -194,26 +217,48 @@ def _relevant(item: dict, entity: dict) -> bool:
     """
     Is this item really about this entity?
 
-    Needed because several names are ordinary English. A search for
-    "State Gas" returns Ohio state gas regulators, Texas state gas taxes and
-    so on - all genuine phrase matches, none of them Doug's company. An
-    entity can therefore demand context ("require": Queensland, ASX,
-    Rolleston) and rule out known false friends ("exclude": Ohio, Texas).
+    The first design had one flat alias list plus a "require" list satisfied by
+    any one term. It failed badly in practice, for a reason worth recording:
+    the ambiguous aliases were themselves in the require list, so they
+    satisfied their own gate. "Barossa" was both an alias for Santos and one of
+    Santos's context terms, so a Barossa Valley wine column passed both checks.
+    Same for Atlas (Senex), Sapphire (Blue Energy), Norwest (Mineral Resources)
+    and Amadeus (Central Petroleum).
 
-    require is satisfied by ANY one of its terms. It is only applied when the
-    entity actually sets it, so distinctive names stay unconstrained.
+    So aliases are now split by how much weight they can carry alone:
+
+      aliases       strong. Unambiguous on their own - "State Gas Limited",
+                    "Comet Ridge", "ASX:STX". A hit is enough.
+      weak_aliases  project, field and asset names, and any company name that
+                    is also ordinary English. "Barossa", "Atlas", "Odin",
+                    "Sapphire", "Scarborough". A hit only counts when a
+                    context term appears as well.
+      require       the context terms. Falls back to DEFAULT_CONTEXT, which is
+                    deliberately industry-and-geography specific: "energy" and
+                    "oil" are too common to qualify anything.
+      exclude       kills the item outright, wherever it matches.
+
+    Aliases are matched against the headline and summary only. The publisher is
+    checked for exclusions but never for aliases - a Barossa Valley local paper
+    was matching Santos on its masthead alone.
     """
-    blob = _norm("{} {} {}".format(item.get("headline", ""),
-                                   item.get("summary", ""),
-                                   item.get("publisher", "")))
-    if not blob:
+    text = _norm("{} {}".format(item.get("headline", ""), item.get("summary", "")))
+    if not text:
         return False
-    if not any(_hit(t, blob) for t in entity.get("terms", [])):
+
+    with_pub = _norm("{} {}".format(text, item.get("publisher", "")))
+    if any(_hit(x, with_pub) for x in entity.get("exclude", [])):
         return False
-    if any(_hit(x, blob) for x in entity.get("exclude", [])):
-        return False
-    require = entity.get("require") or []
-    return (not require) or any(_hit(r, blob) for r in require)
+
+    if any(_hit(t, text) for t in entity.get("terms", [])):
+        return True
+
+    weak = entity.get("weak_terms", [])
+    if weak and any(_hit(t, text) for t in weak):
+        context = entity.get("require") or DEFAULT_CONTEXT
+        return any(_hit(c, text) for c in context)
+
+    return False
 
 
 def _entry_dt(entry) -> datetime.datetime:
@@ -255,12 +300,12 @@ def _google_query(terms: list, hours: int, require: list = None) -> str:
     return urllib.parse.quote_plus("{} when:{}d".format(quoted, days))
 
 
-def _fetch_google(entity: dict, cfg: dict) -> list:
-    if feedparser is None:
-        return []
-    url = GOOGLE_NEWS.format(query=_google_query(entity["terms"],
-                                                 cfg.get("lookback_hours", 30),
-                                                 entity.get("require")))
+def _one_query(terms: list, context: list, entity: dict, cfg: dict) -> tuple:
+    """Fetch one Google News query. Returns (kept, dropped_headlines)."""
+    if feedparser is None or not terms:
+        return [], []
+    url = GOOGLE_NEWS.format(query=_google_query(
+        terms, cfg.get("lookback_hours", 30), context))
     try:
         resp = requests.get(url, timeout=REQUEST_TIMEOUT, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
@@ -268,12 +313,12 @@ def _fetch_google(entity: dict, cfg: dict) -> list:
         feed = feedparser.parse(resp.content)
     except Exception as e:
         print(f"   !  {entity['name']}: search failed ({e})")
-        return []
+        return [], []
 
     cutoff = datetime.datetime.now(AEST_OFFSET) - datetime.timedelta(
         hours=cfg.get("lookback_hours", 30))
-    items, dropped = [], []
-    for entry in feed.entries[: cfg.get("max_per_entity", 8) * 3]:
+    kept, dropped = [], []
+    for entry in feed.entries[: cfg.get("max_per_entity", 8) * 4]:
         when = _entry_dt(entry)
         if when < cutoff:
             continue
@@ -283,25 +328,50 @@ def _fetch_google(entity: dict, cfg: dict) -> list:
         headline, publisher = _split_publisher(raw_title)
         snippet = re.sub(r"<[^>]+>", " ", getattr(entry, "summary", "") or "")
         snippet = html.unescape(_WS.sub(" ", snippet)).strip()[:300]
-        item = {
-            "headline":  headline,
-            "publisher": publisher or "Google News",
-            "summary":   snippet,
-            "url":       getattr(entry, "link", "") or "",
-            "when":      when,
-            "layer":     "search",
-        }
-        # A phrase match is not a subject match. "State Gas" legitimately
-        # matches Ohio state gas regulators; the entity's require/exclude
-        # terms are what separate those from Doug's company.
+        item = {"headline": headline, "publisher": publisher or "Google News",
+                "summary": snippet, "url": getattr(entry, "link", "") or "",
+                "when": when, "layer": "search"}
+        # A phrase match is not a subject match, and Google's AND group is a
+        # coarse instrument - the local gate is what actually decides.
         if _relevant(item, entity):
-            items.append(item)
+            kept.append(item)
         else:
             dropped.append(headline)
+    return kept, dropped
+
+
+def _fetch_google(entity: dict, cfg: dict) -> list:
+    """
+    Up to two queries per entity.
+
+    Strong aliases are searched unconstrained: "Santos Limited appoints CFO"
+    is about Santos whether or not the headline also says Australia. Weak
+    aliases are searched with the context group attached, because "Barossa" or
+    "Atlas" alone returns wine columns and robots. Running them as one query
+    would force the context requirement onto the strong aliases too and lose
+    real corporate news.
+    """
+    strong  = entity.get("terms", [])
+    weak    = entity.get("weak_terms", [])
+    context = entity.get("require") or DEFAULT_CONTEXT
+
+    items, dropped = _one_query(strong, None, entity, cfg)
+    if weak:
+        w_items, w_dropped = _one_query(weak, context, entity, cfg)
+        items += w_items
+        dropped += w_dropped
+
+    seen, out = set(), []
+    for i in items:
+        key = _norm(i["headline"])[:90]
+        if key and key not in seen:
+            seen.add(key)
+            out.append(i)
+
     if dropped:
         print(f"   .  {entity['name']}: {len(dropped)} off-subject result(s) filtered")
     entity["_dropped"] = dropped
-    return items
+    return out
 
 
 def _match_pool(entities: list, pool_items: list) -> dict:
@@ -399,6 +469,44 @@ def _dedupe(items: list) -> list:
 def _muted(item: dict, mute: list) -> bool:
     blob = _norm("{} {}".format(item.get("headline", ""), item.get("publisher", "")))
     return any(_norm(m) and _norm(m) in blob for m in mute or [])
+
+
+def audit_config(cfg: dict = None) -> list:
+    """
+    Structural faults that silently destroy precision. Returns a list of
+    problems, empty when clean.
+
+    The first one is the bug that broke the original design: a weak alias that
+    also appears in its own context list satisfies its own gate, so the gate
+    does nothing. "Barossa" was an alias for Santos and a Santos context term,
+    so a Barossa Valley wine column passed both checks.
+    """
+    cfg = cfg or load_cfg()
+    problems = []
+    for e in _entities(cfg):
+        context = e.get("require") or DEFAULT_CONTEXT
+        for w in e.get("weak_terms", []):
+            # One-directional on purpose. The fault is a context term CONTAINED
+            # IN the weak alias, because then matching the alias guarantees
+            # matching the context: "State Gas" always contains "gas". The
+            # reverse is safe - "Amadeus" as an alias with "Amadeus Basin" as
+            # context is exactly the narrowing we want.
+            if any(_hit(c, _norm(w)) for c in context):
+                problems.append(
+                    f"{e['name']}: weak alias '{w}' also appears in its own "
+                    f"context list - it satisfies its own gate")
+        for x in e.get("exclude", []):
+            for t in e.get("terms", []) + e.get("weak_terms", []):
+                if _hit(x, _norm(t)):
+                    problems.append(
+                        f"{e['name']}: exclude '{x}' matches its own alias '{t}'")
+        if not e.get("terms") and not e.get("weak_terms"):
+            problems.append(f"{e['name']}: no aliases or keywords")
+        if e.get("weak_terms") and not e.get("terms") and not e.get("require"):
+            problems.append(
+                f"{e['name']}: only weak aliases and no context list - "
+                f"relies entirely on DEFAULT_CONTEXT")
+    return problems
 
 
 def collect(cfg: dict = None, pool_items: list = None, client=None,
@@ -500,27 +608,37 @@ def summarise(result: dict, api_key: str = "", client=None) -> dict:
         except Exception:
             return result
 
-    blob = "\n".join(
-        "{}. [{}] {} ({})".format(n, i.get("publisher", ""), i["headline"],
-                                  i.get("summary", "") or "")[:400]
-        for n, i in enumerate(items, 1))
-
-    try:
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=4000,
-            messages=[{"role": "user", "content": PROMPT.format(items=blob)}],
-            timeout=120,
-        )
-        raw = msg.content[0].text.strip()
-        raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        for row in json.loads(raw):
-            n = row.get("n")
-            if isinstance(n, int) and 1 <= n <= len(items):
-                items[n - 1]["line"]  = str(row.get("line", ""))[:200]
-                items[n - 1]["grade"] = (row.get("grade") or "notable").lower()
-    except Exception as e:
-        print(f"   !  market summaries skipped ({e})")
+    # One call for everything overran max_tokens at 126 items and the reply came
+    # back as truncated JSON - every summary lost, including the 40 that had
+    # already been written. Chunked, so a failure costs one chunk.
+    CHUNK = 30
+    done = 0
+    for start in range(0, len(items), CHUNK):
+        batch = items[start:start + CHUNK]
+        blob = "\n".join(
+            "{}. [{}] {} ({})".format(n, i.get("publisher", ""), i["headline"],
+                                      i.get("summary", "") or "")[:400]
+            for n, i in enumerate(batch, 1))
+        try:
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=4000,
+                messages=[{"role": "user", "content": PROMPT.format(items=blob)}],
+                timeout=120,
+            )
+            raw = msg.content[0].text.strip()
+            raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            for row in json.loads(raw):
+                n = row.get("n")
+                if isinstance(n, int) and 1 <= n <= len(batch):
+                    batch[n - 1]["line"]  = str(row.get("line", ""))[:200]
+                    batch[n - 1]["grade"] = (row.get("grade") or "notable").lower()
+                    done += 1
+        except Exception as e:
+            print(f"   !  summaries skipped for items "
+                  f"{start + 1}-{start + len(batch)} ({e})")
+    if done < len(items):
+        print(f"   .  graded {done}/{len(items)}")
     return result
 
 
@@ -695,6 +813,13 @@ def _self_test(only: str = "") -> int:
           f"search={cfg.get('use_google_news')}  pool={cfg.get('use_feed_pool')}  "
           f"asx={cfg.get('include_asx')}")
     print(f"feedparser : {'yes' if feedparser else 'MISSING - pip install feedparser'}")
+    faults = audit_config(cfg)
+    if faults:
+        print(f"\nCONFIG FAULTS ({len(faults)}) - precision will suffer until these are fixed:")
+        for f in faults:
+            print(f"   !  {f}")
+    else:
+        print("config     : clean")
     print()
 
     result = collect(cfg)
