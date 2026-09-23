@@ -491,7 +491,6 @@ def build_calendar_tab(cal: dict, now: datetime.datetime = None) -> str:
             k += " is-today"
         if d.weekday() >= 5:
             k += " is-wknd"
-        label = d.strftime("%d") if d.day != 1 else d.strftime("%-d %b") if hasattr(d, "strftime") else d.strftime("%d")
         try:
             label = d.strftime("%d %b") if d.day == 1 else d.strftime("%d")
         except Exception:
