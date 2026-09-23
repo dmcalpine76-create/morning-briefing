@@ -82,14 +82,37 @@ def _fetch_outlook_window(days_ahead: int = 14) -> dict:
     return {"events": events, "error": None}
 
 
+def _graph_dt(part: dict):
+    """
+    Parse a Microsoft Graph dateTimeTimeZone into an aware AEST datetime.
+
+    Graph returns dateTime WITHOUT an offset ("2026-09-23T23:30:00.0000000")
+    and states the zone in a separate timeZone field. Calling .astimezone() on
+    the resulting naive value makes Python assume the SYSTEM zone, so on a
+    machine set to AEST a UTC value was simply relabelled as AEST - every time
+    silently ten hours out. That is why meetings showed as 1:00 AM and 11:30 PM.
+
+    Fractional seconds are truncated to six digits because Graph sends seven.
+    """
+    raw = (part or {}).get("dateTime", "") or ""
+    zone = ((part or {}).get("timeZone", "") or "UTC").strip().upper()
+    if "." in raw:
+        head, _, frac = raw.partition(".")
+        keep = "".join(ch for ch in frac if ch.isdigit())[:6]
+        tail = frac[len(keep):].lstrip("0123456789")
+        raw = f"{head}.{keep}{tail}" if keep else head + tail
+    dt = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        # We ask Graph for UTC via the Prefer header; honour the stated zone.
+        dt = dt.replace(tzinfo=datetime.timezone.utc
+                        if zone in ("UTC", "GMT", "") else datetime.timezone.utc)
+    return dt.astimezone(AEST_OFFSET)
+
+
 def _normalise_outlook(ev: dict) -> dict:
     is_all_day = ev.get("isAllDay", False)
 
-    def _dt(part):
-        raw = (ev.get(part) or {}).get("dateTime", "")
-        return datetime.datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(AEST_OFFSET)
-
-    start_dt, end_dt = _dt("start"), _dt("end")
+    start_dt, end_dt = _graph_dt(ev.get("start")), _graph_dt(ev.get("end"))
 
     loc_obj  = ev.get("location") or {}
     location = (loc_obj.get("displayName") or "").strip() if isinstance(loc_obj, dict) else ""

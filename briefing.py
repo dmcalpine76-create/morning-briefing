@@ -1827,11 +1827,11 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     </div>
     <nav class="masthead-tabs">
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
+        {topic_tab_btns}
         <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions{"" if not email_count else f" ({email_count})"}</button>
+        <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
         <button class="tab-btn" onclick="showTab('calendar')" id="tab-calendar">📅 Calendar{"" if not cal_total else f" ({cal_today_count}✦{cal_tmrw_count})"}</button>
         {backlog_btn}
-        <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
-        {topic_tab_btns}
     </nav>
 </header>
 

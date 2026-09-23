@@ -98,6 +98,33 @@ def _graph_get(token: str, path: str, params: dict = None) -> dict:
     return resp.json()
 
 
+def _graph_dt(part: dict):
+    """
+    Parse a Microsoft Graph dateTimeTimeZone into an aware AEST datetime.
+
+    Graph returns dateTime WITHOUT an offset ("2026-09-23T23:30:00.0000000")
+    and states the zone in a separate timeZone field. Calling .astimezone() on
+    the resulting naive value makes Python assume the SYSTEM zone, so on a
+    machine set to AEST a UTC value was simply relabelled as AEST - every time
+    silently ten hours out. That is why meetings showed as 1:00 AM and 11:30 PM.
+
+    Fractional seconds are truncated to six digits because Graph sends seven.
+    """
+    raw = (part or {}).get("dateTime", "") or ""
+    zone = ((part or {}).get("timeZone", "") or "UTC").strip().upper()
+    if "." in raw:
+        head, _, frac = raw.partition(".")
+        keep = "".join(ch for ch in frac if ch.isdigit())[:6]
+        tail = frac[len(keep):].lstrip("0123456789")
+        raw = f"{head}.{keep}{tail}" if keep else head + tail
+    dt = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        # We ask Graph for UTC via the Prefer header; honour the stated zone.
+        dt = dt.replace(tzinfo=datetime.timezone.utc
+                        if zone in ("UTC", "GMT", "") else datetime.timezone.utc)
+    return dt.astimezone(AEST_OFFSET)
+
+
 def fetch_calendar_events(days_ahead: int = 2) -> dict:
     """
     Fetch calendar events for today + tomorrow (or `days_ahead` days).
@@ -188,12 +215,8 @@ def fetch_calendar_events(days_ahead: int = 2) -> dict:
             raw_end   = ev["end"].get("dateTime", "")
             # Graph returns UTC; convert to AEST
             try:
-                start_dt = datetime.datetime.fromisoformat(
-                    raw_start.replace("Z", "+00:00")
-                ).astimezone(AEST_OFFSET)
-                end_dt = datetime.datetime.fromisoformat(
-                    raw_end.replace("Z", "+00:00")
-                ).astimezone(AEST_OFFSET)
+                start_dt = _graph_dt(ev.get("start"))
+                end_dt   = _graph_dt(ev.get("end"))
                 # Windows-compatible strftime (no %-I)
                 start_str = start_dt.strftime("%I:%M %p").lstrip("0")
                 end_str   = end_dt.strftime("%I:%M %p").lstrip("0")
