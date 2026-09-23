@@ -117,6 +117,15 @@ def build_css() -> str:
             padding:.6rem .8rem; margin-top:.7rem; display:flex; gap:.6rem; align-items:center; }
 .sx-after i { width:4px; height:28px; background:#3d3d38; border-radius:2px; display:block; flex:0 0 auto; }
 
+.sx-brief { margin-top:.7rem; }
+.sx-brief-card { background:#fff; border:1px solid #e4e1d8; border-radius:9px;
+                 padding:.6rem .75rem; margin-bottom:.4rem; }
+.sx-brief-top { display:flex; gap:.4rem; align-items:baseline; }
+.sx-brief-t { font-size:.62rem; font-weight:700; letter-spacing:.04em; flex:0 0 auto; }
+.sx-brief-s { font-size:.75rem; font-weight:600; line-height:1.25; min-width:0; }
+.sx-brief-l { margin:.35rem 0 0; padding-left:.9rem; }
+.sx-brief-l li { font-size:.68rem; color:#4a4a44; line-height:1.45; margin-bottom:.15rem; }
+
 /* ── swimlane calendar ── */
 .cw-scroll { overflow-x:auto; }
 .cw-panel { background:#fff; border:1px solid #e4e1d8; border-radius:10px;
@@ -192,7 +201,7 @@ def _work_bounds(cfg: dict, day: datetime.date):
 # ── Schedule tab ─────────────────────────────────────────────────────────────
 
 def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
-                       legacy_scheduler_html: str = "",
+                       legacy_scheduler_html: str = "", briefings: dict = None,
                        now: datetime.datetime = None) -> str:
     now   = now or datetime.datetime.now(AEST_OFFSET)
     today = now.date()
@@ -311,6 +320,7 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
             f'shown,<br>not counted</span></div>')
 
     today_evts = [e for e in by_day.get(today, []) if not e.get("is_all_day")]
+    brief_html = _build_briefings(by_day.get(today, []), briefings)
     plural_evts = "s" if len(today_evts) != 1 else ""
     booked_today = load.get(today, 0)
     plural_backlog = "s" if backlog_n != 1 else ""
@@ -354,9 +364,57 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
       <span class="sx-note">{len(today_evts)} event{plural_evts}</span></div>
     {rail}
     {after_html}
+    {brief_html}
   </div>
 </div>
 </div>"""
+
+
+def _build_briefings(today_events: list, briefings: dict) -> str:
+    """
+    Carries the per-meeting AI briefing bullets across from the old Calendar tab.
+    They are the one genuinely useful thing the fortnight view cannot show, so
+    they live under today's rail rather than being dropped.
+    """
+    if not briefings:
+        return ""
+
+    def lookup(ev):
+        try:
+            import outlook_calendar
+            got = outlook_calendar._brief_for(briefings, ev)
+            if got:
+                return got
+        except Exception:
+            pass
+        subj = (ev.get("subject") or "").strip()
+        for key in (subj, subj.lower()):
+            if key in briefings:
+                return briefings[key]
+        return None
+
+    cards = []
+    for ev in today_events:
+        if ev.get("is_all_day") or ev.get("source") == "personal":
+            continue
+        brief = lookup(ev) or {}
+        bullets = [b for b in (brief.get("bullets") or []) if b]
+        if not bullets:
+            continue
+        col = ev.get("lane_color") or NAVY
+        items = "".join("<li>" + esc(b) + "</li>" for b in bullets[:3])
+        cards.append(
+            '<div class="sx-brief-card">'
+            '<div class="sx-brief-top">'
+            '<span class="sx-brief-t" style="color:' + col + '">' + esc(ev.get("start_time")) + '</span>'
+            '<span class="sx-brief-s">' + esc(ev.get("subject")) + '</span>'
+            '</div><ul class="sx-brief-l">' + items + '</ul></div>')
+
+    if not cards:
+        return ""
+    return ('<div class="sx-brief"><div class="sx-sec" style="margin-top:1rem">'
+            '<h3 style="font-size:.95rem">Before your meetings</h3>'
+            '<i class="sx-line"></i></div>' + "".join(cards) + '</div>')
 
 
 def _build_rail(events: list, now: datetime.datetime) -> str:
@@ -640,7 +698,16 @@ def _self_test():
     }
     pc = {"work_day_start": "07:00", "work_day_end": "18:00", "work_days": [0, 1, 2, 3, 4]}
 
-    sched = build_schedule_tab(ranked, cal, pc, now=now)
+    briefings = {
+        "Board paper review — Q3 🎯": {"bullets": [
+            "Aaron circulated revised Q3 figures on Monday; comments still outstanding.",
+            "Cashflow forecast for BDO is referenced but not yet attached.",
+        ]},
+        "DNRM submission walkthrough": {"bullets": [
+            "Relates to the ATP 2062 lodgement window closing Friday.",
+        ]},
+    }
+    sched = build_schedule_tab(ranked, cal, pc, briefings=briefings, now=now)
     calt  = build_calendar_tab(cal, now=now)
     back  = build_backlog_tab(ranked, now=now)
 
@@ -665,6 +732,8 @@ def _self_test():
         ("today rail has a now marker", "sx-now" in sched),
         ("after-hours block shown", "After hours" in sched),
         ("backlog groups by age", "Over a month" in back),
+        ("meeting briefing bullets carried over", "Before your meetings" in sched),
+        ("bullet text rendered", "still outstanding" in sched),
     ]
     print()
     ok = 0
