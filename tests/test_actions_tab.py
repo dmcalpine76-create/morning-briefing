@@ -60,6 +60,12 @@ CHECKS = [
     # the three states the column must never collapse into silence
     ("failure reason is stated",       "was not read" in t_err),
     ("quiet run is stated",            "Nothing personal" in t_quiet),
+    # the list every push path must target
+    ("page carries the target list name", '"Daily Priorities"' in tab),
+    # the browser fallback lives in generate_html's page template, not in the
+    # tab fragment, so it is asserted against the module source
+    ("browser fallback prefers the named list",
+     "displayName || ''" in Path(b.__file__).read_text(encoding="utf-8")),
     ("payload is escaped",
      "&amp;" in b._personal_column([{"action": "Pay Smith & Co",
                                      "context": "x", "from": "a"}])[0]),

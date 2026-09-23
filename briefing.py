@@ -1083,6 +1083,37 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 </div>"""
 
 
+try:
+    from core.config import TASK_LIST_NAME as TODO_LIST_NAME
+except Exception:
+    TODO_LIST_NAME = "Daily Priorities"
+
+
+def _pick_todo_list(lists: list, prefer: str = None):
+    """
+    Choose the To Do list to push into.
+
+    Everything the briefing writes goes to "Daily Priorities" (core.config
+    TASK_LIST_NAME), because that is the list the briefing READS - todo_tasks
+    and outlook_scheduler both pull from it to build the Schedule and Backlog
+    tabs. Pushing to the default "Tasks" list meant anything added from the
+    page could never appear in the page's own ranking; the loop did not close.
+
+    Falls back to the default list with a warning rather than creating one -
+    inbox_actions.py owns creating it, and silently making lists in someone's
+    To Do is not this module's business.
+    """
+    prefer = prefer or TODO_LIST_NAME
+    wanted = (prefer or "").strip().lower()
+    for l in lists or []:
+        if (l.get("displayName", "") or "").strip().lower() == wanted:
+            return l, True
+    fallback = next((l for l in lists or []
+                     if l.get("wellknownListName") == "defaultList"),
+                    (lists or [None])[0])
+    return fallback, False
+
+
 def _personal_column(actions: list, status: dict = None) -> tuple:
     """
     Personal Gmail actions, using the same checkbox card as the Outlook
@@ -1163,7 +1194,8 @@ def _personal_column(actions: list, status: dict = None) -> tuple:
     return html_out, task_data
 
 
-def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', personal_actions: list = None, personal_status: dict = None, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
+def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', personal_actions: list = None, personal_status: dict = None,
+                     todo_list_name_js: str = None, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
     """
     Build the Work Actions email tab.
     Two columns: Priority Digest (read-only) | Actions for Today (checkboxes + Push).
@@ -1171,6 +1203,8 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
     """
     import json as _json
     import html as _html
+
+    todo_list_name_js = todo_list_name_js or _json.dumps(TODO_LIST_NAME)
 
     digest  = analysis.get("digest", [])
     actions = analysis.get("actions", [])
@@ -1319,6 +1353,7 @@ const GRAPH_TOKEN_B64 = {graph_token_js};
 const GRAPH_TOKEN = GRAPH_TOKEN_B64 ? atob(GRAPH_TOKEN_B64) : '';
 const TODO_LIST_ID_B64 = {todo_list_id_js};
 const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
+const TODO_LIST_NAME = {todo_list_name_js};
 </script>
 
 <div class="email-view">
@@ -2125,7 +2160,12 @@ async function pushToTodo() {{
                 return;
             }}
             const lists = ld.value || [];
-            const def = lists.find(l => l.wellknownListName === 'defaultList') || lists[0];
+            // Prefer the list the briefing itself reads from, so a task pushed
+            // from this page shows up in tomorrow's Schedule and Backlog tabs.
+            const want = (typeof TODO_LIST_NAME !== 'undefined' ? TODO_LIST_NAME : '').toLowerCase();
+            const def = lists.find(l => (l.displayName || '').toLowerCase() === want)
+                     || lists.find(l => l.wellknownListName === 'defaultList')
+                     || lists[0];
             listId = def ? def.id : null;
         }} catch(e) {{
             btn.textContent = 'Network error: ' + e.message.slice(0,40);
@@ -2444,15 +2484,13 @@ def serve_briefing(out_dir: Path):
     # Resolve To Do default list
     try:
         lists_data = _outlook._graph_get(token, "/me/todo/lists")
-        todo_list  = next(
-            (l for l in lists_data.get("value", [])
-             if l.get("wellknownListName") == "defaultList"),
-            (lists_data.get("value") or [None])[0],
-        )
+        todo_list, _by_name = _pick_todo_list(lists_data.get("value", []))
         if not todo_list:
             raise RuntimeError("No To Do lists found.")
         list_id = todo_list["id"]
         print(f"   📋  To Do list: {todo_list.get('displayName', list_id)}")
+        if not _by_name:
+            print(f"   ⚠️  '{TODO_LIST_NAME}' not found - using the default list.")
     except Exception as e:
         raise SystemExit(f"❌  Could not retrieve To Do lists: {e}\n"
                          f"    Ensure Tasks.ReadWrite is granted and re-run: py outlook_email.py setup")
@@ -2913,13 +2951,15 @@ def main():
                     timeout=10,
                 ).json()
                 _all_lists = _lists.get("value", [])
-                _default = next(
-                    (l for l in _all_lists if l.get("wellknownListName") == "defaultList"),
-                    _all_lists[0] if _all_lists else None
-                )
+                _default, _by_name = _pick_todo_list(_all_lists)
                 if _default:
                     _todo_list_id = _default["id"]
-                    print(f"   ✓ To Do list resolved: {_default.get('displayName', _todo_list_id[:8])}")
+                    print(f"   ✓ To Do list resolved: "
+                          f"{_default.get('displayName', _todo_list_id[:8])}")
+                    if not _by_name:
+                        print(f"   !  '{TODO_LIST_NAME}' not found - falling back to "
+                              f"the default list. Tasks pushed from the briefing "
+                              f"will not appear in its own Schedule or Backlog tabs.")
             except Exception as _le:
                 print(f"   ⚠️  Could not resolve To Do list ID: {_le}")
         except Exception:
