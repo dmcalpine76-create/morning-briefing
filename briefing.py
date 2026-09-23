@@ -51,6 +51,18 @@ try:
 except ImportError:
     SCHEDULER_ENABLED = False
 
+# New Schedule / Calendar / Backlog tabs. Guarded so a missing module degrades
+# to the previous layout instead of taking the whole briefing down.
+try:
+    import calendar_data as _caldata
+    import schedule_render as _srender
+    import todo_tasks as _todotasks
+    import task_urgency as _urgency
+    NEW_TABS_ENABLED = True
+except ImportError as _e:
+    NEW_TABS_ENABLED = False
+    print(f"  NOTE: new schedule tabs unavailable ({_e}) - keeping the previous tabs")
+
 try:
     import asx_announcements as _asx_ann
     _ASX_ANN_AVAILABLE = True
@@ -1248,7 +1260,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                    topic_stories=None, asx_data=None, weather_data=None,
                    sunshine_data=None, gas_data=None, hh_gas_data=None,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None,
-                   gsh_gas_data=None, gas_history=None, token_days_left=None) -> str:
+                   gsh_gas_data=None, gas_history=None, token_days_left=None,
+                   fortnight=None, ranked_tasks=None) -> str:
     date_str      = generated_at.strftime(f"%A, {DAYFMT} %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     token_badge   = ""
@@ -1299,6 +1312,43 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     schedule_html = _sched.get("html_summary", "")
     sched_count   = _sched.get("ok_count", len(_sched.get("scheduled", [])))
     sched_flagged = len(_sched.get("flagged", []))
+    # ── New tabs. Any failure here falls back to the previous markup. ──
+    _new_css         = ""
+    backlog_tab_html = ""
+    backlog_count    = 0
+    schedule_tab_body = None
+    if NEW_TABS_ENABLED and fortnight and fortnight.get("days"):
+        try:
+            _pc = {}
+            try:
+                _pc = _json2.loads(SETTINGS_FILE.read_text(encoding="utf-8")).get("personal_calendar", {})
+            except Exception:
+                pass
+            _new_css          = _srender.build_css()
+            calendar_tab_html = _srender.build_calendar_tab(fortnight)
+            schedule_tab_body = _srender.build_schedule_tab(
+                ranked_tasks or {}, fortnight, _pc,
+                legacy_scheduler_html=schedule_html,
+                briefings=_cal.get("_briefings") or {})
+            backlog_tab_html  = _srender.build_backlog_tab(ranked_tasks or {})
+            backlog_count     = len((ranked_tasks or {}).get("backlog", []))
+        except Exception as _e:
+            print(f"  WARNING: new tabs failed, using the previous layout ({_e})")
+            schedule_tab_body = None
+
+    if schedule_tab_body is None:
+        _fallback = schedule_html or ('<div style="padding:2rem;text-align:center;'
+                                      'color:var(--ink-light);font-style:italic">No scheduled '
+                                      'blocks yet.</div>')
+        schedule_tab_body = ('<div style="max-width:800px;margin:0 auto;padding:1.5rem">'
+                             '<div style="font-family:var(--font-display);font-size:1.1rem;'
+                             'font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;'
+                             'border-bottom:3px solid var(--ink)">Today\'s Scheduled Work Blocks</div>'
+                             + _fallback + '</div>')
+
+    backlog_btn = ('<button class="tab-btn" onclick="showTab(\'backlog\')" id="tab-backlog">'
+                   f'&#128230; Backlog ({backlog_count})</button>') if backlog_tab_html else ""
+
     topic_tabs_html = _build_topic_tab_views_with_stories(active_topics or [], topic_stories or {})
     # topic_tabs_html produces a single #view-topics div
     # Build topic tab buttons for masthead
@@ -1751,6 +1801,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             .story-card {{ break-inside: avoid; }}
         }}
     </style>
+{_new_css}
 </head>
 <body>
 
@@ -1769,6 +1820,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
         <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions{"" if not email_count else f" ({email_count})"}</button>
         <button class="tab-btn" onclick="showTab('calendar')" id="tab-calendar">📅 Calendar{"" if not cal_total else f" ({cal_today_count}✦{cal_tmrw_count})"}</button>
+        {backlog_btn}
         <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
         {topic_tab_btns}
     </nav>
@@ -1803,10 +1855,12 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
 <!-- ── SCHEDULE TAB ── -->
 <div id="view-schedule" style="display:none">
-    <div style="max-width:800px;margin:0 auto;padding:1.5rem">
-        <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:3px solid var(--ink)">🗓️ Today's Scheduled Work Blocks</div>
-        {schedule_html if schedule_html else '<div style="padding:2rem;text-align:center;color:var(--ink-light);font-style:italic">No scheduled blocks yet — add tasks to your Daily Priorities To Do list to get started.</div>'}
-    </div>
+{schedule_tab_body}
+</div>
+
+<!-- ── BACKLOG TAB ── -->
+<div id="view-backlog" style="display:none">
+{backlog_tab_html}
 </div>
 
 
@@ -1834,7 +1888,7 @@ const BRIEFING_DATE_ISO = "{generated_at.strftime('%Y-%m-%d')}";
 // ── Tab switching ──
 function showTab(tab) {{
     // Hide all views
-    ['view-news','view-email','view-calendar','view-schedule'].forEach(id => {{
+    ['view-news','view-email','view-calendar','view-schedule','view-backlog'].forEach(id => {{
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     }});
@@ -2703,6 +2757,43 @@ def main():
     gas_history = update_gas_history(load_gas_history(), gas_data or {},
                                      hh_gas_data or {}, gsh_gas_data or {}, out_dir)
 
+    # ── Fortnight view + ranked tasks for the new tabs ──
+    fortnight    = {}
+    ranked_tasks = {}
+    if NEW_TABS_ENABLED:
+        print("\n\U0001f5d3\ufe0f   Building the fortnight view...")
+        try:
+            fortnight = _caldata.fetch_fortnight(14)
+            for _err in fortnight.get("errors", []):
+                print(f"   !  {_err}")
+            _ev = fortnight.get("events", [])
+            _pers = len([e for e in _ev if e.get("source") == "personal"])
+            _unf = len([e for e in _ev if e.get("lane_id") == "unfiled"])
+            print(f"   OK {len(_ev)} commitments over 14 days "
+                  f"({_pers} personal, {_unf} unfiled)")
+        except Exception as _e:
+            print(f"   !  fortnight view unavailable: {_e}")
+            fortnight = {}
+
+        try:
+            _todo = _todotasks.fetch_todo_tasks()
+            if _todo.get("error"):
+                print(f"   !  To Do: {_todo['error']}")
+            _merged = _todotasks.merge_with_inbox_actions(
+                _todo.get("tasks", []), (email_analysis or {}).get("actions", []))
+            ranked_tasks = _urgency.rank_tasks(_merged, fortnight.get("events", []))
+            try:
+                _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+                ranked_tasks["live"] = _urgency.refine_with_claude(
+                    _client, ranked_tasks.get("live", []), fortnight.get("events", []))
+            except Exception:
+                pass
+            print(f"   OK {len(ranked_tasks.get('live', []))} ranked, "
+                  f"{len(ranked_tasks.get('backlog', []))} in backlog")
+        except Exception as _e:
+            print(f"   !  task ranking unavailable: {_e}")
+            ranked_tasks = {}
+
     html = generate_html(all_sections, generated, active_topics, email_analysis,
                          asx_ann_data, market_data, all_topic_stories, asx_data,
                          weather_data, sunshine_data, gas_data, hh_gas_data,
@@ -2712,7 +2803,9 @@ def main():
                          todo_list_id=_todo_list_id,
                          gsh_gas_data=gsh_gas_data,
                          gas_history=gas_history,
-                         token_days_left=_token_days_left())
+                         token_days_left=_token_days_left(),
+                         fortnight=fortnight,
+                         ranked_tasks=ranked_tasks)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
     print(f"\n  Briefing saved to: {out_dir.resolve()}")
 
