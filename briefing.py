@@ -1095,6 +1095,9 @@ def _personal_column(actions: list, status: dict = None) -> str:
     indistinguishable from a broken credential, which is exactly the failure
     this section spent two days hiding.
     """
+    # html is imported function-locally in this module (see _build_email_tab),
+    # so it has to be imported here too - it is not a module-level name.
+    import html as _html
     from urllib.parse import quote
     status = status or {}
 
