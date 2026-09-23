@@ -223,3 +223,73 @@ acreage, CSG water and environment, Gas prices and benchmarks, Gas M&A and farm-
 
 That's 17 entities. At roughly one search each plus the announcement fetch, it adds
 well under a minute to the run.
+
+---
+
+# Feed sources
+
+Checked on **23 September 2026**. Every URL below was fetched and parsed, not
+assumed — a feed that 404s or has silently gone stale looks identical to a quiet
+news day, which is the failure this tab exists to avoid.
+
+## Added to `topic_search_feeds`
+
+| Source | URL | Verified |
+|---|---|---|
+| WattClarity | `https://wattclarity.com.au/feed/` | 20 items, newest 22 Sep 2026 |
+| Small Caps | `https://smallcaps.com.au/feed/` | 15 items, newest 22 Sep 2026 |
+| LNG Prime | `https://lngprime.com/feed/` | 10 items, newest 22 Sep 2026 |
+| Offshore Energy | `https://www.offshore-energy.biz/feed/` | 10 items, newest 21 Sep 2026 |
+| Energy Voice | `https://www.energyvoice.com/feed/` | 16 items, newest 22 Sep 2026 |
+| Rigzone | `https://www.rigzone.com/news/rss/rigzone_latest.aspx` | 20 items, newest 21 Sep 2026 |
+| MINING.COM | `https://www.mining.com/feed/` | 15 items, newest 22 Sep 2026 |
+
+**WattClarity is the pick of these.** Australian, free, no paywall, and it publishes
+close analysis of the NEM and east coast gas market — generation dispatch, gas-powered
+generation demand, market events — which is the demand-side context you don't
+currently get anywhere in the briefing. Paul McArdle's outage and market-event posts
+are the sort of thing that moves gas demand and rarely makes mainstream press.
+
+**Small Caps** covers ASX juniors, which is the peer group and the capital-raising
+environment you operate in.
+
+## Rejected, with reasons
+
+| Source | Why not |
+|---|---|
+| **Australian Mining** | Feed responds and parses — but the newest item is dated **January 2017**. Abandoned, still serving. This is exactly the failure mode worth guarding against: it would have sat in the pool contributing nothing, forever, with no error. |
+| Energy News Bulletin | `/rss` returns 404. It's the natural Australian oil and gas trade title, so worth finding the real feed URL if you have a subscription. |
+| Australian Energy Producers (ex-APPEA) | `/feed/` returns 404. The industry body's media releases would be valuable — may need scraping rather than RSS. |
+| Queensland Ministerial Media Statements | `/rss` returns 404. Would have been the best single source for tenure, acreage and royalty announcements. |
+| ACCC media releases | No working RSS found. |
+| Boiling Cold | `/feed/` returns 404. |
+| Natural Gas Intelligence | Returns 405 — blocks automated fetching. |
+| World Oil | `/rss/` is an index of feeds, not a feed. A specific topic feed would work; I didn't pick one for you. |
+| gasworld | Returns 403 to automated requests. |
+| The Australian Pipeliner, Energy Today | Blocked by robots — could not verify. These *may* work from your machine; they refused this check, not necessarily the briefing. |
+
+## The gap this leaves
+
+No Australian regulator or government feed survived verification — AEMO, the ACCC,
+the AER and the Queensland Government either don't publish RSS or don't publish it
+at a discoverable URL. That matters, because for a Queensland explorer the ACCC gas
+inquiry reports, AEMO's GSOO and Queensland acreage announcements are more
+consequential than most journalism.
+
+The workaround is already built. Those bodies are covered through the **Market Watch
+topic rows**, which use per-entity news search rather than subscribed feeds — so
+"Domestic gas policy" with `ADGSM, gas market code, price cap` and "Queensland
+tenure and acreage" with `ATP tender, acreage release` will pick up the coverage of
+those announcements even though there's no feed to subscribe to. That's the layer
+doing the work here, not the feed pool.
+
+If you want the announcements themselves rather than coverage of them, the honest
+answer is that it needs a small scraper per body — a different job from this one, and
+worth doing only for the two or three bodies you actually care about.
+
+## A caveat on all of the above
+
+These were verified over a different network path than the briefing uses. A feed that
+answered here should answer from your machine and from GitHub Actions, but that isn't
+guaranteed. After the next run, check the console output for `Failed to fetch` lines
+against any of the seven new URLs.

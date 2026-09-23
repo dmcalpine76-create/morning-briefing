@@ -73,7 +73,14 @@
     "https://www.resourceworld.com/feed/",
     "https://au.investing.com/rss/news_285.rss",
     "https://au.investing.com/rss/news_25.rss",
-    "https://www.itnews.com.au/RSS/rss.ashx"
+    "https://www.itnews.com.au/RSS/rss.ashx",
+    "https://wattclarity.com.au/feed/",
+    "https://smallcaps.com.au/feed/",
+    "https://lngprime.com/feed/",
+    "https://www.offshore-energy.biz/feed/",
+    "https://www.energyvoice.com/feed/",
+    "https://www.rigzone.com/news/rss/rigzone_latest.aspx",
+    "https://www.mining.com/feed/"
   ],
   "market_tickers": [
     {
