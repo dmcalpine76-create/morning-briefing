@@ -2,10 +2,10 @@ name: Generate Morning Briefing
 
 on:
   schedule:
-    # 3:17 AM AEST (UTC+10) = 5:17 PM UTC (previous day)
+    # 5:17 AM AEST (UTC+10) = 19:17 UTC (previous day)
     # Avoiding top-of-hour — GitHub drops queued jobs during peak load at :00
     # Runs Sunday–Thursday UTC = Monday–Friday AEST
-    - cron: '17 17 * * 0-4'
+    - cron: '17 19 * * 0-4'
     # D10 — second lightweight run: 8:15 AM AEST = 10:15 PM UTC (previous day)
     # Full regeneration (cheap on Haiku) so email/calendar/announcements refresh
     - cron: '15 22 * * 0-4'
@@ -176,7 +176,7 @@ jobs:
             "ntfy.sh/$NTFY_TOPIC"
 
       # ── 10. Alert on failure (D1) ────────────────────────────────────────────
-      # Runs ONLY if any step above failed — a ping instead of silence at 5:30am.
+      # Runs ONLY if any step above failed — a ping instead of silence at 5:17am.
       - name: Alert on failure
         if: failure()
         env:
