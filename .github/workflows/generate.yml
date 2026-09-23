@@ -22,7 +22,11 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Raised from 30. Market Watch added ~47 news queries and ~16 extra ASX
+    # announcement fetches; the first run after that timed out AFTER the email
+    # had been sent but BEFORE the wrap and deploy steps, so the briefing
+    # arrived by email while the hosted page stayed on the previous day.
+    timeout-minutes: 45
 
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────────────

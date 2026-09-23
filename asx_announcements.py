@@ -368,13 +368,29 @@ def get_asx_announcements(client=None, codes=None) -> dict:
     edits in the settings dashboard, so the two no longer have to be kept in
     sync by hand.
     """
-    wanted = [c.strip().upper() for c in (codes or WATCHLIST) if str(c).strip()]
+    wanted = list(dict.fromkeys(
+        c.strip().upper() for c in (codes or WATCHLIST) if str(c).strip()))
     all_anns = []
-    for code in dict.fromkeys(wanted):
-        anns = _fetch_for_code(code)
-        if anns:
-            print(f"   → {code}: {len(anns)} announcement(s)")
-        all_anns.extend(anns)
+
+    # Fetched concurrently. Sequentially this was the slowest thing in the run:
+    # Market Watch asks for ~16 codes beyond the original watchlist, each with a
+    # 12s timeout and a HotCopper fallback behind it, which is enough to push a
+    # 30-minute CI job past its limit after the email has already gone out.
+    # Four workers, not more - HotCopper sits behind bot detection and a wide
+    # fan-out is exactly what trips it.
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        futures = {ex.submit(_fetch_for_code, code): code for code in wanted}
+        for fut in concurrent.futures.as_completed(futures):
+            code = futures[fut]
+            try:
+                anns = fut.result()
+            except Exception as e:
+                print(f"   !  {code}: {e}")
+                continue
+            if anns:
+                print(f"   → {code}: {len(anns)} announcement(s)")
+            all_anns.extend(anns)
 
     if not all_anns:
         return {

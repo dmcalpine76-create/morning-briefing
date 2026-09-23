@@ -125,6 +125,15 @@ DEFAULT_CONTEXT = [
     "Galilee Basin", "Beetaloo Sub-basin", "Amadeus Basin",
 ]
 
+# Australian geography, for the AND-ed second group.
+DEFAULT_GEO = [
+    "Australia", "Australian", "Queensland", "Qld", "Brisbane", "NSW",
+    "New South Wales", "Victoria", "South Australia", "Western Australia",
+    "Northern Territory", "NT", "Gladstone", "ASX", "AEMO", "ACCC", "AER",
+    "east coast", "Wallumbilla", "Curtis Island", "Moomba", "Bowen Basin",
+    "Surat", "Cooper Basin", "Perth Basin", "Beetaloo",
+]
+
 _PUNCT = re.compile(r"[^a-z0-9 ]+")
 _WS    = re.compile(r"\s+")
 
@@ -140,6 +149,33 @@ def load_cfg() -> dict:
         except Exception as e:
             print(f"  WARNING: could not read market_monitor settings: {e}")
     return cfg
+
+
+# Place names people write more than one way. Matching is whole-phrase, so
+# "Australia" in a context list does NOT match "Australian" - which silently
+# dropped "Australian LNG export revenue up in August". Rather than ask every
+# context list to spell out both forms, they are expanded here.
+_VARIANTS = {
+    "australia":          ["Australian"],
+    "australian":         ["Australia"],
+    "queensland":         ["Qld"],
+    "qld":                ["Queensland"],
+    "victoria":           ["Victorian"],
+    "new south wales":    ["NSW"],
+    "nsw":                ["New South Wales"],
+    "western australia":  ["WA"],
+    "northern territory": ["NT"],
+    "nt":                 ["Northern Territory"],
+    "south australia":    ["SA"],
+}
+
+
+def _expand_variants(terms: list) -> list:
+    """Add the other spelling of any place name in a context list."""
+    out = list(terms or [])
+    for t in list(out):
+        out.extend(_VARIANTS.get(_norm(t), []))
+    return _dedupe_terms(out)
 
 
 def _dedupe_terms(terms: list) -> list:
@@ -179,7 +215,10 @@ def _entities(cfg: dict) -> list:
         out.append({"kind": "company", "name": name,
                     "code": code,
                     "terms": terms, "weak_terms": weak,
-                    "require": [r for r in (c.get("require") or []) if str(r).strip()],
+                    "require": _expand_variants(
+                        [r for r in (c.get("require") or []) if str(r).strip()]),
+                    "also_require": _expand_variants(
+                        [a for a in (c.get("also_require") or []) if str(a).strip()]),
                     "exclude": [x for x in (c.get("exclude") or []) if str(x).strip()]})
     for t in cfg.get("topics", []) or []:
         name = (t.get("name") or "").strip()
@@ -190,7 +229,10 @@ def _entities(cfg: dict) -> list:
         terms = [t2 for t2 in terms if _norm(t2) not in {_norm(w) for w in weak}]
         out.append({"kind": "topic", "name": name, "code": "", "terms": terms,
                     "weak_terms": weak,
-                    "require": [r for r in (t.get("require") or []) if str(r).strip()],
+                    "require": _expand_variants(
+                        [r for r in (t.get("require") or []) if str(r).strip()]),
+                    "also_require": _expand_variants(
+                        [a for a in (t.get("also_require") or []) if str(a).strip()]),
                     "exclude": [x for x in (t.get("exclude") or []) if str(x).strip()]})
     return out
 
@@ -250,13 +292,35 @@ def _relevant(item: dict, entity: dict) -> bool:
     if any(_hit(x, with_pub) for x in entity.get("exclude", [])):
         return False
 
+    def _also(ok: bool) -> bool:
+        """
+        A second context group, AND-ed with the first.
+
+        Some entities need two independent things true at once, and a single
+        any-of list cannot express that. A gas M&A topic needs a sector word
+        AND an Australian one: with one list, "Navitas forges ahead in South
+        Africa" satisfied it on the sector word alone, and "Jindal Drilling Q1
+        Results" did the same on ONGC rigs. Geography is the usual second
+        group, which is what DEFAULT_GEO is for.
+
+        Used on topics, not companies. A company's name IS its identity, and
+        AND-ing geography onto it loses real corporate news that happens not
+        to say "Australia" - "Woodside considering pre-emption of BP's Browse
+        deal" being exactly that. Companies get exclusions and a tighter weak
+        context instead.
+        """
+        if not ok:
+            return False
+        also = entity.get("also_require") or []
+        return (not also) or any(_hit(a, text) for a in also)
+
     if any(_hit(t, text) for t in entity.get("terms", [])):
-        return True
+        return _also(True)
 
     weak = entity.get("weak_terms", [])
     if weak and any(_hit(t, text) for t in weak):
         context = entity.get("require") or DEFAULT_CONTEXT
-        return any(_hit(c, text) for c in context)
+        return _also(any(_hit(c, text) for c in context))
 
     return False
 
@@ -500,6 +564,12 @@ def audit_config(cfg: dict = None) -> list:
                 if _hit(x, _norm(t)):
                     problems.append(
                         f"{e['name']}: exclude '{x}' matches its own alias '{t}'")
+        for a in e.get("also_require", []):
+            terms = e.get("terms", []) + e.get("weak_terms", [])
+            if terms and all(_hit(a, _norm(t)) for t in terms):
+                problems.append(
+                    f"{e['name']}: also_require '{a}' is inside every alias - "
+                    f"the second gate never rejects anything")
         if not e.get("terms") and not e.get("weak_terms"):
             problems.append(f"{e['name']}: no aliases or keywords")
         if e.get("weak_terms") and not e.get("terms") and not e.get("require"):

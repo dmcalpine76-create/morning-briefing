@@ -511,7 +511,15 @@
           "Senex Energy",
           "Roma North"
         ],
-        "require": [],
+        "require": [
+          "Surat",
+          "Roma",
+          "Queensland",
+          "Atlas gas",
+          "Australia",
+          "Australian",
+          "CSG"
+        ],
         "exclude": [],
         "weak_aliases": [
           "Atlas"
@@ -617,7 +625,20 @@
           "North West Shelf"
         ],
         "require": [],
-        "exclude": [],
+        "exclude": [
+          "Dockers",
+          "Freo",
+          "Fremantle Football",
+          "AFL",
+          "Silent Hill",
+          "stabbing",
+          "golf club",
+          "Macclesfield",
+          "Scarborough Athletic",
+          "Scarborough Stakes",
+          "Pluto TV",
+          "Guardians"
+        ],
         "weak_aliases": [
           "Scarborough",
           "Pluto"
@@ -692,7 +713,8 @@
           "lithium",
           "iron ore",
           "shooting",
-          "police"
+          "police",
+          "Minister of Mines and Petroleum"
         ],
         "weak_aliases": [
           "Mineral Resources",
@@ -818,6 +840,34 @@
         ],
         "weak_keywords": [
           "supply adequacy"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -833,6 +883,34 @@
         "exclude": [],
         "weak_keywords": [
           "price cap"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -927,6 +1005,34 @@
         "weak_keywords": [
           "pipeline capacity",
           "compression"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -950,6 +1056,34 @@
         "weak_keywords": [
           "netback",
           "JKM"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -961,13 +1095,44 @@
         ],
         "require": [
           "Australia",
+          "Australian",
           "Queensland",
-          "Gladstone"
+          "Gladstone",
+          "Curtis Island",
+          "Darwin"
         ],
         "exclude": [],
         "weak_keywords": [
           "spot cargo",
           "LNG export"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -997,6 +1162,34 @@
           "scheme of arrangement",
           "takeover",
           "acquisition"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -1023,6 +1216,34 @@
           "drilling rig",
           "well services",
           "completion costs"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -1050,6 +1271,34 @@
           "entitlement offer",
           "rights issue",
           "equity raising"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -1069,6 +1318,34 @@
         "weak_keywords": [
           "fugitive emissions",
           "methane intensity"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -1114,6 +1391,34 @@
         "weak_keywords": [
           "peaking plant",
           "firming capacity"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -1136,6 +1441,34 @@
         ],
         "weak_keywords": [
           "Port Kembla"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       },
       {
@@ -1159,6 +1492,34 @@
         "weak_keywords": [
           "energy policy",
           "energy minister"
+        ],
+        "also_require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "Qld",
+          "Brisbane",
+          "NSW",
+          "New South Wales",
+          "Victoria",
+          "South Australia",
+          "Western Australia",
+          "Northern Territory",
+          "NT",
+          "Gladstone",
+          "ASX",
+          "AEMO",
+          "ACCC",
+          "AER",
+          "east coast",
+          "Wallumbilla",
+          "Curtis Island",
+          "Moomba",
+          "Bowen Basin",
+          "Surat",
+          "Cooper Basin",
+          "Perth Basin",
+          "Beetaloo"
         ]
       }
     ],
