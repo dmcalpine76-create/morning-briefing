@@ -99,7 +99,7 @@ def build_css() -> str:
            white-space:nowrap; border:1px solid #e4e1d8; background:#f1efe7; color:#5c5a52; }
 
 .sx-rail { background:#fff; border:1px solid #e4e1d8; border-radius:10px; padding:.9rem; }
-.sx-rail-inner { position:relative; }
+.sx-rail-inner { position:relative; overflow:hidden; }
 .sx-gut { position:absolute; left:0; top:0; width:38px; height:100%; }
 .sx-gut span { position:absolute; font-size:.6rem; color:#8c887b; }
 .sx-track { position:absolute; left:38px; right:0; top:0; height:100%; }
@@ -129,7 +129,7 @@ def build_css() -> str:
 /* ── swimlane calendar ── */
 .cw-scroll { overflow-x:auto; }
 .cw-panel { background:#fff; border:1px solid #e4e1d8; border-radius:10px;
-            padding:.9rem 1rem 1rem; min-width:940px; position:relative; }
+            padding:.9rem 1rem 1rem; min-width:1240px; position:relative; }
 .cw-row { display:grid; grid-template-columns:132px repeat(14, minmax(0,1fr)); align-items:stretch; }
 .cw-hdr { padding-bottom:.5rem; text-align:center; }
 .cw-hdr-d { font-size:.58rem; letter-spacing:.1em; font-weight:600; color:#8c887b; }
@@ -143,10 +143,11 @@ def build_css() -> str:
 .cw-lane-name { font-size:.68rem; font-weight:700; line-height:1.2; }
 .cw-lane-sub { font-size:.55rem; font-weight:600; color:#8c887b; }
 .cw-lane-track { grid-column:2 / -1; display:grid;
-                 grid-template-columns:repeat(14, minmax(0,1fr)); row-gap:4px;
-                 padding:.55rem 0; }
-.cw-bar { border-radius:4px; padding:.25rem .4rem; font-size:.62rem; font-weight:700;
-          overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-right:2px; }
+                 grid-template-columns:repeat(14, minmax(0,1fr)); row-gap:5px;
+                 padding:.6rem 0; }
+.cw-bar { border-radius:4px; padding:.28rem .4rem; font-size:.63rem; font-weight:700;
+          line-height:1.2; min-height:2.1em; margin-right:2px; overflow:hidden;
+          display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .cw-load { display:flex; flex-direction:column; align-items:center; gap:3px; padding-bottom:.4rem; }
 .cw-load-bar { width:70%; max-width:34px; border-radius:2px; }
 .cw-load-n { font-size:.55rem; color:#5c5a52; }
@@ -417,16 +418,40 @@ def _build_briefings(today_events: list, briefings: dict) -> str:
             '<i class="sx-line"></i></div>' + "".join(cards) + '</div>')
 
 
+def _rail_bounds(events: list) -> tuple:
+    """
+    The window stretches to cover the day actually booked. A fixed 07:00-18:00
+    rail put an 8pm meeting 200px below the container and it spilled down the
+    page, which is what the render fault was.
+    """
+    lo, hi = RAIL_START_HOUR, RAIL_END_HOUR
+    for e in events:
+        if e.get("is_all_day") or not e.get("start_dt"):
+            continue
+        lo = min(lo, e["start_dt"].hour)
+        end = e.get("end_dt") or e["start_dt"]
+        hi = max(hi, end.hour + (1 if end.minute else 0))
+    lo = max(min(lo, RAIL_START_HOUR), 4)
+    hi = min(max(hi, RAIL_END_HOUR), 24)
+    if hi <= lo:
+        hi = lo + 1
+    return lo, hi
+
+
 def _build_rail(events: list, now: datetime.datetime) -> str:
-    height = int((RAIL_END_HOUR - RAIL_START_HOUR) * 60 * RAIL_PX_PER_MIN)
-    day_start = now.replace(hour=RAIL_START_HOUR, minute=0, second=0, microsecond=0)
+    lo_h, hi_h = _rail_bounds(events)
+    span_mins = (hi_h - lo_h) * 60
+    # keep the rail a sensible height however long the day turns out to be
+    ppm = min(RAIL_PX_PER_MIN, 640 / span_mins) if span_mins else RAIL_PX_PER_MIN
+    height = int(span_mins * ppm)
+    day_start = now.replace(hour=lo_h, minute=0, second=0, microsecond=0)
 
     def top_of(dt):
-        return max(int((dt - day_start).total_seconds() / 60 * RAIL_PX_PER_MIN), 0)
+        return min(max(int((dt - day_start).total_seconds() / 60 * ppm), 0), height)
 
     gutter, rules = [], []
-    for h in range(RAIL_START_HOUR, RAIL_END_HOUR + 1, 2):
-        y = int((h - RAIL_START_HOUR) * 60 * RAIL_PX_PER_MIN)
+    for h in range(lo_h, hi_h + 1, 2):
+        y = int((h - lo_h) * 60 * ppm)
         label = datetime.time(h).strftime("%I %p").lstrip("0").lower()
         gutter.append(f'<span style="top:{y-6}px">{label}</span>')
         rules.append(f'<div class="sx-hr" style="top:{y}px"></div>')
@@ -441,13 +466,14 @@ def _build_rail(events: list, now: datetime.datetime) -> str:
             continue
         gap = int((s - cursor).total_seconds() // 60)
         if gap >= 30:
-            gy, gh = top_of(cursor), int(gap * RAIL_PX_PER_MIN)
+            gy = top_of(cursor)
+            gh = min(int(gap * ppm), height - gy)
             big = " is-big" if gap >= 120 else ""
             blocks.append(f'<div class="sx-gap{big}" style="top:{gy}px;height:{gh}px">'
                           f'{_fmt_hm(gap)} clear</div>')
         col = PERSONAL if e.get("source") == "personal" else (e.get("lane_color") or NAVY)
         y = top_of(s)
-        h = max(int((en - s).total_seconds() // 60 * RAIL_PX_PER_MIN), 20)
+        h = max(min(int((en - s).total_seconds() // 60 * ppm), height - y), 20)
         tight = h < 34
         inner = (f'<b>{esc(e["start_time"])} &middot; {esc(e["subject"])[:34]}</b>' if tight else
                  f'<span style="font-weight:700;color:{col}">{esc(e["start_time"])} &ndash; {esc(e["end_time"])}</span>'
@@ -456,7 +482,8 @@ def _build_rail(events: list, now: datetime.datetime) -> str:
                       f'background:{col}14;border:1px solid {col}">{inner}</div>')
         cursor = max(cursor, en)
 
-    nowy = top_of(now) if day_start <= now <= day_start.replace(hour=RAIL_END_HOUR) else None
+    _rail_end = day_start + datetime.timedelta(minutes=span_mins)
+    nowy = top_of(now) if day_start <= now <= _rail_end else None
     now_html = f'<div class="sx-now" style="top:{nowy}px"><i></i></div>' if nowy is not None else ""
 
     if not timed:
@@ -491,6 +518,7 @@ def build_calendar_tab(cal: dict, now: datetime.datetime = None) -> str:
             k += " is-today"
         if d.weekday() >= 5:
             k += " is-wknd"
+        label = d.strftime("%d") if d.day != 1 else d.strftime("%-d %b") if hasattr(d, "strftime") else d.strftime("%d")
         try:
             label = d.strftime("%d %b") if d.day == 1 else d.strftime("%d")
         except Exception:
@@ -543,7 +571,8 @@ def build_calendar_tab(cal: dict, now: datetime.datetime = None) -> str:
                         f'grid-column:{c0+1} / span {span};{style}" '
                         f'title="{esc(e["subject"])}">{esc(label)}</div>')
         sub = "google calendar" if lane.get("id") == "personal" else (
-              "click to assign" if lane.get("id") == "unfiled" else "")
+              "click to assign" if lane.get("id") == "unfiled" else
+              f"{len(lane_events)} event" + ("s" if len(lane_events) != 1 else ""))
         sub_html = ('<br><span class="cw-lane-sub">' + esc(sub) + '</span>') if sub else ""
         lane_rows.append(
             f'<div class="cw-row cw-sep">'

@@ -231,6 +231,13 @@
           "reid's dome"
         ],
         "domains": []
+      },
+      {
+        "id": "personal",
+        "name": "Personal",
+        "color": "#3d3d38",
+        "keywords": [],
+        "domains": []
       }
     ],
     "overrides": {}

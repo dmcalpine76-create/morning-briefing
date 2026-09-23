@@ -174,6 +174,24 @@ def fetch_fortnight(days_ahead: int = 14) -> dict:
         errors.append(f"lane classification skipped: {e}")
         lanes_in_order = []
 
+    # Any lane an event was assigned to but that the config never declared would
+    # otherwise have no row to draw in, and its events would vanish from the
+    # calendar without a word. Personal is the usual case: classify_event falls
+    # back to a built-in Personal lane that briefing_settings.json need not list.
+    _declared = {l.get("id") for l in lanes_in_order}
+    _fallbacks = {
+        "personal": {"id": "personal", "name": "Personal", "color": "#3d3d38"},
+        "unfiled":  {"id": "unfiled",  "name": "Unfiled",  "color": "#8c887b"},
+    }
+    for _e in events:
+        _lid = _e.get("lane_id")
+        if _lid and _lid not in _declared:
+            _declared.add(_lid)
+            lanes_in_order.append(_fallbacks.get(
+                _lid, {"id": _lid, "name": _e.get("lane") or _lid.title(), "color": "#8c887b"}))
+            errors.append(f"lane '{_lid}' was not configured - added it so its "
+                          f"events still render")
+
     events.sort(key=lambda e: (e["start_dt"], e.get("subject", "")))
 
     now   = datetime.datetime.now(AEST_OFFSET)
@@ -234,10 +252,5 @@ def _self_test():
 
 
 if __name__ == "__main__":
-    import sys as _sys
-    try:
-        _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
     import sys
     sys.exit(_self_test())
