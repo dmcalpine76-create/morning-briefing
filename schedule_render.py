@@ -655,6 +655,20 @@ they were captured, not dates they are owed &mdash; so age here means age, not l
 
 # ── self-test ────────────────────────────────────────────────────────────────
 
+def _rail_contained(sched_html: str) -> bool:
+    """Nothing positioned inside the rail may extend past its container."""
+    import re
+    m = re.search(r'sx-rail-inner" style="height:(\d+)px', sched_html)
+    if not m:
+        return False
+    limit = int(m.group(1))
+    for mm in re.finditer(r'style="top:(-?\d+)px;height:(-?\d+)px', sched_html):
+        top, hgt = int(mm.group(1)), int(mm.group(2))
+        if top < 0 or hgt < 0 or top + hgt > limit:
+            return False
+    return True
+
+
 def _self_test():
     import pathlib
     AEST = AEST_OFFSET
@@ -683,6 +697,7 @@ def _self_test():
         ev("DNRM submission walkthrough", 0, 14, 60, "regulatory", "#4a2a1a"),
         ev("Investor call — institutional", 0, 16, 60, "investors", "#3a1a4a"),
         ev("Family dinner", 0, 18, 90, "personal", PERSONAL, "personal"),
+        ev("Weekly Vroom Meeting", 0, 20, 120, "personal", PERSONAL, "personal"),
         ev("Dentist", 1, 8, 60, "personal", PERSONAL, "personal"),
         ev("Board meeting", 7, 9, 180, "board", NAVY),
         ev("Sydney roadshow", 8, 9, 480, "investors", "#3a1a4a"),
@@ -761,6 +776,9 @@ def _self_test():
         ("after-hours block shown", "After hours" in sched),
         ("backlog groups by age", "Over a month" in back),
         ("meeting briefing bullets carried over", "Before your meetings" in sched),
+        ("evening event does not escape the rail", _rail_contained(sched)),
+        ("personal lane rendered on the calendar", "Personal" in calt),
+        ("late personal event reaches the calendar", "Weekly Vroom" in calt),
         ("bullet text rendered", "still outstanding" in sched),
     ]
     print()
