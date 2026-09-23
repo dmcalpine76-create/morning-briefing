@@ -72,9 +72,99 @@ MAX_MP3_MB = 8              # sanity cap for the email attachment
 BRISBANE_TZ = datetime.timezone(datetime.timedelta(hours=10))   # QLD has no daylight saving
 
 
+def _fmt_hm(mins: int) -> str:
+    h, m = divmod(max(int(mins or 0), 0), 60)
+    if h and m:
+        return f"{h} hours {m} minutes"
+    if h:
+        return f"{h} hour" + ("s" if h != 1 else "")
+    return f"{m} minutes"
+
+
+def _diary_material(fortnight: dict, ranked_tasks: dict,
+                    briefings: dict, now: datetime.datetime) -> str:
+    """
+    Everything an assistant would need to talk you through the day: the shape
+    of it, each commitment in order with whatever context exists for it, the
+    gaps between them, and what tomorrow opens with.
+
+    Work and personal are deliberately not separated - a school pickup bounds
+    the afternoon exactly as firmly as a board meeting does.
+    """
+    if not fortnight or not fortnight.get("days"):
+        return ""
+
+    today   = now.date()
+    by_day  = fortnight.get("by_day", {})
+    todays  = sorted(by_day.get(today, []), key=lambda e: e.get("start_dt") or now)
+    timed   = [e for e in todays if not e.get("is_all_day") and e.get("start_dt")]
+    all_day = [e for e in todays if e.get("is_all_day")]
+
+    booked  = fortnight.get("load", {}).get(today, 0)
+    lines   = ["", "TODAY'S DIARY - for the walkthrough segment:"]
+    lines.append(f"Shape of the day: {len(timed)} timed commitment"
+                 + ("s" if len(timed) != 1 else "")
+                 + f", {_fmt_hm(booked)} committed.")
+
+    for e in all_day:
+        lines.append(f"All day: {e.get('subject','')}"
+                     + (" (personal)" if e.get("source") == "personal" else ""))
+
+    prev_end = None
+    for e in timed:
+        s, en = e["start_dt"], e.get("end_dt") or e["start_dt"]
+        if prev_end is not None:
+            gap = int((s - prev_end).total_seconds() // 60)
+            if gap >= 45:
+                lines.append(f"  GAP: {_fmt_hm(gap)} clear between "
+                             f"{prev_end.strftime('%I:%M %p').lstrip('0')} and "
+                             f"{s.strftime('%I:%M %p').lstrip('0')}.")
+        who = "personal" if e.get("source") == "personal" else (e.get("lane") or "work")
+        bits = [f"{s.strftime('%I:%M %p').lstrip('0')} to "
+                f"{en.strftime('%I:%M %p').lstrip('0')}: {e.get('subject','')} [{who}]"]
+        if e.get("location"):
+            bits.append(f"at {e['location']}")
+        if e.get("attendee_count", 0) > 1:
+            bits.append(f"{e['attendee_count']} attendees")
+        if e.get("organizer"):
+            bits.append(f"organised by {e['organizer']}")
+        lines.append("  " + ", ".join(bits) + ".")
+
+        brief = {}
+        try:
+            import outlook_calendar
+            brief = outlook_calendar._brief_for(briefings or {}, e) or {}
+        except Exception:
+            brief = (briefings or {}).get(e.get("subject", ""), {}) or {}
+        for b in (brief.get("bullets") or [])[:3]:
+            if b:
+                lines.append(f"     context: {b}")
+        prev_end = max(prev_end or en, en)
+
+    if not timed and not all_day:
+        lines.append("Nothing in the diary today.")
+
+    tomorrow = sorted(by_day.get(today + datetime.timedelta(days=1), []),
+                      key=lambda e: e.get("start_dt") or now)
+    first_tmw = next((e for e in tomorrow if not e.get("is_all_day")), None)
+    if first_tmw:
+        lines.append(f"Tomorrow opens with "
+                     f"{first_tmw['start_dt'].strftime('%I:%M %p').lstrip('0')} "
+                     f"{first_tmw.get('subject','')}.")
+
+    live = (ranked_tasks or {}).get("live", [])
+    if live:
+        lines.append("Most pressing tasks, in order:")
+        for tsk in live[:3]:
+            lines.append(f"  - {tsk.get('title','')} ({tsk.get('urgency_reason','')})")
+
+    return "\n".join(lines)
+
+
 def _collect_material(sections: dict, analysis: dict,
                       active_topics: list = None,
-                      topic_stories: dict = None) -> str:
+                      topic_stories: dict = None,
+                      diary: str = "") -> str:
     """Flatten the day's content into raw material for the script writer."""
     lines = []
 
@@ -119,6 +209,9 @@ def _collect_material(sections: dict, analysis: dict,
             lines.append(f"- From {d.get('from', d.get('from_name', ''))}: "
                          f"{d.get('subject', '')}")
 
+    if diary:
+        lines.append(diary)
+
     return "\n".join(lines)
 
 
@@ -153,7 +246,28 @@ It will be read aloud by a text-to-speech voice, so write for the EAR:
      Comet Ridge, Beach Energy, Santos or Blue Energy. About two minutes.
      Don't repeat a story already covered — just note the connection.
   4. Today's work actions, most urgent first (skip if none).
-  5. A one-line sign-off.
+  5. THE DAY AHEAD - the closing segment, and the one that matters most.
+     Transition with something like "Now, let's walk through your day."
+     Using the TODAY'S DIARY material, talk Doug through it the way an
+     experienced executive assistant would:
+       - open with the shape of the day: how many commitments, how much
+         time is committed, and where the clear stretches are
+       - then take each commitment in order. Say the time in plain speech
+         ("half past nine", "quarter to three"). Name it, then give the
+         context lines underneath it as preparation - what was circulated,
+         what is outstanding, who organised it. This is the point of the
+         segment: not what is in the diary, but what Doug needs to know
+         before walking into each thing.
+       - call out the gaps as opportunities, and name what could go in the
+         longest one, drawing on the most pressing tasks
+       - treat personal commitments exactly like work ones. A school pickup
+         bounds the afternoon as firmly as a board meeting; if something
+         must finish on time because of what follows it, say so
+       - close with what tomorrow opens with, and the single thing that has
+         to happen today
+     Take as long as this needs - it is the most useful part of the
+     briefing. Never invent context that is not in the material.
+  6. A one-line sign-off.
 - Energy and gas must NOT dominate the headlines segment — give broad
   news its fair share.
 
@@ -196,15 +310,24 @@ async def _render(script: str, mp3_path: Path) -> None:
 def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
                  api_key: str = "",
                  active_topics: list = None,
-                 topic_stories: dict = None) -> Path | None:
+                 topic_stories: dict = None,
+                 fortnight: dict = None,
+                 ranked_tasks: dict = None,
+                 briefings: dict = None) -> Path | None:
     """
     Main entry point — called by briefing.py.
     Returns the Path to briefing.mp3, or None if anything went wrong
     (the briefing itself must never fail because of the audio edition).
     """
     try:
+        _now_for_diary = datetime.datetime.now(BRISBANE_TZ)
+        diary = ""
+        try:
+            diary = _diary_material(fortnight, ranked_tasks, briefings, _now_for_diary)
+        except Exception as e:
+            print(f"   WARNING: diary walkthrough skipped ({e})")
         material = _collect_material(sections, analysis,
-                                     active_topics, topic_stories)
+                                     active_topics, topic_stories, diary)
         if not material.strip():
             print("   ⚠️  No material for audio briefing — skipping")
             return None
