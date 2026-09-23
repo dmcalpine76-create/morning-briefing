@@ -1261,7 +1261,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                    sunshine_data=None, gas_data=None, hh_gas_data=None,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None,
                    gsh_gas_data=None, gas_history=None, token_days_left=None,
-                   fortnight=None, ranked_tasks=None) -> str:
+                   fortnight=None, ranked_tasks=None, personal_actions=None) -> str:
     date_str      = generated_at.strftime(f"%A, {DAYFMT} %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     token_badge   = ""
@@ -1329,7 +1329,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             schedule_tab_body = _srender.build_schedule_tab(
                 ranked_tasks or {}, fortnight, _pc,
                 legacy_scheduler_html=schedule_html,
-                briefings=_cal.get("_briefings") or {})
+                briefings=_cal.get("_briefings") or {},
+                personal_actions=personal_actions or [])
             backlog_tab_html  = _srender.build_backlog_tab(ranked_tasks or {})
             backlog_count     = len((ranked_tasks or {}).get("backlog", []))
         except Exception as _e:
@@ -2733,6 +2734,23 @@ def main():
         if not SCHEDULER_ENABLED:
             print("\n🗓️   Scheduler: outlook_scheduler.py not found — skipping")
 
+    # ── Personal actions from the Gmail inbox ──
+    personal_actions = []
+    try:
+        import gmail_personal
+        print("\n\U0001f4ec   Reading the personal Gmail inbox...")
+        _gp = gmail_personal.get_personal_actions(api_key)
+        if _gp.get("error"):
+            print(f"   !  Gmail: {_gp['error']}")
+        else:
+            personal_actions = _gp.get("actions", [])
+            print(f"   OK {len(personal_actions)} personal action(s) "
+                  f"from {_gp.get('checked', 0)} message(s)")
+    except ImportError:
+        pass
+    except Exception as _e:
+        print(f"   !  Personal Gmail skipped: {_e}")
+
     # ── Main briefing page ──
     print("\n✍️  Generating main briefing page…")
     # Fetch a fresh Graph token + default To Do list ID for mobile push
@@ -2814,7 +2832,8 @@ def main():
                          gas_history=gas_history,
                          token_days_left=_token_days_left(),
                          fortnight=fortnight,
-                         ranked_tasks=ranked_tasks)
+                         ranked_tasks=ranked_tasks,
+                         personal_actions=personal_actions)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
     print(f"\n  Briefing saved to: {out_dir.resolve()}")
 

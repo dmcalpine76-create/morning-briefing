@@ -244,7 +244,7 @@
   },
   "gmail_personal": {
     "enabled": true,
-    "lookback_days": 3,
+    "lookback_days": 5,
     "max_messages": 40,
     "max_actions": 8,
     "list_name": "Personal Priorities",
@@ -262,7 +262,11 @@
       "your receipt",
       "order confirmation",
       "statement is ready",
-      "verify your email"
+      "verify your email",
+      "morning briefing",
+      "friday wrap",
+      "weekly wrap",
+      "automatic reply"
     ]
   }
 }

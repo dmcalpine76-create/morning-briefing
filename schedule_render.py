@@ -117,6 +117,18 @@ def build_css() -> str:
             padding:.6rem .8rem; margin-top:.7rem; display:flex; gap:.6rem; align-items:center; }
 .sx-after i { width:4px; height:28px; background:#3d3d38; border-radius:2px; display:block; flex:0 0 auto; }
 
+.sx-pers { background:#fcfcfa; border:1px solid #d8d6cc; border-radius:8px;
+            padding:.6rem .75rem; margin-bottom:.45rem; display:flex;
+            align-items:flex-start; gap:.7rem; }
+.sx-pers-dot { flex:0 0 auto; width:8px; height:8px; border-radius:50%;
+               background:#3d3d38; margin-top:.45rem; }
+.sx-pers-b { flex:1 1 auto; min-width:0; }
+.sx-pers-t { font-size:.82rem; font-weight:600; line-height:1.3; }
+.sx-pers-c { font-size:.66rem; color:#5c5a52; margin-top:.2rem; }
+.sx-pers-a { font-size:.6rem; font-weight:700; color:#fff; background:#3d3d38;
+             border-radius:4px; padding:.3rem .6rem; text-decoration:none;
+             white-space:nowrap; display:inline-block; min-height:26px; line-height:20px; }
+
 .sx-brief { margin-top:.7rem; }
 .sx-brief-card { background:#fff; border:1px solid #e4e1d8; border-radius:9px;
                  padding:.6rem .75rem; margin-bottom:.4rem; }
@@ -201,8 +213,40 @@ def _work_bounds(cfg: dict, day: datetime.date):
 
 # ── Schedule tab ─────────────────────────────────────────────────────────────
 
+def _todo_deeplink(title: str, detail: str = "") -> str:
+    from urllib.parse import quote
+    params = f"title={quote(title[:255])}"
+    if detail:
+        params += f"&body={quote(detail[:500])}"
+    return f"https://to-do.microsoft.com/tasks/add?{params}"
+
+
+def _build_personal(actions: list) -> str:
+    """Personal actions from the Gmail inbox, kept visually distinct from work."""
+    if not actions:
+        return ""
+    rows = []
+    for a in actions:
+        dl = f" &middot; {esc(a.get('deadline'))}" if a.get("deadline") else ""
+        who = esc(a.get("from") or "")
+        rows.append(
+            '<div class="sx-pers"><span class="sx-pers-dot"></span>'
+            '<div class="sx-pers-b">'
+            '<div class="sx-pers-t">' + esc(a.get("action")) + '</div>'
+            '<div class="sx-pers-c">' + esc(a.get("context")) + '</div>'
+            '<div class="sx-pers-c">from ' + who + dl + '</div>'
+            '</div>'
+            '<a class="sx-pers-a" target="_blank" rel="noopener" href="'
+            + esc(_todo_deeplink(a.get("action", ""), a.get("context", "")))
+            + '">Add</a></div>')
+    return ('<div class="sx-sec" style="margin-top:1.3rem"><h3>Personal</h3>'
+            '<i class="sx-line"></i><span class="sx-note">from your Gmail inbox</span>'
+            '</div>' + "".join(rows))
+
+
 def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
                        legacy_scheduler_html: str = "", briefings: dict = None,
+                       personal_actions: list = None,
                        now: datetime.datetime = None) -> str:
     now   = now or datetime.datetime.now(AEST_OFFSET)
     today = now.date()
@@ -322,6 +366,7 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
 
     today_evts = [e for e in by_day.get(today, []) if not e.get("is_all_day")]
     brief_html = _build_briefings(by_day.get(today, []), briefings)
+    personal_html = _build_personal(personal_actions or [])
     plural_evts = "s" if len(today_evts) != 1 else ""
     booked_today = load.get(today, 0)
     plural_backlog = "s" if backlog_n != 1 else ""
@@ -358,6 +403,7 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
     <div style="font-size:.7rem;color:#5c5a52;margin-top:.6rem">
       {backlog_n} further open item{plural_backlog} with no urgency signal &mdash;
       see the Backlog tab.</div>
+    {personal_html}
     {legacy}
   </div>
   <div class="sx-side">
