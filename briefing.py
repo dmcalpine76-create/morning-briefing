@@ -1333,7 +1333,16 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             backlog_tab_html  = _srender.build_backlog_tab(ranked_tasks or {})
             backlog_count     = len((ranked_tasks or {}).get("backlog", []))
         except Exception as _e:
+            import traceback as _tb
+            _detail = _tb.format_exc()
             print(f"  WARNING: new tabs failed, using the previous layout ({_e})")
+            print(_detail)
+            try:
+                (Path(__file__).parent / "new_tabs_error.txt").write_text(
+                    _detail, encoding="utf-8")
+                print("  (full traceback written to new_tabs_error.txt)")
+            except Exception:
+                pass
             schedule_tab_body = None
 
     if schedule_tab_body is None:
