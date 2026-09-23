@@ -2834,8 +2834,11 @@ def main():
                                                  briefings=(calendar_data or {}).get("_briefings") or {})
         if audio_path:
             print(f"   ✓ Audio briefing: {audio_path.name}")
-    except ImportError:
-        pass
+    except ImportError as e:
+        # Was a silent pass, which is why a missing edge-tts looked like
+        # "the audio just stopped working" for months.
+        print(f"   !  Audio briefing unavailable: {e}")
+        print("      pip install edge-tts")
     except Exception as e:
         print(f"   ⚠️  Audio briefing failed: {e}")
 
