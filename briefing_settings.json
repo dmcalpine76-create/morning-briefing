@@ -285,6 +285,22 @@
           "State Gas Limited",
           "Rolleston West",
           "Reid's Dome"
+        ],
+        "require": [
+          "State Gas Limited",
+          "Rolleston",
+          "Reid's Dome",
+          "Queensland",
+          "Australian",
+          "Australia",
+          "ASX",
+          "GAS.AX"
+        ],
+        "exclude": [
+          "Ohio",
+          "Texas",
+          "Pennsylvania",
+          "state gas tax"
         ]
       },
       {
@@ -293,14 +309,18 @@
         "aliases": [
           "Comet Ridge Limited",
           "Mahalo"
-        ]
+        ],
+        "require": [],
+        "exclude": []
       },
       {
         "name": "Beach Energy",
         "code": "BPT",
         "aliases": [
           "Beach Energy Limited"
-        ]
+        ],
+        "require": [],
+        "exclude": []
       },
       {
         "name": "Santos",
@@ -308,6 +328,25 @@
         "aliases": [
           "Santos Limited",
           "GLNG"
+        ],
+        "require": [
+          "Santos Limited",
+          "GLNG",
+          "Barossa",
+          "Cooper Basin",
+          "LNG",
+          "ASX",
+          "Australia",
+          "Australian",
+          "Darwin",
+          "Papua"
+        ],
+        "exclude": [
+          "Santos FC",
+          "football",
+          "Neymar",
+          "Sao Paulo",
+          "Brazil"
         ]
       },
       {
@@ -315,7 +354,18 @@
         "code": "BLU",
         "aliases": [
           "Blue Energy Limited"
-        ]
+        ],
+        "require": [
+          "Blue Energy Limited",
+          "Bowen Basin",
+          "Sapphire",
+          "Lancewood",
+          "Queensland",
+          "ASX",
+          "Australia",
+          "Australian"
+        ],
+        "exclude": []
       },
       {
         "name": "Senex Energy",
@@ -324,7 +374,9 @@
           "Senex",
           "Atlas gas",
           "Roma North"
-        ]
+        ],
+        "require": [],
+        "exclude": []
       },
       {
         "name": "Origin Energy",
@@ -332,7 +384,9 @@
         "aliases": [
           "Origin Energy Limited",
           "APLNG"
-        ]
+        ],
+        "require": [],
+        "exclude": []
       },
       {
         "name": "Shell QGC",
@@ -340,7 +394,18 @@
         "aliases": [
           "QGC",
           "Arrow Energy"
-        ]
+        ],
+        "require": [
+          "QGC",
+          "Arrow Energy",
+          "Queensland",
+          "Surat",
+          "Curtis Island",
+          "LNG",
+          "Australia",
+          "Australian"
+        ],
+        "exclude": []
       }
     ],
     "topics": [
@@ -351,7 +416,15 @@
           "gas shortfall",
           "ADGSM",
           "gas market review"
-        ]
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "ACCC",
+          "AEMO",
+          "east coast"
+        ],
+        "exclude": []
       },
       {
         "name": "Queensland Gas Policy",
@@ -359,7 +432,9 @@
           "Queensland gas",
           "ATP tender",
           "gas acreage release"
-        ]
+        ],
+        "require": [],
+        "exclude": []
       }
     ],
     "mute": []

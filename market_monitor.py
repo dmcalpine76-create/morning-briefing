@@ -65,22 +65,52 @@ DEFAULT_CFG = {
     "use_feed_pool":   True,
     "include_asx":     True,
     "summarise":       True,
+    # require: at least one of these must also appear, or the item is dropped.
+    #   Several of these names are ordinary English or belong to something
+    #   famous elsewhere - "State Gas" matches Ohio state gas regulators,
+    #   "Santos" matches a Brazilian football club. Listing the unambiguous
+    #   forms of the name alongside the geography means a headline that says
+    #   "State Gas Limited" passes on its own, while a bare "state gas" needs
+    #   Queensland or the ASX nearby.
+    # exclude: any match drops the item outright.
     "companies": [
         {"name": "State Gas",      "code": "GAS",
-         "aliases": ["State Gas Limited", "Rolleston West", "Reid's Dome"]},
-        {"name": "Comet Ridge",    "code": "COI", "aliases": ["Comet Ridge Limited", "Mahalo"]},
-        {"name": "Beach Energy",   "code": "BPT", "aliases": ["Beach Energy Limited"]},
-        {"name": "Santos",         "code": "STO", "aliases": ["Santos Limited", "GLNG"]},
-        {"name": "Blue Energy",    "code": "BLU", "aliases": ["Blue Energy Limited"]},
-        {"name": "Senex Energy",   "code": "",    "aliases": ["Senex", "Atlas gas", "Roma North"]},
-        {"name": "Origin Energy",  "code": "ORG", "aliases": ["Origin Energy Limited", "APLNG"]},
-        {"name": "Shell QGC",      "code": "",    "aliases": ["QGC", "Arrow Energy"]},
+         "aliases": ["State Gas Limited", "Rolleston West", "Reid's Dome"],
+         "require": ["State Gas Limited", "Rolleston", "Reid's Dome", "Queensland",
+                      "Australian", "Australia", "ASX", "GAS.AX"],
+         "exclude": ["Ohio", "Texas", "Pennsylvania", "state gas tax"]},
+        {"name": "Comet Ridge",    "code": "COI",
+         "aliases": ["Comet Ridge Limited", "Mahalo"], "require": [], "exclude": []},
+        {"name": "Beach Energy",   "code": "BPT",
+         "aliases": ["Beach Energy Limited"], "require": [], "exclude": []},
+        {"name": "Santos",         "code": "STO",
+         "aliases": ["Santos Limited", "GLNG"],
+         "require": ["Santos Limited", "GLNG", "Barossa", "Cooper Basin", "LNG",
+                      "ASX", "Australia", "Australian", "Darwin", "Papua"],
+         "exclude": ["Santos FC", "football", "Neymar", "Sao Paulo", "Brazil"]},
+        {"name": "Blue Energy",    "code": "BLU",
+         "aliases": ["Blue Energy Limited"],
+         "require": ["Blue Energy Limited", "Bowen Basin", "Sapphire", "Lancewood",
+                      "Queensland", "ASX", "Australia", "Australian"],
+         "exclude": []},
+        {"name": "Senex Energy",   "code": "",
+         "aliases": ["Senex", "Atlas gas", "Roma North"], "require": [], "exclude": []},
+        {"name": "Origin Energy",  "code": "ORG",
+         "aliases": ["Origin Energy Limited", "APLNG"], "require": [], "exclude": []},
+        {"name": "Shell QGC",      "code": "",
+         "aliases": ["QGC", "Arrow Energy"],
+         "require": ["QGC", "Arrow Energy", "Queensland", "Surat", "Curtis Island",
+                      "LNG", "Australia", "Australian"],
+         "exclude": []},
     ],
     "topics": [
         {"name": "East Coast Gas Supply",
-         "keywords": ["east coast gas", "gas shortfall", "ADGSM", "gas market review"]},
+         "keywords": ["east coast gas", "gas shortfall", "ADGSM", "gas market review"],
+         "require": ["Australia", "Australian", "ACCC", "AEMO", "east coast"],
+         "exclude": []},
         {"name": "Queensland Gas Policy",
-         "keywords": ["Queensland gas", "ATP tender", "gas acreage release"]},
+         "keywords": ["Queensland gas", "ATP tender", "gas acreage release"],
+         "require": [], "exclude": []},
     ],
     "mute": [],
 }
@@ -112,13 +142,17 @@ def _entities(cfg: dict) -> list:
         terms = [name] + [a for a in (c.get("aliases") or []) if str(a).strip()]
         out.append({"kind": "company", "name": name,
                     "code": (c.get("code") or "").strip().upper(),
-                    "terms": terms})
+                    "terms": terms,
+                    "require": [r for r in (c.get("require") or []) if str(r).strip()],
+                    "exclude": [x for x in (c.get("exclude") or []) if str(x).strip()]})
     for t in cfg.get("topics", []) or []:
         name = (t.get("name") or "").strip()
         if not name:
             continue
         terms = [k for k in (t.get("keywords") or []) if str(k).strip()] or [name]
-        out.append({"kind": "topic", "name": name, "code": "", "terms": terms})
+        out.append({"kind": "topic", "name": name, "code": "", "terms": terms,
+                    "require": [r for r in (t.get("require") or []) if str(r).strip()],
+                    "exclude": [x for x in (t.get("exclude") or []) if str(x).strip()]})
     return out
 
 
@@ -126,6 +160,44 @@ def _entities(cfg: dict) -> list:
 
 def _norm(text: str) -> str:
     return _WS.sub(" ", _PUNCT.sub(" ", (text or "").lower())).strip()
+
+
+def _hit(term: str, blob: str) -> bool:
+    """
+    Whole-phrase match on normalised text, so "GAS" does not match "gasoline"
+    and "Origin" does not match "originally". Substring matching was the first
+    cut and it is not safe for short tickers or common words.
+    """
+    t = _norm(term)
+    if not t:
+        return False
+    return re.search(r"(?<![a-z0-9])" + re.escape(t) + r"(?![a-z0-9])", blob) is not None
+
+
+def _relevant(item: dict, entity: dict) -> bool:
+    """
+    Is this item really about this entity?
+
+    Needed because several names are ordinary English. A search for
+    "State Gas" returns Ohio state gas regulators, Texas state gas taxes and
+    so on - all genuine phrase matches, none of them Doug's company. An
+    entity can therefore demand context ("require": Queensland, ASX,
+    Rolleston) and rule out known false friends ("exclude": Ohio, Texas).
+
+    require is satisfied by ANY one of its terms. It is only applied when the
+    entity actually sets it, so distinctive names stay unconstrained.
+    """
+    blob = _norm("{} {} {}".format(item.get("headline", ""),
+                                   item.get("summary", ""),
+                                   item.get("publisher", "")))
+    if not blob:
+        return False
+    if not any(_hit(t, blob) for t in entity.get("terms", [])):
+        return False
+    if any(_hit(x, blob) for x in entity.get("exclude", [])):
+        return False
+    require = entity.get("require") or []
+    return (not require) or any(_hit(r, blob) for r in require)
 
 
 def _entry_dt(entry) -> datetime.datetime:
@@ -147,8 +219,19 @@ def _split_publisher(title: str, fallback: str = "") -> tuple:
     return title.strip(), fallback
 
 
-def _google_query(terms: list, hours: int) -> str:
+def _google_query(terms: list, hours: int, require: list = None) -> str:
+    """
+    (alias OR alias OR ...) (context OR context ...) when:Nd
+
+    Juxtaposition is AND in Google's syntax, so the context group narrows the
+    result set at the source rather than us pulling Ohio down the wire and
+    discarding it here.
+    """
     quoted = " OR ".join('"{}"'.format(str(t).replace('"', "")) for t in terms[:6])
+    quoted = "({})".format(quoted)
+    if require:
+        ctx = " OR ".join('"{}"'.format(str(r).replace('"', "")) for r in require[:6])
+        quoted = "{} ({})".format(quoted, ctx)
     # ceil, not round: a 30h look-back must ask Google for 2 days or it
     # silently returns 24h and the extra 6 hours are never searched. The
     # precise cutoff is applied to the results afterwards.
@@ -160,7 +243,8 @@ def _fetch_google(entity: dict, cfg: dict) -> list:
     if feedparser is None:
         return []
     url = GOOGLE_NEWS.format(query=_google_query(entity["terms"],
-                                                 cfg.get("lookback_hours", 30)))
+                                                 cfg.get("lookback_hours", 30),
+                                                 entity.get("require")))
     try:
         resp = requests.get(url, timeout=REQUEST_TIMEOUT, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
@@ -172,7 +256,7 @@ def _fetch_google(entity: dict, cfg: dict) -> list:
 
     cutoff = datetime.datetime.now(AEST_OFFSET) - datetime.timedelta(
         hours=cfg.get("lookback_hours", 30))
-    items = []
+    items, dropped = [], []
     for entry in feed.entries[: cfg.get("max_per_entity", 8) * 3]:
         when = _entry_dt(entry)
         if when < cutoff:
@@ -181,33 +265,46 @@ def _fetch_google(entity: dict, cfg: dict) -> list:
         if not raw_title:
             continue
         headline, publisher = _split_publisher(raw_title)
-        items.append({
+        snippet = re.sub(r"<[^>]+>", " ", getattr(entry, "summary", "") or "")
+        snippet = html.unescape(_WS.sub(" ", snippet)).strip()[:300]
+        item = {
             "headline":  headline,
             "publisher": publisher or "Google News",
+            "summary":   snippet,
             "url":       getattr(entry, "link", "") or "",
             "when":      when,
             "layer":     "search",
-        })
+        }
+        # A phrase match is not a subject match. "State Gas" legitimately
+        # matches Ohio state gas regulators; the entity's require/exclude
+        # terms are what separate those from Doug's company.
+        if _relevant(item, entity):
+            items.append(item)
+        else:
+            dropped.append(headline)
+    if dropped:
+        print(f"   .  {entity['name']}: {len(dropped)} off-subject result(s) filtered")
+    entity["_dropped"] = dropped
     return items
 
 
 def _match_pool(entities: list, pool_items: list) -> dict:
     """Match the existing feed pool against each entity's aliases."""
     by_entity = {e["name"]: [] for e in entities}
-    prepared  = [(e, [_norm(t) for t in e["terms"] if _norm(t)]) for e in entities]
-    for item in pool_items or []:
-        blob = _norm("{} {}".format(item.get("title", ""), item.get("summary", "")))
-        if not blob:
+    for raw in pool_items or []:
+        item = {
+            "headline":  html.unescape(raw.get("title", "") or "").strip(),
+            "publisher": raw.get("source", "") or "",
+            "summary":   html.unescape(raw.get("summary", "") or "").strip()[:300],
+            "url":       raw.get("link", "") or "",
+            "when":      datetime.datetime.now(AEST_OFFSET),
+            "layer":     "feed",
+        }
+        if not item["headline"]:
             continue
-        for entity, terms in prepared:
-            if any(t and t in blob for t in terms):
-                by_entity[entity["name"]].append({
-                    "headline":  html.unescape(item.get("title", "")).strip(),
-                    "publisher": item.get("source", "") or "",
-                    "url":       item.get("link", "") or "",
-                    "when":      datetime.datetime.now(AEST_OFFSET),
-                    "layer":     "feed",
-                })
+        for entity in entities:
+            if _relevant(item, entity):
+                by_entity[entity["name"]].append(item)
                 break
     return by_entity
 
@@ -337,7 +434,8 @@ def collect(cfg: dict = None, pool_items: list = None, client=None,
         total += len(merged)
         out_entities.append({"name": e["name"], "kind": e["kind"],
                              "code": e["code"], "items": merged,
-                             "count": len(merged)})
+                             "count": len(merged),
+                             "dropped": e.get("_dropped", [])})
 
     return {"entities": out_entities, "total": total, "errors": errors,
             "generated_at": datetime.datetime.now(AEST_OFFSET).isoformat()}
@@ -598,6 +696,14 @@ def _self_test(only: str = "") -> int:
             cnt   = str(e["count"]) if n == 0 else ""
             print(f"{label:<26} {cnt:>3}  [{i['layer']:<6}] {i['headline'][:56]}")
     print(f"\ntotal: {result['total']} items")
+
+    noisy = [e for e in result["entities"] if e.get("dropped")]
+    if noisy:
+        print("\nFiltered as off-subject (check none of these should have been kept —")
+        print("if one should, loosen that entity's 'Must also mention' list):")
+        for e in noisy:
+            for h in e["dropped"][:4]:
+                print(f"   [{e['name'][:18]:<18}] {h[:64]}")
 
     if result["total"]:
         print("\n-- writing one-line summaries --")

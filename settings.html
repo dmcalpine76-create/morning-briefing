@@ -501,10 +501,10 @@ input[type="number"] { width: 80px; }
 
       <div class="card" style="margin-bottom:.9rem">
         <div style="font-weight:600;font-size:.85rem;margin-bottom:.35rem">Companies</div>
-        <p class="section-desc" style="margin-bottom:.6rem">Aliases are comma-separated and matter more than anything else here — they are what actually catches a story. Include the legal name, the short name the press uses, joint-venture and project names, and any former name. Leave the code blank for unlisted companies.</p>
+        <p class="section-desc" style="margin-bottom:.6rem">All three lists are comma-separated. <b>Aliases</b> catch the story — legal name, the short name the press uses, project and JV names, any former name. <b>Must also mention</b> is the fix for a name that is ordinary English: “State Gas” on its own matches Ohio state gas regulators, so it requires <span class="mono">Queensland</span>, <span class="mono">ASX</span>, <span class="mono">Rolleston</span> or the full <span class="mono">State Gas Limited</span> to be present too. Any <em>one</em> of them is enough, and listing the unambiguous form of the name there means a clean headline still passes. Leave it empty for distinctive names like Comet Ridge. <b>Never mention</b> drops an item outright — Santos carries <span class="mono">football, Neymar, Brazil</span> for the São Paulo club.</p>
         <table class="ticker-table" id="mw-co-table">
           <thead>
-            <tr><th style="width:22%">Company</th><th style="width:10%">ASX code</th><th>Aliases, project and JV names (comma-separated)</th><th></th></tr>
+            <tr><th style="width:15%">Company</th><th style="width:7%">Code</th><th>Aliases, project and JV names</th><th>Must also mention</th><th>Never mention</th><th></th></tr>
           </thead>
           <tbody id="mw-co-body"></tbody>
         </table>
@@ -513,10 +513,10 @@ input[type="number"] { width: 80px; }
 
       <div class="card" style="margin-bottom:.9rem">
         <div style="font-weight:600;font-size:.85rem;margin-bottom:.35rem">Topics</div>
-        <p class="section-desc" style="margin-bottom:.6rem">Themes rather than companies — policy, regulation, market structure. Keywords are comma-separated and matched the same way.</p>
+        <p class="section-desc" style="margin-bottom:.6rem">Themes rather than companies — policy, regulation, market structure. Keywords and the two qualifier columns work exactly as they do for companies above.</p>
         <table class="ticker-table" id="mw-topic-table">
           <thead>
-            <tr><th style="width:28%">Topic</th><th>Keywords (comma-separated)</th><th></th></tr>
+            <tr><th style="width:20%">Topic</th><th>Keywords</th><th>Must also mention</th><th>Never mention</th><th></th></tr>
           </thead>
           <tbody id="mw-topic-body"></tbody>
         </table>
@@ -974,7 +974,15 @@ function renderMarket() {
       <td><input style="width:100%" type="text"
            value="${esc((c.aliases || []).join(', '))}"
            oninput="mwSetList('companies',${i},'aliases',this.value)"
-           placeholder="Legal name, project names, JV names, former name"></td>
+           placeholder="Legal name, projects, JVs, former name"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((c.require || []).join(', '))}"
+           oninput="mwSetList('companies',${i},'require',this.value)"
+           placeholder="Leave empty if the name is distinctive"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((c.exclude || []).join(', '))}"
+           oninput="mwSetList('companies',${i},'exclude',this.value)"
+           placeholder="Known false friends"></td>
       <td><button class="ticker-del" title="Remove" onclick="mwRemove('companies',${i})">✕</button></td>
     </tr>`).join('');
 
@@ -986,6 +994,14 @@ function renderMarket() {
            value="${esc((t.keywords || []).join(', '))}"
            oninput="mwSetList('topics',${i},'keywords',this.value)"
            placeholder="phrase one, phrase two, abbreviation"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((t.require || []).join(', '))}"
+           oninput="mwSetList('topics',${i},'require',this.value)"
+           placeholder="Leave empty if the keywords are distinctive"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((t.exclude || []).join(', '))}"
+           oninput="mwSetList('topics',${i},'exclude',this.value)"
+           placeholder="Known false friends"></td>
       <td><button class="ticker-del" title="Remove" onclick="mwRemove('topics',${i})">✕</button></td>
     </tr>`).join('');
 }
@@ -1000,13 +1016,13 @@ function mwRemove(list, i) {
 }
 
 function addMwCompany() {
-  mwCfg().companies.push({ name: '', code: '', aliases: [] });
+  mwCfg().companies.push({ name: '', code: '', aliases: [], require: [], exclude: [] });
   renderMarket();
   markDirty('market');
 }
 
 function addMwTopic() {
-  mwCfg().topics.push({ name: '', keywords: [] });
+  mwCfg().topics.push({ name: '', keywords: [], require: [], exclude: [] });
   renderMarket();
   markDirty('market');
 }
