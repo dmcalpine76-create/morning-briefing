@@ -32,12 +32,28 @@ t_err   = b._build_email_tab(ANALYSIS, personal_actions=[],
 t_quiet = b._build_email_tab(ANALYSIS, personal_actions=[],
                              personal_status={"checked": 31, "days": 5})
 
+import json
+_tasks = json.loads(re.search(r"const BRIEFING_TASKS = (\[.*?\]);", tab, re.S).group(1))
+_personal_ids = [t["id"] for t in _tasks if t["id"].startswith("personal_")]
+_action_ids   = [t["id"] for t in _tasks if t["id"].startswith("action_")]
+
 CHECKS = [
+    # parity with the Outlook column - same card, same payload, same push
+    ("personal rows are checkbox cards",
+     'data-id="personal_0"' in tab and "ep-todo-card" in tab),
+    ("personal rows join BRIEFING_TASKS", _personal_ids == ["personal_0"]),
+    ("outlook rows still in BRIEFING_TASKS", _action_ids == ["action_0"]),
+    ("personal task carries title and detail",
+     any(t["title"] == "Confirm booking" and "Anna" in t["detail"] for t in _tasks)),
+    ("personal Select all present",
+     "toggleGroup('personal'" in tab),
+    ("footer counts both sources", ">2</strong> tasks selected" in tab),
+    ("result slot exists for push feedback", 'id="result-personal_0"' in tab),
+    ("no leftover deep link", "to-do.microsoft.com/tasks/add" not in tab),
     ("four columns render",            len(cols) >= 4),
     ("Personal column present",        "Personal" in tab),
     ("personal item renders",          "Confirm booking" in tab),
     ("deadline chip renders",          "Sat" in tab),
-    ("To Do deep link present",        "to-do.microsoft.com/tasks/add" in tab),
     ("outlook actions still render",   "Send financial model" in tab),
     ("priority digest still renders",  "Holly Zhang" in tab),
     ("no unresolved format fields",    not re.search(r"\{[a-z_]+\}", tab)),
@@ -46,7 +62,7 @@ CHECKS = [
     ("quiet run is stated",            "Nothing personal" in t_quiet),
     ("payload is escaped",
      "&amp;" in b._personal_column([{"action": "Pay Smith & Co",
-                                     "context": "x", "from": "a"}])),
+                                     "context": "x", "from": "a"}])[0]),
 ]
 
 if __name__ == "__main__":

@@ -1083,22 +1083,36 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 </div>"""
 
 
-def _personal_column(actions: list, status: dict = None) -> str:
+def _personal_column(actions: list, status: dict = None) -> tuple:
     """
-    Personal Gmail actions, rendered in the Work Actions tab's card style.
+    Personal Gmail actions, using the same checkbox card as the Outlook
+    actions beside them.
 
-    This lives beside the Outlook actions rather than on the Schedule tab
-    because that is where new tasks actually get triaged - the Schedule tab is
-    for the shape of the day, not for intake.
+    Returns (html, task_data) - the cards, and the entries to append to
+    BRIEFING_TASKS so the existing selection and push machinery picks them up
+    unchanged. The whole mechanism is id-driven: a checkbox carries
+    data-id="personal_N", pushToTodo() matches it against BRIEFING_TASKS, and
+    toggleGroup('personal', ...) drives Select all. Nothing new is invented
+    here, which is the point - the Graph push, the local review-server path
+    and the per-row result badges all already work.
 
-    Always renders something. An empty column that says nothing is
-    indistinguishable from a broken credential, which is exactly the failure
-    this section spent two days hiding.
+    Always returns something to render. An empty column that says nothing is
+    indistinguishable from a broken credential, which is the failure this
+    spent two days hiding.
     """
-    # html is imported function-locally in this module (see _build_email_tab),
-    # so it has to be imported here too - it is not a module-level name.
     import html as _html
-    from urllib.parse import quote
+    import datetime as _dt
+
+    # PRIORITY_BADGE / URGENCY_BADGE are defined inside _build_email_tab, not at
+    # module level, so they are not visible here - the same scoping trap that
+    # _html fell into. Declared locally rather than hoisted, to leave the
+    # existing function untouched.
+    BADGE = {
+        "urgent": '<span class="badge badge-critical">\u26a1 Urgent</span>',
+        "high":   '<span class="badge badge-major">\u25cf High</span>',
+        "normal": '<span class="badge badge-notable">\u25e6 Normal</span>',
+        "low":    '<span class="badge badge-notable">\u25e6 Low</span>',
+    }
     status = status or {}
 
     if not actions:
@@ -1111,29 +1125,42 @@ def _personal_column(actions: list, status: dict = None) -> str:
                     f"({status['checked']} messages checked).")
         else:
             note = "Personal inbox not checked this run."
-        return f'<p class="ep-empty">{note}</p>'
+        return f'<p class="ep-empty">{note}</p>', []
 
-    rows = []
-    for a in actions:
-        title  = str(a.get("action", ""))
-        detail = str(a.get("context", ""))
-        who    = _html.escape(str(a.get("from", "")))
-        dl     = str(a.get("deadline", "")).strip()
-        dl_tag = (f'<span class="ep-folder-tag">{_html.escape(dl)}</span>' if dl else "")
-        pri    = (a.get("priority") or "normal").lower()
-        colour = {"high": "#b3261e", "normal": "#8a6d1f"}.get(pri, "#9a968c")
-        link   = ("https://to-do.microsoft.com/tasks/add?title=" + quote(title[:255])
-                  + ("&body=" + quote(detail[:500]) if detail else ""))
-        rows.append(
-            f'<div class="ep-card" style="border-left:3px solid {colour}">'
-            f'<div class="ep-meta">{dl_tag}</div>'
-            f'<div class="ep-subject">{_html.escape(title)}</div>'
-            f'<div class="ep-summary">{_html.escape(detail)}</div>'
-            f'<div class="ep-from" style="margin-top:0.45rem">from {who}</div>'
-            f'<a class="ep-action-tag" style="text-decoration:none;display:inline-block"'
-            f' href="{link}" target="_blank" rel="noopener">&plus; Add to To&nbsp;Do</a>'
-            f'</div>')
-    return "".join(rows)
+    html_out, task_data = "", []
+    for i, a in enumerate(actions):
+        tid      = f"personal_{i}"
+        title    = str(a.get("action", ""))
+        detail   = str(a.get("context", ""))
+        who      = str(a.get("from", ""))
+        deadline = str(a.get("deadline", "")).strip()
+        priority = (a.get("priority") or "normal").lower()
+        badge    = BADGE.get(priority, BADGE["normal"])
+        dl_tag   = f'<span class="ep-deadline">\u23f0 {_html.escape(deadline)}</span>' if deadline else ""
+        ref_tag  = (f'<div class="ep-action-ref">From: {_html.escape(who)}</div>'
+                    if who else "")
+        html_out += f"""
+        <div class="ep-todo-card" id="card-{tid}">
+            <label class="ep-todo-check">
+                <input type="checkbox" class="todo-cb" data-id="{tid}" onchange="updateTodoCount()">
+            </label>
+            <div class="ep-todo-body">
+                <div class="ep-action-title">{badge} {_html.escape(title)} {dl_tag}</div>
+                <div class="ep-action-context">{_html.escape(detail)}</div>
+                {ref_tag}
+            </div>
+            <div class="ep-todo-result" id="result-{tid}"></div>
+        </div>"""
+        task_data.append({
+            "id":       tid,
+            "title":    title,
+            "detail":   (detail + (f" (from {who})" if who else "")).strip(),
+            "due":      _dt.date.today().isoformat(),
+            "priority": priority,
+            "web_link": "",
+            "source":   "gmail",
+        })
+    return html_out, task_data
 
 
 def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', personal_actions: list = None, personal_status: dict = None, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
@@ -1170,6 +1197,13 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
             "priority": item.get("priority", "normal"),
             "web_link": item.get("web_link", ""),
         })
+
+    # Personal Gmail actions join the same payload, so selection, Select all,
+    # the Graph push, the local review-server path and the per-row result
+    # badges all work on them without a second mechanism.
+    personal_html, personal_tasks = _personal_column(
+        personal_actions or [], personal_status)
+    task_data.extend(personal_tasks)
 
     tasks_json     = _json.dumps(task_data).replace("</script>", "<\\/script>")
     total_pushable = len(task_data)
@@ -1225,8 +1259,13 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
             <div class="ep-todo-result" id="result-{tid}"></div>
         </div>"""
 
-    if not digest and not actions:
+    if not digest and not actions and not personal_tasks:
         return f'<div style="padding:3rem;text-align:center;color:#888">{empty_msg}</div>'
+
+    sel_personal_btn = (
+        '<label class="ep-sel-all"><input type="checkbox" '
+        'onchange="toggleGroup(\'personal\',this.checked)"> Select all</label>'
+    ) if personal_tasks else ""
 
     sel_actions_btn = (
         '<label class="ep-sel-all"><input type="checkbox" onchange="toggleGroup(\'action\',this.checked)"> '
@@ -1298,9 +1337,10 @@ const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
     <section>
         <div class="ep-panel-title">
             \U0001f3e0 Personal
-            <span class="ep-count">{len(personal_actions or [])}</span>
+            <span class="ep-count">{len(personal_tasks)}</span>
+            {sel_personal_btn}
         </div>
-        {_personal_column(personal_actions or [], personal_status)}
+        {personal_html}
     </section>
     <section>
         <div class="ep-panel-title">
