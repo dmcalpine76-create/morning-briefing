@@ -70,6 +70,14 @@ except ImportError:
     _asx_ann = None
     _ASX_ANN_AVAILABLE = False
 
+try:
+    import market_monitor as _market
+    MARKET_WATCH_ENABLED = True
+except ImportError as _e:
+    print(f"  NOTE: Market Watch tab unavailable ({_e})")
+    _market = None
+    MARKET_WATCH_ENABLED = False
+
 
 
 
@@ -1261,7 +1269,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                    sunshine_data=None, gas_data=None, hh_gas_data=None,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None,
                    gsh_gas_data=None, gas_history=None, token_days_left=None,
-                   fortnight=None, ranked_tasks=None, personal_actions=None) -> str:
+                   fortnight=None, ranked_tasks=None, personal_actions=None,
+                   market=None) -> str:
     date_str      = generated_at.strftime(f"%A, {DAYFMT} %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     token_badge   = ""
@@ -1355,6 +1364,24 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                              'font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;'
                              'border-bottom:3px solid var(--ink)">Today\'s Scheduled Work Blocks</div>'
                              + _fallback + '</div>')
+
+    # ── Market Watch tab ────────────────────────────────────────────────
+    market_tab_html, market_btn = "", ""
+    if market and market.get("entities"):
+        try:
+            market_tab_html = _market.build_tab(market)
+        except Exception as _e:
+            print(f"  WARNING: Market Watch render failed ({_e})")
+            market_tab_html = ""
+        if market_tab_html:
+            _mw_material = sum(
+                1 for _e2 in market["entities"] for _i in _e2["items"]
+                if _i.get("grade") == "material")
+            _mw_count = market.get("total", 0)
+            _mw_label = (f" ({_mw_count}&#9733;{_mw_material})" if _mw_material
+                         else (f" ({_mw_count})" if _mw_count else ""))
+            market_btn = ('<button class="tab-btn" onclick="showTab(\'market\')" '
+                          f'id="tab-market">&#128200; Market Watch{_mw_label}</button>')
 
     backlog_btn = ('<button class="tab-btn" onclick="showTab(\'backlog\')" id="tab-backlog">'
                    f'&#128230; Backlog ({backlog_count})</button>') if backlog_tab_html else ""
@@ -1828,6 +1855,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     </div>
     <nav class="masthead-tabs">
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
+        {market_btn}
         {topic_tab_btns}
         <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions{"" if not email_count else f" ({email_count})"}</button>
         <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
@@ -1851,6 +1879,11 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 <div class="columns-wrapper">
     {columns}
 </div>
+</div>
+
+<!-- ── MARKET WATCH TAB ── -->
+<div id="view-market" style="display:none">
+{market_tab_html}
 </div>
 
 <!-- ── EMAIL TAB ── -->
@@ -1898,7 +1931,7 @@ const BRIEFING_DATE_ISO = "{generated_at.strftime('%Y-%m-%d')}";
 // ── Tab switching ──
 function showTab(tab) {{
     // Hide all views
-    ['view-news','view-email','view-calendar','view-schedule','view-backlog'].forEach(id => {{
+    ['view-news','view-market','view-email','view-calendar','view-schedule','view-backlog'].forEach(id => {{
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     }});
@@ -2821,6 +2854,22 @@ def main():
             print(f"   !  task ranking unavailable: {_e}")
             ranked_tasks = {}
 
+    # ── Market Watch (granular competitor / topic coverage) ──────────────
+    market = None
+    if MARKET_WATCH_ENABLED:
+        try:
+            print("\n  Market Watch — companies and topics…")
+            _pool = [it for items in (topic_feed_cache or {}).values() for it in items]
+            market = _market.get_market_monitor(
+                pool_items=_pool,
+                api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+                announcements=asx_ann_data)
+            print(f"   OK {market.get('total', 0)} item(s) across "
+                  f"{len(market.get('entities', []))} monitored entities")
+        except Exception as _e:
+            print(f"   !  Market Watch unavailable: {_e}")
+            market = None
+
     html = generate_html(all_sections, generated, active_topics, email_analysis,
                          asx_ann_data, market_data, all_topic_stories, asx_data,
                          weather_data, sunshine_data, gas_data, hh_gas_data,
@@ -2833,7 +2882,8 @@ def main():
                          token_days_left=_token_days_left(),
                          fortnight=fortnight,
                          ranked_tasks=ranked_tasks,
-                         personal_actions=personal_actions)
+                         personal_actions=personal_actions,
+                         market=market)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
     print(f"\n  Briefing saved to: {out_dir.resolve()}")
 

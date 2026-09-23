@@ -359,10 +359,18 @@ No markdown fences, no extra text."""
         print(f"   ⚠️  Announcement summaries failed (headlines still shown): {e}")
 
 
-def get_asx_announcements(client=None) -> dict:
-    """Main entry point — called by briefing.py."""
+def get_asx_announcements(client=None, codes=None) -> dict:
+    """
+    Main entry point — called by briefing.py.
+
+    codes: optional list of ASX codes to fetch instead of WATCHLIST. The
+    Market Watch tab passes the codes from its own company list, which Doug
+    edits in the settings dashboard, so the two no longer have to be kept in
+    sync by hand.
+    """
+    wanted = [c.strip().upper() for c in (codes or WATCHLIST) if str(c).strip()]
     all_anns = []
-    for code in WATCHLIST:
+    for code in dict.fromkeys(wanted):
         anns = _fetch_for_code(code)
         if anns:
             print(f"   → {code}: {len(anns)} announcement(s)")

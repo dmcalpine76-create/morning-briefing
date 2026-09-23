@@ -23,6 +23,15 @@ SETTINGS_FILE    = HERE / "briefing_settings.json"
 TOPICS_FILE      = HERE / "topics.json"
 DASHBOARD_FILE   = HERE / "settings.html"
 
+def _market_monitor_defaults() -> dict:
+    try:
+        import copy
+        import market_monitor
+        return copy.deepcopy(market_monitor.DEFAULT_CFG)
+    except Exception:
+        return {"enabled": True, "companies": [], "topics": [], "mute": []}
+
+
 # ── Default settings (mirrors briefing.py hardcoded values) ─────────────────
 
 DEFAULT_SETTINGS = {
@@ -77,6 +86,11 @@ DEFAULT_SETTINGS = {
         {"sym": "CL=F",     "label": "Oil",     "fmt": "price"},
         {"sym": "^GSPC",    "label": "S&P 500", "fmt": "index"},
     ],
+    # Market Watch entities live in briefing_settings.json under
+    # "market_monitor". The authoritative defaults are market_monitor.py's
+    # DEFAULT_CFG - imported here so a first run with no settings file still
+    # shows Doug's companies in the dashboard rather than an empty table.
+    "market_monitor": _market_monitor_defaults(),
     "asx_watchlist": [
         {"sym": "GAS.AX", "label": "GAS"},
         {"sym": "COI.AX", "label": "COI"},
@@ -110,9 +124,12 @@ def save_settings(data: dict):
     existing["_updated"] = datetime.datetime.now().isoformat(timespec="seconds")
     SETTINGS_FILE.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"   💾  Settings saved → {SETTINGS_FILE.resolve()}")
+    _mm = data.get("market_monitor", {}) or {}
     print(f"       Categories: {len(data.get('categories', []))}  "
           f"Tickers: {len(data.get('market_tickers', []))}  "
-          f"ASX: {len(data.get('asx_watchlist', []))}")
+          f"ASX: {len(data.get('asx_watchlist', []))}  "
+          f"Market Watch: {len(_mm.get('companies', []))} companies / "
+          f"{len(_mm.get('topics', []))} topics")
 
 
 def load_topics() -> list:

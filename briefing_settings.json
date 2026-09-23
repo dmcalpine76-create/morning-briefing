@@ -268,5 +268,100 @@
       "weekly wrap",
       "automatic reply"
     ]
+  },
+  "market_monitor": {
+    "enabled": true,
+    "lookback_hours": 30,
+    "max_per_entity": 8,
+    "use_google_news": true,
+    "use_feed_pool": true,
+    "include_asx": true,
+    "summarise": true,
+    "companies": [
+      {
+        "name": "State Gas",
+        "code": "GAS",
+        "aliases": [
+          "State Gas Limited",
+          "Rolleston West",
+          "Reid's Dome"
+        ]
+      },
+      {
+        "name": "Comet Ridge",
+        "code": "COI",
+        "aliases": [
+          "Comet Ridge Limited",
+          "Mahalo"
+        ]
+      },
+      {
+        "name": "Beach Energy",
+        "code": "BPT",
+        "aliases": [
+          "Beach Energy Limited"
+        ]
+      },
+      {
+        "name": "Santos",
+        "code": "STO",
+        "aliases": [
+          "Santos Limited",
+          "GLNG"
+        ]
+      },
+      {
+        "name": "Blue Energy",
+        "code": "BLU",
+        "aliases": [
+          "Blue Energy Limited"
+        ]
+      },
+      {
+        "name": "Senex Energy",
+        "code": "",
+        "aliases": [
+          "Senex",
+          "Atlas gas",
+          "Roma North"
+        ]
+      },
+      {
+        "name": "Origin Energy",
+        "code": "ORG",
+        "aliases": [
+          "Origin Energy Limited",
+          "APLNG"
+        ]
+      },
+      {
+        "name": "Shell QGC",
+        "code": "",
+        "aliases": [
+          "QGC",
+          "Arrow Energy"
+        ]
+      }
+    ],
+    "topics": [
+      {
+        "name": "East Coast Gas Supply",
+        "keywords": [
+          "east coast gas",
+          "gas shortfall",
+          "ADGSM",
+          "gas market review"
+        ]
+      },
+      {
+        "name": "Queensland Gas Policy",
+        "keywords": [
+          "Queensland gas",
+          "ATP tender",
+          "gas acreage release"
+        ]
+      }
+    ],
+    "mute": []
   }
 }

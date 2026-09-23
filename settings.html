@@ -385,6 +385,9 @@ input[type="number"] { width: 80px; }
       <span class="nav-emoji">🏦</span> ASX Watchlist
     </a>
     <div class="nav-section-label">Topics</div>
+    <a class="nav-item" onclick="scrollTo('market-watch')" href="#market-watch">
+      <span class="nav-emoji">📈</span> Market Watch
+    </a>
     <a class="nav-item" onclick="scrollTo('watch-topics')" href="#watch-topics">
       <span class="nav-emoji">📌</span> Watch Topics
     </a>
@@ -469,6 +472,64 @@ input[type="number"] { width: 80px; }
       </div>
     </section>
 
+    <!-- MARKET WATCH -->
+    <section class="section" id="market-watch">
+      <div class="section-title">
+        📈 Market Watch
+        <span class="dirty-dot" id="dirty-market"></span>
+      </div>
+      <p class="section-desc">Granular overnight coverage of named competitors and policy topics, shown on its own briefing tab. Each entity is searched across <em>all</em> indexed Australian news, not just the subscribed feeds, and ASX-listed companies also have their announcement wire read directly.</p>
+
+      <div class="card" style="margin-bottom:.9rem">
+        <div class="count-grid">
+          <div class="count-item">
+            <label class="count-label">Look-back (hours)</label>
+            <input class="count-input mono" type="number" min="6" max="168" id="mw-lookback" oninput="markDirty('market')">
+          </div>
+          <div class="count-item">
+            <label class="count-label">Max items per entity</label>
+            <input class="count-input mono" type="number" min="1" max="20" id="mw-max" oninput="markDirty('market')">
+          </div>
+        </div>
+        <div style="margin-top:.7rem;display:flex;flex-wrap:wrap;gap:1.1rem;font-size:.78rem">
+          <label><input type="checkbox" id="mw-enabled" onchange="markDirty('market')"> Show the tab</label>
+          <label><input type="checkbox" id="mw-google" onchange="markDirty('market')"> News search per entity</label>
+          <label><input type="checkbox" id="mw-pool" onchange="markDirty('market')"> Scan subscribed feeds</label>
+          <label><input type="checkbox" id="mw-asx" onchange="markDirty('market')"> ASX announcements</label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:.9rem">
+        <div style="font-weight:600;font-size:.85rem;margin-bottom:.35rem">Companies</div>
+        <p class="section-desc" style="margin-bottom:.6rem">Aliases are comma-separated and matter more than anything else here — they are what actually catches a story. Include the legal name, the short name the press uses, joint-venture and project names, and any former name. Leave the code blank for unlisted companies.</p>
+        <table class="ticker-table" id="mw-co-table">
+          <thead>
+            <tr><th style="width:22%">Company</th><th style="width:10%">ASX code</th><th>Aliases, project and JV names (comma-separated)</th><th></th></tr>
+          </thead>
+          <tbody id="mw-co-body"></tbody>
+        </table>
+        <button class="add-btn" style="margin-top:.6rem" onclick="addMwCompany()">+ Add company</button>
+      </div>
+
+      <div class="card" style="margin-bottom:.9rem">
+        <div style="font-weight:600;font-size:.85rem;margin-bottom:.35rem">Topics</div>
+        <p class="section-desc" style="margin-bottom:.6rem">Themes rather than companies — policy, regulation, market structure. Keywords are comma-separated and matched the same way.</p>
+        <table class="ticker-table" id="mw-topic-table">
+          <thead>
+            <tr><th style="width:28%">Topic</th><th>Keywords (comma-separated)</th><th></th></tr>
+          </thead>
+          <tbody id="mw-topic-body"></tbody>
+        </table>
+        <button class="add-btn" style="margin-top:.6rem" onclick="addMwTopic()">+ Add topic</button>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:600;font-size:.85rem;margin-bottom:.35rem">Mute</div>
+        <p class="section-desc" style="margin-bottom:.6rem">Comma-separated phrases. Any headline or publisher containing one is dropped before the tab is built — use it for a recurring column or a syndicator that keeps surfacing noise.</p>
+        <input class="count-input mono" style="width:100%" type="text" id="mw-mute" placeholder="e.g. sponsored content, hot stock tips" oninput="markDirty('market')">
+      </div>
+    </section>
+
     <!-- WATCH TOPICS -->
     <section class="section" id="watch-topics">
       <div class="section-title">
@@ -487,7 +548,7 @@ input[type="number"] { width: 80px; }
 // ── State ────────────────────────────────────────────────────────────────────
 let settings = null;
 let topics   = [];
-const dirty  = { counts: false, categories: false, tickers: false, asx: false, topics: false };
+const dirty  = { counts: false, categories: false, tickers: false, asx: false, topics: false, market: false };
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 async function boot() {
@@ -526,6 +587,7 @@ function renderAll() {
   renderCategories();
   renderTickers();
   renderAsx();
+  renderMarket();
   renderTopics();
 }
 
@@ -850,6 +912,7 @@ async function saveAll() {
     collectFeeds();
     collectTickers();
     collectAsx();
+    collectMarket();
 
     const [sRes, tRes] = await Promise.all([
       fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(settings) }),
@@ -873,6 +936,95 @@ async function saveAll() {
 
   btn.disabled = false;
   btn.textContent = 'Save All Changes';
+}
+
+// ── Market Watch ──────────────────────────────────────────────────────────────
+// Aliases and keywords are edited as comma-separated text because that is how
+// you actually think about them — paste a list in, not one box per word.
+
+function mwCfg() {
+  if (!settings.market_monitor) settings.market_monitor = {};
+  const m = settings.market_monitor;
+  if (!Array.isArray(m.companies)) m.companies = [];
+  if (!Array.isArray(m.topics))    m.topics    = [];
+  if (!Array.isArray(m.mute))      m.mute      = [];
+  return m;
+}
+
+function splitList(str) {
+  return String(str || '').split(',').map(x => x.trim()).filter(Boolean);
+}
+
+function renderMarket() {
+  const m = mwCfg();
+  document.getElementById('mw-lookback').value = m.lookback_hours ?? 30;
+  document.getElementById('mw-max').value      = m.max_per_entity ?? 8;
+  document.getElementById('mw-enabled').checked = m.enabled !== false;
+  document.getElementById('mw-google').checked  = m.use_google_news !== false;
+  document.getElementById('mw-pool').checked    = m.use_feed_pool !== false;
+  document.getElementById('mw-asx').checked     = m.include_asx !== false;
+  document.getElementById('mw-mute').value      = (m.mute || []).join(', ');
+
+  document.getElementById('mw-co-body').innerHTML = m.companies.map((c, i) => `
+    <tr>
+      <td><input type="text" value="${esc(c.name)}"
+           oninput="mwSet('companies',${i},'name',this.value)" placeholder="Company name"></td>
+      <td><input class="mono" type="text" value="${esc(c.code)}" maxlength="4"
+           oninput="mwSet('companies',${i},'code',this.value.toUpperCase())" placeholder="GAS"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((c.aliases || []).join(', '))}"
+           oninput="mwSetList('companies',${i},'aliases',this.value)"
+           placeholder="Legal name, project names, JV names, former name"></td>
+      <td><button class="ticker-del" title="Remove" onclick="mwRemove('companies',${i})">✕</button></td>
+    </tr>`).join('');
+
+  document.getElementById('mw-topic-body').innerHTML = m.topics.map((t, i) => `
+    <tr>
+      <td><input type="text" value="${esc(t.name)}"
+           oninput="mwSet('topics',${i},'name',this.value)" placeholder="Topic name"></td>
+      <td><input style="width:100%" type="text"
+           value="${esc((t.keywords || []).join(', '))}"
+           oninput="mwSetList('topics',${i},'keywords',this.value)"
+           placeholder="phrase one, phrase two, abbreviation"></td>
+      <td><button class="ticker-del" title="Remove" onclick="mwRemove('topics',${i})">✕</button></td>
+    </tr>`).join('');
+}
+
+function mwSet(list, i, key, val)     { mwCfg()[list][i][key] = val; markDirty('market'); }
+function mwSetList(list, i, key, val) { mwCfg()[list][i][key] = splitList(val); markDirty('market'); }
+
+function mwRemove(list, i) {
+  mwCfg()[list].splice(i, 1);
+  renderMarket();
+  markDirty('market');
+}
+
+function addMwCompany() {
+  mwCfg().companies.push({ name: '', code: '', aliases: [] });
+  renderMarket();
+  markDirty('market');
+}
+
+function addMwTopic() {
+  mwCfg().topics.push({ name: '', keywords: [] });
+  renderMarket();
+  markDirty('market');
+}
+
+// Reads the values that are only in the DOM (the numbers, checkboxes and mute
+// box); the tables write straight through on input.
+function collectMarket() {
+  const m = mwCfg();
+  m.lookback_hours  = parseInt(document.getElementById('mw-lookback').value, 10) || 30;
+  m.max_per_entity  = parseInt(document.getElementById('mw-max').value, 10) || 8;
+  m.enabled         = document.getElementById('mw-enabled').checked;
+  m.use_google_news = document.getElementById('mw-google').checked;
+  m.use_feed_pool   = document.getElementById('mw-pool').checked;
+  m.include_asx     = document.getElementById('mw-asx').checked;
+  m.mute            = splitList(document.getElementById('mw-mute').value);
+  // Drop blank rows rather than writing empty entities the monitor must skip
+  m.companies = m.companies.filter(c => (c.name || '').trim());
+  m.topics    = m.topics.filter(t => (t.name || '').trim());
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
