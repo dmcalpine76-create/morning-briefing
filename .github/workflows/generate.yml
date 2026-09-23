@@ -99,6 +99,12 @@ jobs:
           # Personal Google calendar (private iCal feed). Without this the
           # scheduled briefings show work commitments only.
           GOOGLE_CAL_ICS_URL:   ${{ secrets.GOOGLE_CAL_ICS_URL }}
+          # Personal Gmail inbox (IMAP app password). Without these two the
+          # scheduled runs read no personal inbox at all - which is what was
+          # happening: the Personal section simply did not appear and nothing
+          # said why. It now says so on the page.
+          GMAIL_ADDRESS:        ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:   ${{ secrets.GMAIL_APP_PASSWORD }}
           # D3 — Outlook token expiry countdown (secret set by upload_tokens.py)
           OUTLOOK_TOKEN_SETUP_DATE: ${{ secrets.OUTLOOK_TOKEN_SETUP_DATE }}
           # D5/D13 — where gas_history.json / archive.json are fetched back from

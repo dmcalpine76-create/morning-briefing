@@ -221,10 +221,33 @@ def _todo_deeplink(title: str, detail: str = "") -> str:
     return f"https://to-do.microsoft.com/tasks/add?{params}"
 
 
-def _build_personal(actions: list) -> str:
-    """Personal actions from the Gmail inbox, kept visually distinct from work."""
+def _build_personal(actions: list, status: dict = None) -> str:
+    """
+    Personal actions from the Gmail inbox, kept visually distinct from work.
+
+    This used to return "" whenever there were no actions, which meant a run
+    with no Gmail credentials looked exactly like a quiet personal inbox - the
+    section simply was not on the page and there was nothing to say why. The
+    scheduled GitHub runs have no Gmail secrets, so that is precisely what
+    happened every morning. The section now always states which of the two it
+    is.
+    """
+    status = status or {}
     if not actions:
-        return ""
+        err = (status.get("error") or "").strip()
+        if err:
+            note = ("Gmail was not read this run &mdash; " + esc(err))
+        elif status.get("checked"):
+            note = (f"Nothing personal needing action in the last "
+                    f"{status.get('days', 5)} days "
+                    f"({status['checked']} messages checked).")
+        else:
+            note = "Personal inbox not checked this run."
+        return ('<div class="sx-sec" style="margin-top:1.3rem"><h3>Personal</h3>'
+                '<i class="sx-line"></i><span class="sx-note">from your Gmail inbox</span>'
+                '</div><div class="sx-pers" style="opacity:.7">'
+                '<div class="sx-pers-b"><div class="sx-pers-c">' + note +
+                '</div></div></div>')
     rows = []
     for a in actions:
         dl = f" &middot; {esc(a.get('deadline'))}" if a.get("deadline") else ""
@@ -247,6 +270,7 @@ def _build_personal(actions: list) -> str:
 def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
                        legacy_scheduler_html: str = "", briefings: dict = None,
                        personal_actions: list = None,
+                       personal_status: dict = None,
                        now: datetime.datetime = None) -> str:
     now   = now or datetime.datetime.now(AEST_OFFSET)
     today = now.date()
@@ -366,7 +390,7 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
 
     today_evts = [e for e in by_day.get(today, []) if not e.get("is_all_day")]
     brief_html = _build_briefings(by_day.get(today, []), briefings)
-    personal_html = _build_personal(personal_actions or [])
+    personal_html = _build_personal(personal_actions or [], personal_status)
     plural_evts = "s" if len(today_evts) != 1 else ""
     booked_today = load.get(today, 0)
     plural_backlog = "s" if backlog_n != 1 else ""

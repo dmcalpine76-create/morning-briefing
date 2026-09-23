@@ -1270,7 +1270,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None,
                    gsh_gas_data=None, gas_history=None, token_days_left=None,
                    fortnight=None, ranked_tasks=None, personal_actions=None,
-                   market=None) -> str:
+                   personal_status=None, market=None) -> str:
     date_str      = generated_at.strftime(f"%A, {DAYFMT} %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     token_badge   = ""
@@ -1339,7 +1339,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                 ranked_tasks or {}, fortnight, _pc,
                 legacy_scheduler_html=schedule_html,
                 briefings=_cal.get("_briefings") or {},
-                personal_actions=personal_actions or [])
+                personal_actions=personal_actions or [],
+                personal_status=personal_status or {})
             backlog_tab_html  = _srender.build_backlog_tab(ranked_tasks or {})
             backlog_count     = len((ranked_tasks or {}).get("backlog", []))
         except Exception as _e:
@@ -2769,19 +2770,27 @@ def main():
 
     # ── Personal actions from the Gmail inbox ──
     personal_actions = []
+    personal_status = {"error": "", "checked": 0, "days": 5}
     try:
         import gmail_personal
         print("\n\U0001f4ec   Reading the personal Gmail inbox...")
         _gp = gmail_personal.get_personal_actions(api_key)
+        personal_status["checked"] = _gp.get("checked", 0)
+        try:
+            personal_status["days"] = gmail_personal._load_cfg().get("lookback_days", 5)
+        except Exception:
+            pass
         if _gp.get("error"):
+            personal_status["error"] = _gp["error"]
             print(f"   !  Gmail: {_gp['error']}")
         else:
             personal_actions = _gp.get("actions", [])
             print(f"   OK {len(personal_actions)} personal action(s) "
                   f"from {_gp.get('checked', 0)} message(s)")
     except ImportError:
-        pass
+        personal_status["error"] = "gmail_personal.py not available"
     except Exception as _e:
+        personal_status["error"] = str(_e)
         print(f"   !  Personal Gmail skipped: {_e}")
 
     # ── Main briefing page ──
@@ -2883,6 +2892,7 @@ def main():
                          fortnight=fortnight,
                          ranked_tasks=ranked_tasks,
                          personal_actions=personal_actions,
+                         personal_status=personal_status,
                          market=market)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
     print(f"\n  Briefing saved to: {out_dir.resolve()}")
