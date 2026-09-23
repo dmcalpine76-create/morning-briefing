@@ -518,7 +518,6 @@ def build_calendar_tab(cal: dict, now: datetime.datetime = None) -> str:
             k += " is-today"
         if d.weekday() >= 5:
             k += " is-wknd"
-        label = d.strftime("%d") if d.day != 1 else d.strftime("%-d %b") if hasattr(d, "strftime") else d.strftime("%d")
         try:
             label = d.strftime("%d %b") if d.day == 1 else d.strftime("%d")
         except Exception:
@@ -775,6 +774,9 @@ def _self_test():
         ("today rail has a now marker", "sx-now" in sched),
         ("after-hours block shown", "After hours" in sched),
         ("backlog groups by age", "Over a month" in back),
+        ("no POSIX-only strftime directives (Windows safe)",
+         not __import__("re").search(r"%-[a-zA-Z]",
+             pathlib.Path(__file__).read_text(encoding="utf-8"))),
         ("meeting briefing bullets carried over", "Before your meetings" in sched),
         ("evening event does not escape the rail", _rail_contained(sched)),
         ("personal lane rendered on the calendar", "Personal" in calt),
