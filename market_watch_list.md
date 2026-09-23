@@ -116,7 +116,7 @@ gas sales negotiation.
 | Squadron Energy | *unlisted* | Squadron Energy, Port Kembla Energy Terminal, Tattarang | | |
 | AGL Energy | AGL | AGL Energy Limited | AGL Energy, gas, contract, supply, Australia | |
 | CleanCo / Stanwell / CS Energy | *unlisted* | CleanCo, Stanwell Corporation, CS Energy, Kogan Creek | Queensland, gas, generation, contract | |
-| Incitec Pivot | IPL | Incitec Pivot, Gibson Island, Phosphate Hill | gas, supply, contract, Queensland, ammonia | |
+| Dyno Nobel | DNL | Dyno Nobel, Incitec Pivot, Gibson Island, Phosphate Hill, Moranbah | gas, supply, contract, Queensland, ammonia | |
 | Orica | ORI | Orica Limited, Yarwun | gas, supply, contract, ammonium nitrate | |
 
 The Queensland government generators (CleanCo, Stanwell, CS Energy) are grouped into
@@ -293,3 +293,35 @@ These were verified over a different network path than the briefing uses. A feed
 answered here should answer from your machine and from GitHub Actions, but that isn't
 guaranteed. After the next run, check the console output for `Failed to fetch` lines
 against any of the seven new URLs.
+
+
+---
+
+# Loaded into the backend — 23 September 2026
+
+All 31 companies and 16 topics above are now in `briefing_settings.json`.
+21 of the companies carry ASX codes; 10 (Denison Gas, ADZ Energy, Senex, Arrow,
+Shell QGC, APLNG, Bridgeport, Jemena, Squadron, and the grouped Queensland
+generators) are unlisted and are covered by news search only.
+
+**One more stale code found while loading.** `IPL` — Incitec Pivot — is dead.
+The company renamed to **Dyno Nobel Limited** and moved to **DNL** in April 2025.
+That was my own addition to the list above and it had not been through the
+verification pass the rest went through; it has been corrected. That's eight stale
+codes now, which is a fair indication of how fast this sector churns — worth
+re-verifying the whole list once a year.
+
+## What to expect on the first run
+
+- **47 entities.** News search runs eight at a time, so that part adds well under a minute.
+- **16 extra ASX announcement fetches.** Five of the 21 codes (GAS, COI, BPT, STO, BLU) are already pulled for the Work Actions tab and get reused. The other 16 are scraped in sequence, and this is the slow part — allow a few minutes, more if HotCopper is throttling.
+
+If the first run drags and you just want to see the page, untick **ASX announcements**
+in the dashboard for one run. You lose the announcement layer but the news layers are
+unaffected, and it will complete in about a minute.
+
+## What to look at first
+
+1. **The "filtered as off-subject" list** at the end of `py market_monitor.py --test`. Anything there that should have been kept means a require list is too tight.
+2. **Cards that are wrong rather than empty.** A story in the wrong company's card means an alias is too loose — most likely Senex ("Atlas" is a common word) or Shell QGC ("QGC").
+3. **The quiet strip.** If a company you know had news is sitting in "checked and quiet", its aliases are missing the name the press actually used.

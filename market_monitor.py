@@ -132,6 +132,22 @@ def load_cfg() -> dict:
     return cfg
 
 
+def _dedupe_terms(terms: list) -> list:
+    """
+    Drop repeats, keeping order. The company name is prepended to its own
+    aliases, so a list that also spells the name out produces a query with the
+    same phrase twice - harmless but it wastes one of the six OR slots Google
+    is given.
+    """
+    seen, out = set(), []
+    for t in terms:
+        key = _norm(t)
+        if key and key not in seen:
+            seen.add(key)
+            out.append(t)
+    return out
+
+
 def _entities(cfg: dict) -> list:
     """Companies and topics flattened into one list, companies first."""
     out = []
@@ -139,7 +155,7 @@ def _entities(cfg: dict) -> list:
         name = (c.get("name") or "").strip()
         if not name:
             continue
-        terms = [name] + [a for a in (c.get("aliases") or []) if str(a).strip()]
+        terms = _dedupe_terms([name] + [a for a in (c.get("aliases") or []) if str(a).strip()])
         out.append({"kind": "company", "name": name,
                     "code": (c.get("code") or "").strip().upper(),
                     "terms": terms,
@@ -149,7 +165,7 @@ def _entities(cfg: dict) -> list:
         name = (t.get("name") or "").strip()
         if not name:
             continue
-        terms = [k for k in (t.get("keywords") or []) if str(k).strip()] or [name]
+        terms = _dedupe_terms([k for k in (t.get("keywords") or []) if str(k).strip()] or [name])
         out.append({"kind": "topic", "name": name, "code": "", "terms": terms,
                     "require": [r for r in (t.get("require") or []) if str(r).strip()],
                     "exclude": [x for x in (t.get("exclude") or []) if str(x).strip()]})

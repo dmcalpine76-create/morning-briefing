@@ -291,7 +291,8 @@
         "aliases": [
           "State Gas Limited",
           "Rolleston West",
-          "Reid's Dome"
+          "Reid's Dome",
+          "Nyanda"
         ],
         "require": [
           "State Gas Limited",
@@ -315,18 +316,104 @@
         "code": "COI",
         "aliases": [
           "Comet Ridge Limited",
-          "Mahalo"
+          "Mahalo",
+          "Mahalo North",
+          "Mahalo East"
         ],
         "require": [],
         "exclude": []
       },
       {
-        "name": "Beach Energy",
-        "code": "BPT",
+        "name": "Blue Energy",
+        "code": "BLU",
         "aliases": [
-          "Beach Energy Limited"
+          "Blue Energy Limited",
+          "Sapphire",
+          "Lancewood"
+        ],
+        "require": [
+          "Blue Energy Limited",
+          "Bowen Basin",
+          "Sapphire",
+          "Lancewood",
+          "Queensland",
+          "ASX",
+          "Australian"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Omega Oil & Gas",
+        "code": "OMA",
+        "aliases": [
+          "Omega Oil and Gas",
+          "Taroom Trough",
+          "Canyon-2",
+          "Canyon-3"
         ],
         "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Elixir Energy",
+        "code": "EXR",
+        "aliases": [
+          "Elixir Energy Limited",
+          "Grandis",
+          "Daydream",
+          "Daydream-2"
+        ],
+        "require": [
+          "Elixir Energy",
+          "Grandis",
+          "Daydream",
+          "Queensland",
+          "Bowen",
+          "ASX",
+          "Australian"
+        ],
+        "exclude": [
+          "Mongolia"
+        ]
+      },
+      {
+        "name": "Galilee Energy",
+        "code": "GLL",
+        "aliases": [
+          "Galilee Energy Limited",
+          "Glenaras",
+          "Galilee Basin"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Denison Gas",
+        "code": "",
+        "aliases": [
+          "Denison Gas",
+          "Denison Trough",
+          "Baffle Creek"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "ADZ Energy",
+        "code": "",
+        "aliases": [
+          "ADZ Energy",
+          "Kincora",
+          "Myall Creek"
+        ],
+        "require": [
+          "ADZ Energy",
+          "Kincora",
+          "Myall Creek",
+          "Queensland",
+          "Surat",
+          "gas"
+        ],
         "exclude": []
       },
       {
@@ -334,7 +421,10 @@
         "code": "STO",
         "aliases": [
           "Santos Limited",
-          "GLNG"
+          "GLNG",
+          "Barossa",
+          "Cooper Basin",
+          "Narrabri"
         ],
         "require": [
           "Santos Limited",
@@ -353,34 +443,31 @@
           "football",
           "Neymar",
           "Sao Paulo",
-          "Brazil"
+          "Brazil",
+          "Palmeiras"
         ]
       },
       {
-        "name": "Blue Energy",
-        "code": "BLU",
+        "name": "Beach Energy",
+        "code": "BPT",
         "aliases": [
-          "Blue Energy Limited"
+          "Beach Energy Limited",
+          "Waitsia",
+          "Otway",
+          "Bass Basin"
         ],
-        "require": [
-          "Blue Energy Limited",
-          "Bowen Basin",
-          "Sapphire",
-          "Lancewood",
-          "Queensland",
-          "ASX",
-          "Australia",
-          "Australian"
-        ],
+        "require": [],
         "exclude": []
       },
       {
-        "name": "Senex Energy",
-        "code": "",
+        "name": "Amplitude Energy",
+        "code": "AEL",
         "aliases": [
-          "Senex",
-          "Atlas gas",
-          "Roma North"
+          "Amplitude Energy Limited",
+          "Cooper Energy",
+          "Sole",
+          "Athena",
+          "Orbost"
         ],
         "require": [],
         "exclude": []
@@ -390,7 +477,41 @@
         "code": "ORG",
         "aliases": [
           "Origin Energy Limited",
-          "APLNG"
+          "APLNG",
+          "Australia Pacific LNG"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Senex Energy",
+        "code": "",
+        "aliases": [
+          "Senex",
+          "Senex Energy",
+          "Atlas",
+          "Roma North"
+        ],
+        "require": [
+          "Senex",
+          "Atlas",
+          "Roma North",
+          "Surat",
+          "Queensland",
+          "gas",
+          "POSCO",
+          "Hancock"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Arrow Energy",
+        "code": "",
+        "aliases": [
+          "Arrow Energy",
+          "Surat Gas Project",
+          "Daandine",
+          "Tipton"
         ],
         "require": [],
         "exclude": []
@@ -400,11 +521,12 @@
         "code": "",
         "aliases": [
           "QGC",
-          "Arrow Energy"
+          "Queensland Gas Company",
+          "QCLNG",
+          "Curtis Island"
         ],
         "require": [
           "QGC",
-          "Arrow Energy",
           "Queensland",
           "Surat",
           "Curtis Island",
@@ -413,15 +535,252 @@
           "Australian"
         ],
         "exclude": []
+      },
+      {
+        "name": "Australia Pacific LNG",
+        "code": "",
+        "aliases": [
+          "APLNG",
+          "Australia Pacific LNG",
+          "Walloons"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Bridgeport Energy",
+        "code": "",
+        "aliases": [
+          "Bridgeport Energy"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "Cooper Basin",
+          "Queensland",
+          "Surat",
+          "New Hope"
+        ],
+        "exclude": [
+          "Connecticut",
+          "power plant"
+        ]
+      },
+      {
+        "name": "Vintage Energy",
+        "code": "VEN",
+        "aliases": [
+          "Vintage Energy Ltd",
+          "Vali",
+          "Odin",
+          "Nangwarry"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Central Petroleum",
+        "code": "CTP",
+        "aliases": [
+          "Central Petroleum Limited",
+          "Mereenie",
+          "Palm Valley",
+          "Amadeus"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Woodside Energy",
+        "code": "WDS",
+        "aliases": [
+          "Woodside Energy Group",
+          "Scarborough",
+          "North West Shelf",
+          "Pluto"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Strike Energy",
+        "code": "STX",
+        "aliases": [
+          "Strike Energy Limited",
+          "West Erregulla",
+          "South Erregulla",
+          "Walyering"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Tamboran Resources",
+        "code": "TBN",
+        "aliases": [
+          "Tamboran Resources",
+          "Beetaloo",
+          "Shenandoah South",
+          "Sturt Plateau"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Beetaloo Energy Australia",
+        "code": "BTL",
+        "aliases": [
+          "Beetaloo Energy",
+          "Empire Energy",
+          "Carpentaria",
+          "Beetaloo Sub-basin"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Mineral Resources",
+        "code": "MIN",
+        "aliases": [
+          "Mineral Resources Limited",
+          "Lockyer Deep",
+          "Norwest",
+          "Perth Basin gas"
+        ],
+        "require": [
+          "Lockyer Deep",
+          "Perth Basin",
+          "gas",
+          "Norwest",
+          "Erregulla"
+        ],
+        "exclude": [
+          "lithium",
+          "iron ore"
+        ]
+      },
+      {
+        "name": "APA Group",
+        "code": "APA",
+        "aliases": [
+          "APA Group",
+          "South West Queensland Pipeline",
+          "SWQP",
+          "Wallumbilla",
+          "Moomba Sydney Pipeline"
+        ],
+        "require": [
+          "APA Group",
+          "pipeline",
+          "gas",
+          "Wallumbilla",
+          "Queensland",
+          "Australia"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Jemena",
+        "code": "",
+        "aliases": [
+          "Jemena",
+          "SGSP",
+          "Queensland Gas Pipeline",
+          "Northern Gas Pipeline",
+          "Eastern Gas Pipeline"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "Squadron Energy",
+        "code": "",
+        "aliases": [
+          "Squadron Energy",
+          "Port Kembla Energy Terminal",
+          "Tattarang"
+        ],
+        "require": [],
+        "exclude": []
+      },
+      {
+        "name": "AGL Energy",
+        "code": "AGL",
+        "aliases": [
+          "AGL Energy Limited"
+        ],
+        "require": [
+          "AGL Energy",
+          "gas",
+          "contract",
+          "supply",
+          "Australia"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "CleanCo / Stanwell / CS Energy",
+        "code": "",
+        "aliases": [
+          "CleanCo",
+          "Stanwell",
+          "CS Energy",
+          "Kogan Creek"
+        ],
+        "require": [
+          "Queensland",
+          "gas",
+          "generation",
+          "contract",
+          "electricity"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Dyno Nobel",
+        "code": "DNL",
+        "aliases": [
+          "Dyno Nobel",
+          "Incitec Pivot",
+          "Gibson Island",
+          "Phosphate Hill",
+          "Moranbah"
+        ],
+        "require": [
+          "gas",
+          "supply",
+          "contract",
+          "Queensland",
+          "ammonia",
+          "ammonium nitrate"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Orica",
+        "code": "ORI",
+        "aliases": [
+          "Orica Limited",
+          "Yarwun"
+        ],
+        "require": [
+          "gas",
+          "supply",
+          "contract",
+          "ammonium nitrate",
+          "Queensland"
+        ],
+        "exclude": []
       }
     ],
     "topics": [
       {
-        "name": "East Coast Gas Supply",
+        "name": "East coast gas supply",
         "keywords": [
           "east coast gas",
           "gas shortfall",
-          "ADGSM",
+          "supply adequacy",
+          "GSOO",
           "gas market review"
         ],
         "require": [
@@ -434,13 +793,261 @@
         "exclude": []
       },
       {
-        "name": "Queensland Gas Policy",
+        "name": "Domestic gas policy",
         "keywords": [
-          "Queensland gas",
-          "ATP tender",
-          "gas acreage release"
+          "ADGSM",
+          "domestic gas security mechanism",
+          "gas market code",
+          "mandatory code of conduct",
+          "price cap",
+          "gas reservation"
         ],
-        "require": [],
+        "require": [
+          "Australia",
+          "Australian",
+          "Commonwealth",
+          "federal"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Queensland tenure and acreage",
+        "keywords": [
+          "ATP tender",
+          "acreage release",
+          "petroleum lease",
+          "PL grant",
+          "domestic gas condition",
+          "relinquishment"
+        ],
+        "require": [
+          "Queensland",
+          "Qld"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Queensland royalties and budget",
+        "keywords": [
+          "petroleum royalty",
+          "royalty rate",
+          "Queensland budget",
+          "resources royalty"
+        ],
+        "require": [
+          "Queensland",
+          "Qld",
+          "gas",
+          "petroleum"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "CSG water and environment",
+        "keywords": [
+          "associated water",
+          "UWIR",
+          "OGIA",
+          "make good",
+          "EPBC",
+          "water trigger",
+          "environmental authority"
+        ],
+        "require": [
+          "Queensland",
+          "coal seam gas",
+          "CSG",
+          "Australia"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Pipeline capacity and tariffs",
+        "keywords": [
+          "pipeline capacity",
+          "capacity trading",
+          "access arrangement",
+          "pipeline tariff",
+          "SWQP",
+          "compression"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "AER",
+          "gas"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Gas prices and benchmarks",
+        "keywords": [
+          "Wallumbilla",
+          "Gas Supply Hub",
+          "netback",
+          "gas netback price",
+          "JKM",
+          "short term trading market"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "gas"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "LNG exports and spot cargoes",
+        "keywords": [
+          "spot cargo",
+          "LNG export",
+          "uncontracted LNG",
+          "Curtis Island",
+          "Gladstone LNG"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "Queensland"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Gas M&A and farm-ins",
+        "keywords": [
+          "farm-in",
+          "farmout",
+          "joint venture",
+          "scheme of arrangement",
+          "takeover"
+        ],
+        "require": [
+          "gas",
+          "petroleum",
+          "oil",
+          "basin",
+          "ASX",
+          "Australia"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Drilling and services capacity",
+        "keywords": [
+          "rig availability",
+          "drilling rig",
+          "well services",
+          "completion costs",
+          "rig contract"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "gas",
+          "onshore"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Small-cap energy capital markets",
+        "keywords": [
+          "capital raising",
+          "placement",
+          "entitlement offer",
+          "rights issue",
+          "equity raising"
+        ],
+        "require": [
+          "ASX",
+          "energy",
+          "gas",
+          "oil",
+          "explorer",
+          "junior"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Emissions policy",
+        "keywords": [
+          "Safeguard Mechanism",
+          "fugitive emissions",
+          "methane intensity",
+          "MMRV",
+          "ACCU"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "gas",
+          "petroleum"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Land access and native title",
+        "keywords": [
+          "conduct and compensation",
+          "cultural heritage",
+          "native title",
+          "land access",
+          "ILUA"
+        ],
+        "require": [
+          "Queensland",
+          "gas",
+          "petroleum",
+          "resources"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Gas-fired generation",
+        "keywords": [
+          "gas peaker",
+          "peaking plant",
+          "firming capacity",
+          "gas generation",
+          "capacity investment scheme"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "NEM",
+          "Queensland"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "LNG import terminals",
+        "keywords": [
+          "LNG import terminal",
+          "FSRU",
+          "Port Kembla",
+          "regasification"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "east coast"
+        ],
+        "exclude": []
+      },
+      {
+        "name": "Energy policy and politics",
+        "keywords": [
+          "energy policy",
+          "gas strategy",
+          "future gas strategy",
+          "energy minister"
+        ],
+        "require": [
+          "Australia",
+          "Australian",
+          "Queensland",
+          "gas"
+        ],
         "exclude": []
       }
     ],
