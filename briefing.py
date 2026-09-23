@@ -1083,7 +1083,57 @@ def _build_topic_tab_views_with_stories(topics: list[dict], all_stories: dict) -
 </div>"""
 
 
-def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
+def _personal_column(actions: list, status: dict = None) -> str:
+    """
+    Personal Gmail actions, rendered in the Work Actions tab's card style.
+
+    This lives beside the Outlook actions rather than on the Schedule tab
+    because that is where new tasks actually get triaged - the Schedule tab is
+    for the shape of the day, not for intake.
+
+    Always renders something. An empty column that says nothing is
+    indistinguishable from a broken credential, which is exactly the failure
+    this section spent two days hiding.
+    """
+    from urllib.parse import quote
+    status = status or {}
+
+    if not actions:
+        err = (status.get("error") or "").strip()
+        if err:
+            note = "Gmail was not read this run &mdash; " + _html.escape(err)
+        elif status.get("checked"):
+            note = (f"Nothing personal needing action in the last "
+                    f"{status.get('days', 5)} days "
+                    f"({status['checked']} messages checked).")
+        else:
+            note = "Personal inbox not checked this run."
+        return f'<p class="ep-empty">{note}</p>'
+
+    rows = []
+    for a in actions:
+        title  = str(a.get("action", ""))
+        detail = str(a.get("context", ""))
+        who    = _html.escape(str(a.get("from", "")))
+        dl     = str(a.get("deadline", "")).strip()
+        dl_tag = (f'<span class="ep-folder-tag">{_html.escape(dl)}</span>' if dl else "")
+        pri    = (a.get("priority") or "normal").lower()
+        colour = {"high": "#b3261e", "normal": "#8a6d1f"}.get(pri, "#9a968c")
+        link   = ("https://to-do.microsoft.com/tasks/add?title=" + quote(title[:255])
+                  + ("&body=" + quote(detail[:500]) if detail else ""))
+        rows.append(
+            f'<div class="ep-card" style="border-left:3px solid {colour}">'
+            f'<div class="ep-meta">{dl_tag}</div>'
+            f'<div class="ep-subject">{_html.escape(title)}</div>'
+            f'<div class="ep-summary">{_html.escape(detail)}</div>'
+            f'<div class="ep-from" style="margin-top:0.45rem">from {who}</div>'
+            f'<a class="ep-action-tag" style="text-decoration:none;display:inline-block"'
+            f' href="{link}" target="_blank" rel="noopener">&plus; Add to To&nbsp;Do</a>'
+            f'</div>')
+    return "".join(rows)
+
+
+def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', personal_actions: list = None, personal_status: dict = None, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
     """
     Build the Work Actions email tab.
     Two columns: Priority Digest (read-only) | Actions for Today (checkboxes + Push).
@@ -1244,6 +1294,13 @@ const TODO_LIST_ID = TODO_LIST_ID_B64 ? atob(TODO_LIST_ID_B64) : '';
     </section>
     <section>
         <div class="ep-panel-title">
+            \U0001f3e0 Personal
+            <span class="ep-count">{len(personal_actions or [])}</span>
+        </div>
+        {_personal_column(personal_actions or [], personal_status)}
+    </section>
+    <section>
+        <div class="ep-panel-title">
             \U0001f4ca ASX Announcements{_asx_ts}
             <span class="ep-count">{len(_asx_announcements)}</span>
         </div>
@@ -1307,7 +1364,9 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     _lid = todo_list_id or ""
     _lid_encoded = _b64.b64encode(_lid.encode()).decode() if _lid else ""
     todo_list_id_js = _json2.dumps(_lid_encoded)
-    email_tab_html  = _build_email_tab(email_analysis or {}, asx_ann_data=asx_ann_data or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js)
+    email_tab_html  = _build_email_tab(email_analysis or {}, asx_ann_data=asx_ann_data or {}, graph_token_js=graph_token_js, todo_list_id_js=todo_list_id_js,
+                                       personal_actions=personal_actions or [],
+                                       personal_status=personal_status or {})
     # Calendar tab — built from pre-fetched calendar_data dict
     _cal = calendar_data or {}
     calendar_tab_html = _cal.get("_html", "") if _cal else ""
@@ -1339,8 +1398,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                 ranked_tasks or {}, fortnight, _pc,
                 legacy_scheduler_html=schedule_html,
                 briefings=_cal.get("_briefings") or {},
-                personal_actions=personal_actions or [],
-                personal_status=personal_status or {})
+                personal_actions=None,
+                personal_status=None)
             backlog_tab_html  = _srender.build_backlog_tab(ranked_tasks or {})
             backlog_count     = len((ranked_tasks or {}).get("backlog", []))
         except Exception as _e:
@@ -1541,7 +1600,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .tab-active {{ background: var(--accent) !important; color: var(--white) !important; border-color: var(--accent) !important; }}
 
         /* ── EMAIL TAB LAYOUT (mirrors email.html) ── */
-        .email-view {{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 1.5rem; align-items: start; }}
+        .email-view {{ max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; grid-template-columns: 1.3fr 1fr 0.95fr 1fr; gap: 1.4rem; align-items: start; }}
         .ep-panel-title {{ font-family: var(--font-display); font-size: 1rem; font-weight: 700; padding-bottom: 0.5rem; border-bottom: 3px solid var(--ink); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }}
         .ep-count {{ font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }}
         /* email digest cards */
@@ -1575,6 +1634,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .ep-email-link {{ font-size: 0.65rem; font-weight: 700; color: var(--blue, #2980b9);
             text-decoration: none; margin-left: 0.4rem; opacity: 0.75; }}
         .ep-email-link:hover {{ opacity: 1; text-decoration: underline; }}
+        @media (max-width: 1250px) {{ .email-view {{ grid-template-columns: repeat(2, 1fr); }} }}
         @media (max-width: 900px) {{ .email-view {{ grid-template-columns: 1fr; }} }}
 
         /* ── TO DO CHECKBOX CARDS ── */
@@ -1858,7 +1918,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
         {market_btn}
         {topic_tab_btns}
-        <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Work Actions{"" if not email_count else f" ({email_count})"}</button>
+        <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Actions{"" if not email_count else f" ({email_count})"}</button>
         <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
         <button class="tab-btn" onclick="showTab('calendar')" id="tab-calendar">📅 Calendar{"" if not cal_total else f" ({cal_today_count}✦{cal_tmrw_count})"}</button>
         {backlog_btn}

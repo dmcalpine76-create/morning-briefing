@@ -232,6 +232,12 @@ def _build_personal(actions: list, status: dict = None) -> str:
     happened every morning. The section now always states which of the two it
     is.
     """
+    # status is None when the caller does not want this section at all. The
+    # personal actions moved to the Actions tab, where new tasks are triaged;
+    # the Schedule tab asks for nothing and so renders nothing. An explicit {}
+    # still gets the stated-status behaviour.
+    if not actions and status is None:
+        return ""
     status = status or {}
     if not actions:
         err = (status.get("error") or "").strip()
