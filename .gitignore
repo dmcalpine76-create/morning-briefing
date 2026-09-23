@@ -42,3 +42,6 @@ scheduling_plan.json
 *.bak-*
 zip files/
 .git/_claude_junk/
+
+# Personal Gmail extraction output - contains real message content
+.gmail_actions.json

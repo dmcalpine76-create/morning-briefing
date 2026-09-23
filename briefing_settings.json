@@ -241,5 +241,28 @@
       }
     ],
     "overrides": {}
+  },
+  "gmail_personal": {
+    "enabled": true,
+    "lookback_days": 3,
+    "max_messages": 40,
+    "max_actions": 8,
+    "list_name": "Personal Priorities",
+    "ignore_senders": [
+      "noreply",
+      "no-reply",
+      "donotreply",
+      "notifications@",
+      "mailer-daemon",
+      "newsletter",
+      "marketing"
+    ],
+    "ignore_subjects": [
+      "unsubscribe",
+      "your receipt",
+      "order confirmation",
+      "statement is ready",
+      "verify your email"
+    ]
   }
 }
