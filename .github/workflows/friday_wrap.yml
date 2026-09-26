@@ -64,14 +64,6 @@ jobs:
           BRIEFING_SITE_URL: "https://dmcalpine76-create.github.io/morning-briefing"
         run: python weekly_wrap.py
 
-      # The rolling snapshot is published beside gas_history.json and read back
-      # next Friday. keep_files matters: without it this deploy would wipe the
-      # daily briefing's archive off gh-pages.
-      - name: Publish the task snapshot
-        if: success()
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir:  ./wrap_publish
-          publish_branch: gh-pages
-          keep_files: true
+      # The task snapshot is deliberately NOT published to gh-pages: the site
+      # is public and the snapshot contains open task titles. It moves to the
+      # private OneDrive knowledge store when that exists.

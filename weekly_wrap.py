@@ -95,11 +95,14 @@ def save_task_history(hist: dict, tasks: list, now: datetime.datetime) -> None:
                  for t in tasks],
     })
     hist["weeks"] = weeks[-12:]          # a quarter of history is plenty
-    PUBLISH_DIR.mkdir(exist_ok=True)
-    (PUBLISH_DIR / HISTORY_FILE).write_text(
+    # NOT published. gh-pages is public even when the repo is private, and
+    # this file holds open task titles. It is written locally only until the
+    # snapshot moves to the private OneDrive knowledge store; in CI the file
+    # is discarded with the runner, so "what slipped" has no baseline yet.
+    Path(HISTORY_FILE).write_text(
         json.dumps(hist, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"   .  snapshot written ({len(tasks)} open tasks, "
-          f"{len(hist['weeks'])} weeks retained)")
+    print(f"   .  snapshot written locally, not published ({len(tasks)} open "
+          f"tasks, {len(hist['weeks'])} weeks retained)")
 
 
 def _previous_week(hist: dict, now: datetime.datetime):
