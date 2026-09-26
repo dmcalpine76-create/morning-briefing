@@ -14,7 +14,7 @@ on:
 jobs:
   wrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -52,4 +52,20 @@ jobs:
           BRIEFING_EMAIL_TO:    ${{ secrets.BRIEFING_EMAIL_TO }}
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
           CI: "true"
+          GOOGLE_CAL_ICS_URL:   ${{ secrets.GOOGLE_CAL_ICS_URL }}
+          # Where task_history.json is fetched back from, so "what slipped"
+          # can compare against last Friday rather than guessing from age.
+          BRIEFING_SITE_URL: "https://dmcalpine76-create.github.io/morning-briefing"
         run: python weekly_wrap.py
+
+      # The rolling snapshot is published beside gas_history.json and read back
+      # next Friday. keep_files matters: without it this deploy would wipe the
+      # daily briefing's archive off gh-pages.
+      - name: Publish the task snapshot
+        if: success()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir:  ./wrap_publish
+          publish_branch: gh-pages
+          keep_files: true
