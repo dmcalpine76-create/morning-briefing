@@ -11,6 +11,12 @@ on:
     - cron: "30 6 * * 5"        # 06:30 UTC Friday = 16:30 AEST Friday
   workflow_dispatch: {}
 
+# The snapshot publish step pushes to gh-pages, so the job's GITHUB_TOKEN
+# needs write access. Without this the default token is read-only and the
+# push comes back 403 - which is exactly what happened on the first run.
+permissions:
+  contents: write
+
 jobs:
   wrap:
     runs-on: ubuntu-latest
