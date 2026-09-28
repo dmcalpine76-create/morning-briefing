@@ -273,6 +273,26 @@ def analyse_emails(client: anthropic.Anthropic, emails: list) -> dict:
     emails_text = "\n\n".join(_fmt(e, i) for i, e in enumerate(emails))
     today = datetime.date.today().strftime("%A %d %B %Y")
 
+    # Company knowledge from the shared store (inbox_actions, Sunday plan,
+    # board tools). Best-effort: "" if unreachable, and the prompt is unchanged.
+    knowledge = ""
+    try:
+        import knowledge_store
+        knowledge = knowledge_store.email_context([e.get("from_email", "") for e in emails])
+    except Exception:
+        knowledge = ""
+    if knowledge:
+        print("   📚  Company knowledge loaded for triage")
+    knowledge_block = (
+        "\nCOMPANY KNOWLEDGE - use this to judge what matters: rank email on live "
+        "matters and from the people involved in them above routine mail, use the "
+        "'watch for' notes to spot the replies being waited on, and name the matter "
+        "in the summary when an email belongs to one. If a dated obligation below "
+        "falls in the next 7 days and no email covers it, add it as an action. "
+        "Do not invent anything the emails and knowledge don't say.\n"
+        + knowledge + "\n"
+    ) if knowledge else ""
+
     prompt = f"""You are a sharp executive assistant. Today is {today}.
 You have {len(emails)} emails from the last 24 hours (received + sent).
 Return a JSON object with exactly three keys: "digest", "actions", "people".
@@ -292,7 +312,7 @@ reason (1-2 sentences), suggested_timing, context (which email).
 
 Deprioritise: newsletters, automated alerts, marketing, read receipts.
 Return ONLY the JSON object — no markdown, no extra text.
-
+{knowledge_block}
 EMAILS:
 {emails_text}
 """

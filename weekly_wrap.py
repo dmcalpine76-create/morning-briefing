@@ -65,7 +65,20 @@ RED, AMBER, GREEN = "#b3261e", "#8a6d1f", "#1e7d32"
 # same trick the daily briefing uses for the gas price sparkline. Without it
 # "what slipped" can only ever mean "what looks old", which is a weaker claim.
 
+STORE_HISTORY = "snapshots/friday_task_history.json"
+
+
 def load_task_history() -> dict:
+    # The shared knowledge store (private OneDrive) is the home of the
+    # snapshot now; the public site is only an old fallback.
+    try:
+        import knowledge_store
+        h = knowledge_store.read_json(STORE_HISTORY)
+        if h and h.get("weeks"):
+            print(f"   .  task history from the knowledge store ({len(h['weeks'])} weeks)")
+            return h
+    except Exception:
+        pass
     try:
         r = requests.get(f"{SITE_URL}/{HISTORY_FILE}", timeout=15)
         if r.ok:
@@ -101,8 +114,14 @@ def save_task_history(hist: dict, tasks: list, now: datetime.datetime) -> None:
     # is discarded with the runner, so "what slipped" has no baseline yet.
     Path(HISTORY_FILE).write_text(
         json.dumps(hist, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"   .  snapshot written locally, not published ({len(tasks)} open "
-          f"tasks, {len(hist['weeks'])} weeks retained)")
+    saved = False
+    try:
+        import knowledge_store
+        saved = knowledge_store.write_json(STORE_HISTORY, hist)
+    except Exception:
+        saved = False
+    print(f"   .  snapshot saved to {'the knowledge store' if saved else 'this run only'} "
+          f"({len(tasks)} open tasks, {len(hist['weeks'])} weeks retained)")
 
 
 def _previous_week(hist: dict, now: datetime.datetime):
@@ -275,6 +294,18 @@ def deadline_radar(tasks: list, fortnight: dict,
             found.append({"when": e["start_dt"].date(), "what": subject,
                           "why": hits[0], "src": "calendar"})
 
+    # Dated obligations the knowledge store has picked up from email and
+    # board work (tenure expiries, lodgements, payments) that may not be in
+    # To Do or the diary.
+    try:
+        import knowledge_store
+        for d in knowledge_store.deadlines(horizon):
+            found.append({"when": d["when"], "what": d.get("title", ""),
+                          "why": d.get("kind") or "knowledge store",
+                          "src": "knowledge store"})
+    except Exception:
+        pass
+
     seen, out = set(), []
     for f in sorted(found, key=lambda x: (x["when"] is None,
                                           x["when"] or datetime.date.max)):
@@ -282,7 +313,7 @@ def deadline_radar(tasks: list, fortnight: dict,
         if key and key not in seen:
             seen.add(key)
             out.append(f)
-    return out[:10]
+    return out[:12]
 
 
 # ── synthesis ────────────────────────────────────────────────────────────────
