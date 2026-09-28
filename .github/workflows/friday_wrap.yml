@@ -59,6 +59,8 @@ jobs:
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
           CI: "true"
           GOOGLE_CAL_ICS_URL:   ${{ secrets.GOOGLE_CAL_ICS_URL }}
+          GOOGLE_CAL_ICS_URL_2: ${{ secrets.GOOGLE_CAL_ICS_URL_2 }}
+          GOOGLE_CAL_ICS_URL_3: ${{ secrets.GOOGLE_CAL_ICS_URL_3 }}
           # Where task_history.json is fetched back from, so "what slipped"
           # can compare against last Friday rather than guessing from age.
           BRIEFING_SITE_URL: "https://dmcalpine76-create.github.io/morning-briefing"

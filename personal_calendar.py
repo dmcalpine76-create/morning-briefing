@@ -25,6 +25,7 @@ Self-test:
 import os
 import sys
 import json
+import re
 import datetime
 from pathlib import Path
 
@@ -158,74 +159,122 @@ def _to_event(comp, start_raw, end_raw, cfg) -> dict:
     }
 
 
-def fetch_personal_events(days_ahead: int = 14, ics_text: str = None) -> dict:
+def feed_urls() -> list:
     """
-    Returns {"events": [event_dict, ...], "error": None | str}
+    Every personal calendar feed to read.
 
-    Events run from the start of today to start_of_today + days_ahead,
-    with recurring series expanded into concrete instances.
-    Pass ics_text to parse a feed you already have (used by --test).
+    A Google secret iCal address covers exactly ONE calendar - there is no
+    combined feed. Doug's primary calendar carries about 13 events a
+    fortnight; the McAlpine Family Calendar carries 19 more, and none of them
+    reached the briefing while only one URL was configured. So the setting
+    takes a list.
+
+    GOOGLE_CAL_ICS_URL may hold several URLs separated by commas, semicolons
+    or newlines, and GOOGLE_CAL_ICS_URL_2 upwards are read as well so a second
+    feed can be added without touching the first.
     """
-    cfg = _load_cfg()
-    if not cfg.get("enabled", True):
-        return {"events": [], "error": None}
+    raw = os.environ.get("GOOGLE_CAL_ICS_URL", "") or ""
+    urls = [u.strip() for u in re.split(r"[,;\s]+", raw) if u.strip().startswith("http")]
+    for n in range(2, 8):
+        extra = (os.environ.get(f"GOOGLE_CAL_ICS_URL_{n}", "") or "").strip()
+        if extra.startswith("http"):
+            urls.append(extra)
+    return list(dict.fromkeys(urls))
 
-    try:
-        import icalendar
-        import recurring_ical_events
-    except ImportError:
-        return {"events": [], "error": _MISSING_LIBS_HINT}
 
-    if ics_text is None:
-        url = os.environ.get("GOOGLE_CAL_ICS_URL", "").strip()
-        if not url:
-            return {"events": [], "error":
-                    "GOOGLE_CAL_ICS_URL not set — personal calendar skipped"}
-        try:
-            resp = requests.get(url, timeout=REQUEST_TIMEOUT)
-            resp.raise_for_status()
-            ics_text = resp.text
-        except Exception as e:
-            return {"events": [], "error": f"could not fetch personal calendar: {e}"}
-
+def _expand(ics_text: str, cfg: dict, today_start, window_end) -> tuple:
+    """Parse one feed. Returns (events, error)."""
+    import icalendar
+    import recurring_ical_events
     try:
         cal = icalendar.Calendar.from_ical(ics_text)
     except Exception as e:
-        return {"events": [], "error": f"could not parse personal calendar: {e}"}
-
-    now         = datetime.datetime.now(AEST_OFFSET)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    window_end  = today_start + datetime.timedelta(days=days_ahead)
-
+        return [], f"could not parse a personal calendar feed: {e}"
     try:
-        # Expands RRULE series and honours EXDATE cancellations and
-        # RECURRENCE-ID overrides for moved instances.
         occurrences = recurring_ical_events.of(cal).between(today_start, window_end)
     except Exception as e:
-        return {"events": [], "error": f"could not expand recurring events: {e}"}
+        return [], f"could not expand recurring events: {e}"
 
-    events = []
+    out = []
     for comp in occurrences:
         try:
             start_raw = comp.get("DTSTART").dt
-            end_prop  = comp.get("DTEND")
+            end_prop = comp.get("DTEND")
             if end_prop is not None:
                 end_raw = end_prop.dt
             elif isinstance(start_raw, datetime.datetime):
                 end_raw = start_raw + datetime.timedelta(hours=1)
             else:
                 end_raw = start_raw + datetime.timedelta(days=1)
-
-            status = str(comp.get("STATUS", "") or "").upper()
-            if status == "CANCELLED":
+            if str(comp.get("STATUS", "") or "").upper() == "CANCELLED":
                 continue
-
-            events.append(_to_event(comp, start_raw, end_raw, cfg))
+            out.append(_to_event(comp, start_raw, end_raw, cfg))
         except Exception as e:
             print(f"  WARNING: skipped a personal event: {e}")
+    return out, None
 
-    events.sort(key=lambda e: e["start_dt"])
-    return {"events": events, "error": None}
+
+def fetch_personal_events(days_ahead: int = 14, ics_text: str = None) -> dict:
+    """
+    Returns {"events": [event_dict, ...], "error": None | str}
+
+    Events run from the start of today to start_of_today + days_ahead, with
+    recurring series expanded into concrete instances. Reads every feed in
+    feed_urls() and merges them; pass ics_text to parse a feed you already
+    have (used by --test).
+    """
+    cfg = _load_cfg()
+    if not cfg.get("enabled", True):
+        return {"events": [], "error": None}
+
+    try:
+        import icalendar          # noqa: F401
+        import recurring_ical_events  # noqa: F401
+    except ImportError:
+        return {"events": [], "error": _MISSING_LIBS_HINT}
+
+    now         = datetime.datetime.now(AEST_OFFSET)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    window_end  = today_start + datetime.timedelta(days=days_ahead)
+
+    texts, errors = [], []
+    if ics_text is not None:
+        texts.append(("(supplied)", ics_text))
+    else:
+        urls = feed_urls()
+        if not urls:
+            return {"events": [], "error":
+                    "GOOGLE_CAL_ICS_URL not set - personal calendar skipped"}
+        for i, url in enumerate(urls, 1):
+            try:
+                resp = requests.get(url, timeout=REQUEST_TIMEOUT)
+                resp.raise_for_status()
+                texts.append((f"feed {i}", resp.text))
+            except Exception as e:
+                errors.append(f"feed {i} unreachable: {e}")
+
+    merged, seen = [], set()
+    for label, text in texts:
+        evs, err = _expand(text, cfg, today_start, window_end)
+        if err:
+            errors.append(f"{label}: {err}")
+            continue
+        kept = 0
+        for e in evs:
+            # The same event can sit on two calendars; keep the first.
+            key = ((e.get("subject") or "").strip().lower(),
+                   e["start_dt"], e["end_dt"])
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(e)
+            kept += 1
+        print(f"   .  personal {label}: {kept} event(s)")
+
+    merged.sort(key=lambda e: e["start_dt"])
+    # Feeds that failed are reported, but one bad feed never costs the others.
+    return {"events": merged, "error": "; ".join(errors) if errors and not merged
+                                       else ("; ".join(errors) or None)}
 
 
 # ── self-test ────────────────────────────────────────────────────────────────

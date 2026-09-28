@@ -103,6 +103,8 @@ jobs:
           # Personal Google calendar (private iCal feed). Without this the
           # scheduled briefings show work commitments only.
           GOOGLE_CAL_ICS_URL:   ${{ secrets.GOOGLE_CAL_ICS_URL }}
+          GOOGLE_CAL_ICS_URL_2: ${{ secrets.GOOGLE_CAL_ICS_URL_2 }}
+          GOOGLE_CAL_ICS_URL_3: ${{ secrets.GOOGLE_CAL_ICS_URL_3 }}
           # Personal Gmail inbox (IMAP app password). Without these two the
           # scheduled runs read no personal inbox at all - which is what was
           # happening: the Personal section simply did not appear and nothing
