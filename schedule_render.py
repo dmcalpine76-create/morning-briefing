@@ -16,6 +16,7 @@ Self-test:
 """
 
 import html as _html
+import os
 import datetime
 
 AEST_OFFSET = datetime.timezone(datetime.timedelta(hours=10))
@@ -182,6 +183,53 @@ def build_css() -> str:
 .bk-age { font-size:.6rem; color:#8c887b; white-space:nowrap; }
 .bk-lead { font-size:.78rem; color:#5c5a52; line-height:1.5; margin-bottom:1rem;
            background:#fff; border:1px solid #e4e1d8; border-radius:9px; padding:.7rem .9rem; }
+
+/* ── calendar: a fortnight across, hours down the side ── */
+.cg-wrap{max-width:1560px;margin:0 auto;padding:1.1rem 1rem 2.4rem}
+.cg-legend{display:flex;flex-wrap:wrap;gap:.85rem;margin-bottom:.8rem;font-size:.63rem;color:#3d3a34}
+.cg-lg{display:flex;align-items:center;gap:.3rem}
+.cg-lg i{width:10px;height:10px;border-radius:2px;display:block;flex:0 0 auto}
+.cg-lg-note{color:#8c887b}
+.cg-lg-g{background:#fff;border:1px solid #e4e1d8}
+.cg-adrow{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin-bottom:.7rem;
+  font-size:.66rem}
+.cg-adlbl{font-size:.55rem;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:#8c887b;margin-right:.2rem}
+.cg-ad{background:#fff;border:1px solid #e4e1d8;border-radius:3px;padding:.15rem .4rem}
+.cg-panel{background:#fff;border:1px solid #e4e1d8;border-radius:8px;padding:.7rem .8rem 1rem;
+  overflow-x:auto}
+.cg-grid{display:grid;grid-template-columns:46px repeat(14,minmax(64px,1fr));gap:0 3px;
+  min-width:1080px}
+.cg-dh{padding:0 0 .4rem;border-bottom:1px solid #e4e1d8}
+.cg-dh.cg-wknd{opacity:.5}
+.cg-dh.cg-today .cg-dnum{background:#1a1a17;color:#fff;border-radius:4px;padding:0 .28rem}
+.cg-wkstart{border-left:1px solid #e4e1d8}
+.cg-dh.cg-wkstart{padding-left:4px}
+.cg-dow{font-size:.55rem;font-weight:700;letter-spacing:.09em;color:#8c887b}
+.cg-dnum{font-size:.86rem;font-weight:600;display:inline-block;line-height:1.3}
+.cg-meter{height:5px;background:#f0ede4;border-radius:3px;overflow:hidden;margin:.2rem 0 .14rem}
+.cg-fill{height:100%;background:#1a3a5c;border-radius:3px}
+.cg-fill.cg-over{background:#b3261e}
+.cg-mnum{font-size:.52rem;color:#3d3a34;font-weight:600;line-height:1.25}
+.cg-free{color:#8c887b;font-weight:400}
+.cg-ax{position:relative}
+.cg-hr{height:30px;border-top:1px solid #f0ede4;position:relative}
+.cg-hr span{position:absolute;top:-6px;right:5px;font-size:.54rem;color:#8c887b}
+.cg-col{position:relative;border-left:1px solid #f0ede4;
+  background:repeating-linear-gradient(to bottom,transparent 0,transparent 29px,
+    #f0ede4 29px,#f0ede4 30px)}
+.cg-col.cg-wknd{background-color:#faf8f3}
+.cg-blk{position:absolute;left:1px;right:1px;border-radius:4px;padding:1px 4px;color:#fff;
+  overflow:hidden;display:flex;flex-direction:column;justify-content:center;
+  box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.cg-tag{font-size:.47rem;font-weight:700;letter-spacing:.09em;opacity:.72;line-height:1.1}
+.cg-ttl{font-size:.55rem;font-weight:600;line-height:1.15;overflow:hidden}
+.cg-tm{font-size:.49rem;opacity:.72;line-height:1.2}
+.cg-src{font-size:.45rem;opacity:.65}
+.cg-now{position:absolute;left:-1px;right:-1px;height:2px;background:#b3261e;z-index:3}
+.cg-now:before{content:'';position:absolute;left:-3px;top:-2px;width:6px;height:6px;
+  border-radius:50%;background:#b3261e}
+@media(max-width:900px){.cg-grid{min-width:1080px}}
 </style>
 """
 
@@ -574,119 +622,165 @@ def _build_rail(events: list, now: datetime.datetime) -> str:
 
 # ── Calendar tab (swimlanes) ─────────────────────────────────────────────────
 
+# ── calendar grid constants ──────────────────────────────────────────────────
+# The nominal working day the booked/free split is measured against. Personal
+# commitments are drawn on the grid but excluded from booked - they are Doug's
+# own time, not work capacity, and counting them made every day look full.
+NOMINAL_DAY_H = 9.0
+WORK_START_H  = 7
+WORK_END_H    = 18
+CG_ROW        = 30          # pixels per hour
+
+# "%#d" (no-pad day) is Windows-only; Linux (GitHub Actions) uses "%-d".
+DAYFMT = "%#d" if os.name == "nt" else "%-d"
+
+
+def _num(x: float) -> str:
+    """5.0 -> 5, 5.5 -> 5.5 - hours read badly with a trailing zero."""
+    return f"{x:g}"
+
+
+def _clock(dt) -> str:
+    return dt.strftime("%I:%M%p").lstrip("0").replace(":00", "").lower()
+
+
 def build_calendar_tab(cal: dict, now: datetime.datetime = None) -> str:
+    """
+    A fortnight across, time down the side.
+
+    Replaces the lane-per-row swimlanes. Those spent vertical space repeating
+    what the block colour already said and told you nothing about WHEN in the
+    day anything sat. Rows are now hours, so the shape of a day is visible.
+
+    Losing the lane rows means losing the lane labels, and colour cannot carry
+    six lanes on its own - Internal and Travel sit at deltaE 5.2 for normal
+    colour vision, Personal and Travel at 4.3 under deuteranopia. So every
+    block keeps a three-letter lane tag and there is a legend. Colour
+    reinforces; it does not encode alone.
+
+    The day header reports time BOOKED against a nominal 9-hour day, with the
+    remainder as free. Personal commitments are drawn but deliberately not
+    counted - they are Doug's own time, not work capacity.
+    """
     now    = now or datetime.datetime.now(AEST_OFFSET)
     today  = now.date()
     days   = (cal or {}).get("days", [])[:14]
     if not days:
-        return '<div class="cw-wrap"><p>No calendar data available.</p></div>'
-    load   = (cal or {}).get("load", {})
+        return '<div class="cg-wrap"><p>No calendar data available.</p></div>'
     lanes  = (cal or {}).get("lanes", [])
-    events = (cal or {}).get("events", [])
-    index  = {d: i for i, d in enumerate(days)}
-    maxload = max(list(load.values()) + [1])
+    events = [e for e in (cal or {}).get("events", []) if not e.get("is_all_day")]
+    allday = [e for e in (cal or {}).get("events", []) if e.get("is_all_day")]
 
-    # headers
-    hdr = ['<div class="cw-lane-lbl"></div>']
+    lane_of = {l.get("id"): l for l in lanes}
+
+    def tag_for(lane_id: str) -> str:
+        name = (lane_of.get(lane_id, {}).get("name") or lane_id or "?")
+        word = name.replace("&", " ").split()
+        return (word[0][:3] if word else "?").upper()
+
+    def colour_for(lane_id: str) -> str:
+        return lane_of.get(lane_id, {}).get("color", "#8c887b")
+
+    # ── vertical extent: the real day, not a fixed window ────────────────────
+    starts = [e["start_dt"].hour + e["start_dt"].minute / 60 for e in events]
+    ends   = [e["end_dt"].hour + e["end_dt"].minute / 60 for e in events]
+    lo = int(min(starts + [WORK_START_H]))
+    hi = int(min(24, max(ends + [WORK_END_H]) + 0.99))
+    if hi <= lo:
+        hi = lo + 1
+    rows = hi - lo
+
+    # ── header row ───────────────────────────────────────────────────────────
+    heads = ['<div class="cg-axhead"></div>']
     for d in days:
-        k = "cw-hdr"
+        wknd = d.weekday() >= 5
+        booked = sum(
+            (e.get("in_hours_mins", 0) or 0) for e in events
+            if e["start_dt"].date() == d and e.get("counts_capacity")) / 60.0
+        booked = round(booked, 1)
+        free = round(max(0.0, NOMINAL_DAY_H - booked), 1)
+        over = booked > NOMINAL_DAY_H
+        pct = min(100, int(100 * booked / NOMINAL_DAY_H)) if NOMINAL_DAY_H else 0
+        cls = "cg-dh"
+        if wknd:
+            cls += " cg-wknd"
         if d == today:
-            k += " is-today"
-        if d.weekday() >= 5:
-            k += " is-wknd"
-        try:
-            label = d.strftime("%d %b") if d.day == 1 else d.strftime("%d")
-        except Exception:
-            label = str(d.day)
-        hdr.append(f'<div class="{k}"><div class="cw-hdr-d">{d.strftime("%a").upper()}</div>'
-                   f'<div class="cw-hdr-n">{label}</div></div>')
+            cls += " cg-today"
+        if d.weekday() == 0:
+            cls += " cg-wkstart"
+        if wknd:
+            meter = ""
+        else:
+            tail = (f"over by {_num(booked - NOMINAL_DAY_H)}h" if over
+                    else f"{_num(free)}h free")
+            meter = (f'<div class="cg-meter"><div class="cg-fill'
+                     f'{" cg-over" if over else ""}" style="width:{pct}%"></div></div>'
+                     f'<div class="cg-mnum">{_num(booked)}h booked'
+                     f'<span class="cg-free"> &middot; {tail}</span></div>')
+        heads.append(f'<div class="{cls}"><div class="cg-dow">{d.strftime("%a").upper()}</div>'
+                     f'<div class="cg-dnum">{d.day}</div>{meter}</div>')
 
-    # load strip
-    lrow = ['<div class="cw-lane-lbl"><span class="cw-lane-name">Hours<br>booked</span></div>']
+    # ── hour axis + day columns ──────────────────────────────────────────────
+    axis = "".join(
+        f'<div class="cg-hr"><span>{(h % 12) or 12}{"am" if h < 12 else "pm"}</span></div>'
+        for h in range(lo, hi))
+    body = [f'<div class="cg-ax" style="height:{rows * CG_ROW}px">{axis}</div>']
+
     for d in days:
-        mins = load.get(d, 0)
-        hgt  = max(int(30 * mins / maxload), 2) if mins else 2
-        col  = RED if mins >= 420 else (AMBER if mins >= 300 else ("#a7b0b9" if mins else "#dad6c9"))
-        wknd = " cw-cell-wknd" if d.weekday() >= 5 else ""
-        lrow.append(f'<div class="cw-load{wknd}"><div class="cw-load-bar" '
-                    f'style="height:{hgt}px;background:{col}"></div>'
-                    f'<span class="cw-load-n">{(mins/60):.1f}</span></div>')
+        blocks = ""
+        for e in sorted([x for x in events if x["start_dt"].date() == d],
+                        key=lambda x: x["start_dt"]):
+            sh = e["start_dt"].hour + e["start_dt"].minute / 60
+            eh = e["end_dt"].hour + e["end_dt"].minute / 60
+            top = max(0, (sh - lo) * CG_ROW)
+            hgt = max(15, min((eh - sh) * CG_ROW - 2, rows * CG_ROW - top))
+            colour = colour_for(e.get("lane_id"))
+            src = ' <span class="cg-src">G</span>' if e.get("source") == "personal" else ""
+            when = f'{_clock(e["start_dt"])}&ndash;{_clock(e["end_dt"])}'
+            title = esc(e.get("subject", ""))
+            tall = hgt >= 32
+            blocks += (
+                f'<div class="cg-blk" style="top:{top}px;height:{hgt}px;background:{colour}" '
+                f'title="{title} &mdash; {esc(lane_of.get(e.get("lane_id"), {}).get("name", ""))} '
+                f'&mdash; {when}">'
+                f'<span class="cg-tag">{tag_for(e.get("lane_id"))}</span>'
+                f'<span class="cg-ttl">{title}</span>{src}'
+                + (f'<span class="cg-tm">{when}</span>' if tall else "")
+                + '</div>')
+        nowline = ""
+        if d == today:
+            nh = now.hour + now.minute / 60
+            if lo <= nh <= hi:
+                nowline = f'<div class="cg-now" style="top:{(nh - lo) * CG_ROW}px"></div>'
+        cls = "cg-col"
+        if d.weekday() >= 5:
+            cls += " cg-wknd"
+        if d.weekday() == 0:
+            cls += " cg-wkstart"
+        body.append(f'<div class="{cls}" style="height:{rows * CG_ROW}px">{blocks}{nowline}</div>')
 
-    # lanes
-    lane_rows = []
-    for lane in lanes:
-        lane_events = [e for e in events if e.get("lane_id") == lane.get("id")]
-        if not lane_events:
-            continue
-        placed, bars = [], []
-        for e in sorted(lane_events, key=lambda x: x["start_dt"]):
-            s = e["start_dt"].date()
-            en = e["end_dt"].date() if e.get("end_dt") else s
-            if s not in index and en < days[0]:
-                continue
-            c0 = index.get(max(s, days[0]))
-            c1 = index.get(min(en, days[-1]))
-            if c0 is None:
-                continue
-            if c1 is None:
-                c1 = len(days) - 1
-            span = max(c1 - c0 + 1, 1)
-            row = 1
-            while any(r == row and not (c1 < a or c0 > b) for r, a, b in placed):
-                row += 1
-            placed.append((row, c0, c1))
-            col = lane.get("color", "#8c887b")
-            solid = e.get("counts_capacity") and not e.get("is_all_day")
-            style = (f"background:{col};color:#fff;border:1px solid {col}" if solid
-                     else f"background:{col}14;color:{col};border:1px solid {col}")
-            if lane.get("id") == "unfiled":
-                style = f"background:#fafaf7;color:#5c5a52;border:1px dashed #8c887b"
-            label = e["subject"] if e.get("is_all_day") else f'{e["start_time"]} {e["subject"]}'
-            bars.append(f'<div class="cw-bar" style="grid-row:{row};'
-                        f'grid-column:{c0+1} / span {span};{style}" '
-                        f'title="{esc(e["subject"])}">{esc(label)}</div>')
-        sub = "google calendar" if lane.get("id") == "personal" else (
-              "click to assign" if lane.get("id") == "unfiled" else
-              f"{len(lane_events)} event" + ("s" if len(lane_events) != 1 else ""))
-        sub_html = ('<br><span class="cw-lane-sub">' + esc(sub) + '</span>') if sub else ""
-        lane_rows.append(
-            f'<div class="cw-row cw-sep">'
-            f'<div class="cw-lane-lbl"><i style="background:{lane.get("color","#8c887b")}"></i>'
-            f'<span class="cw-lane-name">{esc(lane.get("name"))}{sub_html}</span></div>'
-            f'<div class="cw-lane-track">{"".join(bars)}</div></div>')
+    legend = "".join(
+        f'<span class="cg-lg"><i style="background:{l.get("color", "#8c887b")}"></i>'
+        f'{esc(l.get("name", ""))}</span>' for l in lanes)
+    if any(e.get("source") == "personal" for e in events):
+        legend += ('<span class="cg-lg cg-lg-note"><i class="cg-lg-g"></i>'
+                   'G = personal, not counted in booked hours</span>')
 
-    # read-outs
-    busiest = max(days, key=lambda d: load.get(d, 0))
-    work_days = [d for d in days if d.weekday() < 5]
-    quiet = sorted(work_days, key=lambda d: load.get(d, 0))[:2]
-    unfiled_n = len([e for e in events if e.get("lane_id") == "unfiled"])
-    readout = (
-        f'<div class="cw-readout">'
-        f'<div class="cw-card"><div class="cw-card-h">Heaviest day</div><div class="cw-card-b">'
-        f'<b style="color:{RED}">{busiest.strftime("%a %d %b")}</b> &mdash; '
-        f'{(load.get(busiest,0)/60):.1f} hours committed.</div></div>'
-        f'<div class="cw-card"><div class="cw-card-h">Clearest weekdays</div><div class="cw-card-b">'
-        f'<b style="color:{GREEN}">{" and ".join(d.strftime("%a %d %b") for d in quiet)}</b> &mdash; '
-        f'{sum(load.get(d,0) for d in quiet)/60:.1f} hours between them.</div></div>'
-        f'<div class="cw-card"><div class="cw-card-h">Unfiled</div><div class="cw-card-b">'
-        f'{unfiled_n} event{"s" if unfiled_n != 1 else ""} matched no lane rule'
-        f'{" &mdash; add a keyword or override in settings." if unfiled_n else "."}</div></div>'
-        f'</div>')
+    # All-day items have no place on an hour grid, but dropping them silently
+    # would hide a whole day of leave or travel.
+    allday_html = ""
+    if allday:
+        chips = "".join(
+            f'<span class="cg-ad" style="border-left:3px solid '
+            f'{colour_for(a.get("lane_id"))}">{a["start_dt"].strftime("%a " + DAYFMT)} '
+            f'&middot; {esc(a.get("subject", ""))}</span>' for a in allday[:8])
+        allday_html = f'<div class="cg-adrow"><span class="cg-adlbl">All day</span>{chips}</div>'
 
-    return f"""<div class="cw-wrap">
-<div class="sx-head"><div><h2 class="sx-title">Calendar &mdash; next fortnight</h2>
-  <div class="sx-sum">{days[0].strftime("%a %d %b")} &ndash; {days[-1].strftime("%a %d %b")} &middot;
-    {len(events)} commitments &middot; Outlook + personal</div></div></div>
-<div class="cw-scroll"><div class="cw-panel">
-  <div class="cw-row">{''.join(hdr)}</div>
-  <div class="cw-row cw-sep">{''.join(lrow)}</div>
-  {''.join(lane_rows)}
-</div></div>
-{readout}
-</div>"""
-
-
-# ── Backlog tab ──────────────────────────────────────────────────────────────
+    return (f'<div class="cg-wrap"><div class="cg-legend">{legend}</div>'
+            f'{allday_html}'
+            f'<div class="cg-panel"><div class="cg-grid">'
+            + "".join(heads) + "".join(body) +
+            '</div></div></div>')
 
 def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
     now = now or datetime.datetime.now(AEST_OFFSET)

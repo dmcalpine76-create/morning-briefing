@@ -140,7 +140,7 @@
     "enabled": true,
     "lane": "Personal",
     "show_titles": true,
-    "count_capacity": true,
+    "count_capacity": false,
     "work_day_start": "07:00",
     "work_day_end": "18:00",
     "work_days": [
