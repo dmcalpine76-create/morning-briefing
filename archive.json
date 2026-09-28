@@ -1,6 +1,11 @@
 {
  "items": [
   {
+   "date": "2026-09-29",
+   "label": "Tuesday 29 September 2026",
+   "file": "briefing_2026-09-29.html"
+  },
+  {
    "date": "2026-09-28",
    "label": "Monday 28 September 2026",
    "file": "briefing_2026-09-28.html"
@@ -144,11 +149,6 @@
    "date": "2026-08-20",
    "label": "Thursday 20 August 2026",
    "file": "briefing_2026-08-20.html"
-  },
-  {
-   "date": "2026-08-19",
-   "label": "Wednesday 19 August 2026",
-   "file": "briefing_2026-08-19.html"
   }
  ]
 }
