@@ -73,11 +73,14 @@ def build_css() -> str:
 .sx-meta { font-size:.62rem; color:#5c5a52; margin-top:.35rem; }
 .sx-verdict { font-size:.6rem; font-weight:700; line-height:1.2; margin-top:.25rem; min-height:1.1em; }
 
-.sx-cols { display:flex; gap:1.1rem; align-items:flex-start; }
-.sx-main { flex:1 1 auto; min-width:0; }
-.sx-side { flex:0 0 300px; min-width:0; }
-@media (max-width:1180px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 280px;}
-                           .sx-main{flex:1 1 100%;order:3;} }
+.sx-cols { display:flex; gap:1rem; align-items:flex-start; }
+.sx-main { flex:1 1 300px; min-width:0; }
+.sx-side { flex:0 0 250px; min-width:0; }
+.sx-brief-day { font-size:.58rem; letter-spacing:.12em; text-transform:uppercase;
+                font-weight:700; color:#8c887b; margin:.9rem 0 .45rem;
+                padding-top:.6rem; border-top:1px solid #e4e1d8; }
+@media (max-width:1400px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 250px;}
+                           .sx-main{flex:1 1 100%;order:4;} }
 @media (max-width:900px){ .sx-cols{flex-direction:column;} .sx-side{flex:1 1 auto;width:100%;}
                           .sx-cap-row{overflow-x:auto;} .sx-day{min-width:88px;} }
 
@@ -473,13 +476,33 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
                 f'<span class="sx-note">{note}</span></div>'
                 f'{_build_rail(evts, now, day)}'
                 f'{_after_hours(evts)}'
-                f'{_build_briefings(evts, briefings)}'
                 f'</div>')
 
     today_col = _day_column(today, "Today")
-    nxt_col = _day_column(nxt, "Tomorrow"
-                          if nxt == today + datetime.timedelta(days=1)
-                          else nxt.strftime("%A"))
+    nxt_label = ("Tomorrow" if nxt == today + datetime.timedelta(days=1)
+                 else nxt.strftime("%A"))
+    nxt_col = _day_column(nxt, nxt_label)
+
+    # Meeting prep gets its own column rather than hanging off each rail, so
+    # both days' briefings sit in one place instead of being split across two.
+    brief_today = _build_briefings(by_day.get(today, []), briefings, True)
+    brief_nxt   = _build_briefings(by_day.get(nxt, []), briefings, True)
+    if brief_today or brief_nxt:
+        parts = []
+        if brief_today:
+            parts.append(brief_today)
+        if brief_nxt:
+            parts.append(
+                f'<div class="sx-brief-day">{esc(nxt_label)} &middot; '
+                f'{esc(nxt.strftime("%a %d %b"))}</div>{brief_nxt}')
+        n_cards = (brief_today + brief_nxt).count("sx-brief-card")
+        brief_col = (
+            f'<div class="sx-side sx-brief">'
+            f'<div class="sx-sec"><h3>Before your meetings</h3><i class="sx-line"></i>'
+            f'<span class="sx-note">{n_cards} briefed</span></div>'
+            f'{"".join(parts)}</div>')
+    else:
+        brief_col = ""
 
     personal_html = _build_personal(personal_actions or [], personal_status)
     booked_today = load.get(today, 0)
@@ -513,8 +536,9 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
 <div class="sx-cols">
   {today_col}
   {nxt_col}
+  {brief_col}
   <div class="sx-main">
-    <div class="sx-sec"><h3>What matters today</h3><i class="sx-line"></i>
+    <div class="sx-sec"><h3>What Else Matters Today</h3><i class="sx-line"></i>
       <span class="sx-note">ranked by deadline, calendar coupling and recency</span></div>
     {''.join(rows)}
     <div style="font-size:.7rem;color:#5c5a52;margin-top:.6rem">
@@ -527,11 +551,14 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
 </div>"""
 
 
-def _build_briefings(today_events: list, briefings: dict) -> str:
+def _build_briefings(today_events: list, briefings: dict,
+                     cards_only: bool = False) -> str:
     """
     Carries the per-meeting AI briefing bullets across from the old Calendar tab.
-    They are the one genuinely useful thing the fortnight view cannot show, so
-    they live under today's rail rather than being dropped.
+    They are the one genuinely useful thing the fortnight view cannot show.
+
+    cards_only=True returns the cards bare, for the "Before your meetings"
+    column which supplies its own heading.
     """
     if not briefings:
         return ""
@@ -569,6 +596,8 @@ def _build_briefings(today_events: list, briefings: dict) -> str:
 
     if not cards:
         return ""
+    if cards_only:
+        return "".join(cards)
     return ('<div class="sx-brief"><div class="sx-sec" style="margin-top:1rem">'
             '<h3 style="font-size:.95rem">Before your meetings</h3>'
             '<i class="sx-line"></i></div>' + "".join(cards) + '</div>')
