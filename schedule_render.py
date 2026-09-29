@@ -76,9 +76,6 @@ def build_css() -> str:
 .sx-cols { display:flex; gap:1rem; align-items:flex-start; }
 .sx-main { flex:1 1 300px; min-width:0; }
 .sx-side { flex:0 0 250px; min-width:0; }
-.sx-brief-day { font-size:.58rem; letter-spacing:.12em; text-transform:uppercase;
-                font-weight:700; color:#8c887b; margin:.9rem 0 .45rem;
-                padding-top:.6rem; border-top:1px solid #e4e1d8; }
 @media (max-width:1400px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 250px;}
                            .sx-main{flex:1 1 100%;order:4;} }
 @media (max-width:900px){ .sx-cols{flex-direction:column;} .sx-side{flex:1 1 auto;width:100%;}
@@ -483,24 +480,17 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
                  else nxt.strftime("%A"))
     nxt_col = _day_column(nxt, nxt_label)
 
-    # Meeting prep gets its own column rather than hanging off each rail, so
-    # both days' briefings sit in one place instead of being split across two.
+    # Today only. Carrying tomorrow's briefings here as well meant two days of
+    # meetings in one column with nothing but a divider to tell them apart,
+    # which read as one list of times that did not match the rail beside it.
     brief_today = _build_briefings(by_day.get(today, []), briefings, True)
-    brief_nxt   = _build_briefings(by_day.get(nxt, []), briefings, True)
-    if brief_today or brief_nxt:
-        parts = []
-        if brief_today:
-            parts.append(brief_today)
-        if brief_nxt:
-            parts.append(
-                f'<div class="sx-brief-day">{esc(nxt_label)} &middot; '
-                f'{esc(nxt.strftime("%a %d %b"))}</div>{brief_nxt}')
-        n_cards = (brief_today + brief_nxt).count("sx-brief-card")
+    if brief_today:
+        n_cards = brief_today.count("sx-brief-card")
         brief_col = (
             f'<div class="sx-side sx-brief">'
             f'<div class="sx-sec"><h3>Before your meetings</h3><i class="sx-line"></i>'
-            f'<span class="sx-note">{n_cards} briefed</span></div>'
-            f'{"".join(parts)}</div>')
+            f'<span class="sx-note">{n_cards} of today\'s briefed</span></div>'
+            f'{brief_today}</div>')
     else:
         brief_col = ""
 
