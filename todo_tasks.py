@@ -193,16 +193,38 @@ def fetch_recent_completions(list_name: str = None, days: int = 45) -> set:
         lst   = _resolve_list(token, list_name)
         if not lst:
             return set()
-        data = _graph_get(token, f"/me/todo/lists/{lst['id']}/tasks", {
-            "$filter":  "status eq 'completed'",
-            "$orderby": "lastModifiedDateTime desc",
-            "$top":     200,
-        })
-    except Exception:
+    except Exception as e:
+        print(f"   !  completed-task check skipped: {e}")
         return set()
 
-    cutoff, out = datetime.datetime.now(AEST_OFFSET).date() - datetime.timedelta(days=days), set()
+    # Graph rejects some $filter/$orderby combinations on To Do tasks, and a
+    # silent empty set here would make the whole re-proposal fix inert without
+    # anyone noticing. So: try the narrow query, then the same without the
+    # ordering, then read everything and filter here.
+    attempts = [
+        {"$filter": "status eq 'completed'",
+         "$orderby": "lastModifiedDateTime desc", "$top": 200},
+        {"$filter": "status eq 'completed'", "$top": 200},
+        {"$top": 200},
+    ]
+    data, why = None, ""
+    for i, params in enumerate(attempts, 1):
+        try:
+            data = _graph_get(token, f"/me/todo/lists/{lst['id']}/tasks", params)
+            if i > 1:
+                print(f"   .  completed-task check used fallback query {i}")
+            break
+        except Exception as e:
+            why = str(e)[:120]
+    if data is None:
+        print(f"   !  completed-task check failed, nothing suppressed: {why}")
+        return set()
+
+    cutoff = datetime.datetime.now(AEST_OFFSET).date() - datetime.timedelta(days=days)
+    out = set()
     for t in data.get("value", []) or []:
+        if (t.get("status") or "") != "completed":
+            continue                      # the third attempt returns open ones too
         when = (t.get("completedDateTime") or {}).get("dateTime") or \
                t.get("lastModifiedDateTime") or ""
         keep = True
