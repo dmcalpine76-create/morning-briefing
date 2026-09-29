@@ -175,19 +175,64 @@ def fetch_todo_tasks(list_name: str = None, include_completed: bool = False) -> 
     return {"tasks": tasks, "list_name": lst.get("displayName", list_name), "error": None}
 
 
-def merge_with_inbox_actions(todo_tasks: list, inbox_actions: list) -> list:
+def fetch_recent_completions(list_name: str = None, days: int = 45) -> set:
+    """
+    Normalised titles of tasks completed in the last `days`.
+
+    Needed because the open-task list cannot suppress a re-proposal: the moment
+    you tick a task off it leaves that list, so an inbox action matching it was
+    proposed all over again while its source email was still in the window.
+    Completing something made it come back, which is the opposite of useful.
+
+    Best-effort — any failure returns an empty set and the merge simply behaves
+    as it did before.
+    """
+    list_name = list_name or TASK_LIST_NAME
+    try:
+        token = _get_token()
+        lst   = _resolve_list(token, list_name)
+        if not lst:
+            return set()
+        data = _graph_get(token, f"/me/todo/lists/{lst['id']}/tasks", {
+            "$filter":  "status eq 'completed'",
+            "$orderby": "lastModifiedDateTime desc",
+            "$top":     200,
+        })
+    except Exception:
+        return set()
+
+    cutoff, out = datetime.datetime.now(AEST_OFFSET).date() - datetime.timedelta(days=days), set()
+    for t in data.get("value", []) or []:
+        when = (t.get("completedDateTime") or {}).get("dateTime") or \
+               t.get("lastModifiedDateTime") or ""
+        keep = True
+        if when:
+            try:
+                keep = datetime.datetime.fromisoformat(
+                    when.replace("Z", "+00:00")).date() >= cutoff
+            except Exception:
+                keep = True
+        if keep and t.get("title"):
+            out.add(_norm_title(t["title"]))
+    return out
+
+
+def _norm_title(s: str) -> str:
+    return "".join(ch for ch in (s or "").lower() if ch.isalnum())[:60]
+
+
+def merge_with_inbox_actions(todo_tasks: list, inbox_actions: list,
+                             completed_titles: set = None) -> list:
     """
     One list, two origins. Real To Do tasks are the spine; inbox-extracted
     actions ride alongside marked 'proposed' so accepting one stays a
     deliberate act rather than clutter arriving uninvited.
 
-    An inbox action whose text closely matches an existing task is dropped —
-    it is almost always the same thing already captured.
+    An inbox action whose text closely matches an open task — or one completed
+    recently — is dropped. It is almost always the same thing already handled.
     """
-    def norm(s):
-        return "".join(ch for ch in (s or "").lower() if ch.isalnum())[:60]
-
-    existing = {norm(t["title"]) for t in todo_tasks}
+    norm = _norm_title
+    existing = {norm(t["title"]) for t in todo_tasks} | set(completed_titles or ())
     merged   = list(todo_tasks)
 
     for i, item in enumerate(inbox_actions or []):

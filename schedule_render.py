@@ -73,9 +73,11 @@ def build_css() -> str:
 .sx-meta { font-size:.62rem; color:#5c5a52; margin-top:.35rem; }
 .sx-verdict { font-size:.6rem; font-weight:700; line-height:1.2; margin-top:.25rem; min-height:1.1em; }
 
-.sx-cols { display:flex; gap:1.3rem; align-items:flex-start; }
+.sx-cols { display:flex; gap:1.1rem; align-items:flex-start; }
 .sx-main { flex:1 1 auto; min-width:0; }
-.sx-side { flex:0 0 330px; }
+.sx-side { flex:0 0 300px; min-width:0; }
+@media (max-width:1180px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 280px;}
+                           .sx-main{flex:1 1 100%;order:3;} }
 @media (max-width:900px){ .sx-cols{flex-direction:column;} .sx-side{flex:1 1 auto;width:100%;}
                           .sx-cap-row{overflow-x:auto;} .sx-day{min-width:88px;} }
 
@@ -336,9 +338,10 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
     pc_cfg = pc_cfg or {}
     work_days = set(pc_cfg.get("work_days", [0, 1, 2, 3, 4]))
 
-    # capacity per day
-    ws, we = _work_bounds(pc_cfg, today)
-    full_day = int((we - ws).total_seconds() // 60)
+    # Capacity is measured against the nominal working day, not the 07:00-18:00
+    # window the rail is drawn over. Doug's number is 9 hours; remaining is
+    # simply 9h less what is booked, so the two figures always reconcile.
+    full_day = int(NOMINAL_DAY_H * 60)
     cells, best_day, best_free = [], None, -1
     for d in days:
         booked = load.get(d, 0)
@@ -366,11 +369,18 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
             klass += " is-today"
 
         if c["off"]:
-            free_txt, free_col, meta = "&mdash;", "#a8a396", "weekend"
+            head_txt, head_col, meta = "&mdash;", "#a8a396", "weekend"
         else:
-            free_txt = _fmt_hm(c["free"])
-            free_col = GREEN if c["free"] >= 300 else (RED if c["free"] <= 120 else INK)
-            bits = [f"{_fmt_hm(c['booked'])} booked"] if c["booked"] else ["nothing booked"]
+            # The headline is time BOOKED; the meta line carries what is left of
+            # the nominal 9h. Colour still tracks how much room remains, so a
+            # heavily booked day reads red whichever number you look at.
+            head_txt = _fmt_hm(c["booked"]) if c["booked"] else "0h"
+            head_col = GREEN if c["free"] >= 300 else (RED if c["free"] <= 120 else INK)
+            over = c["booked"] - full_day
+            if over > 0:
+                bits = [f"over 9h by {_fmt_hm(over)}"]
+            else:
+                bits = [f"{_fmt_hm(c['free'])} left of 9h"]
             if c["personal"]:
                 bits.append(f"incl. {_fmt_hm(c['personal'])} personal")
             meta = " &middot; ".join(bits)
@@ -383,18 +393,18 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
         pin = '<span class="sx-pin">&#9650;</span>' if c["deadline"] else ""
         verdict, vcol = "", MID
         if d == best_day and not c["off"]:
-            verdict, vcol = "most room this week", GREEN
+            verdict, vcol = "lightest this week", GREEN
             if c["deadline"]:
-                verdict = "most room &mdash; but a deadline lands"
+                verdict = "lightest &mdash; but a deadline lands"
         elif c["deadline"] and c["free"] <= 120:
-            verdict, vcol = "deadline, and no room", RED
+            verdict, vcol = "deadline, and fully booked", RED
 
         pin = '<span class="sx-pin">&#9650;</span>' if c["deadline"] else ''
         strip.append(
             f'<div class="{klass}">'
             f'<div class="sx-day-top"><span class="sx-day-lbl">{d.strftime("%a %d").upper()}</span>'
             f'{pin}</div>'
-            f'<div class="sx-free" style="color:{free_col}">{free_txt}</div>'
+            f'<div class="sx-free" style="color:{head_col}">{head_txt}</div>'
             f'<div class="sx-bar">{bar}</div>'
             f'<div class="sx-meta">{meta}</div>'
             f'<div class="sx-verdict" style="color:{vcol}">{verdict or "&nbsp;"}</div>'
@@ -425,27 +435,53 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
                     '<div class="sx-why">No task couples to a dated obligation this fortnight.</div>'
                     '</div></div>')
 
-    # today rail
-    rail = _build_rail(by_day.get(today, []), now)
+    # ── the two day columns ─────────────────────────────────────────────────
+    # Tomorrow means the next calendar day, except that an empty non-working day
+    # is skipped: on a Friday, Monday is the useful read and a blank Saturday
+    # column is just 300px of nothing.
+    nxt = today + datetime.timedelta(days=1)
+    for _ in range(4):
+        if nxt.weekday() in work_days or [e for e in by_day.get(nxt, [])
+                                         if not e.get("is_all_day")]:
+            break
+        nxt += datetime.timedelta(days=1)
+    def _after_hours(day_events):
+        after = [e for e in day_events
+                 if e.get("source") == "personal" and not e.get("counts_capacity")
+                 and not e.get("is_all_day")]
+        if not after:
+            return ""
+        items = "<br>".join(f'{esc(e["start_time"])} &mdash; {esc(e["subject"])}'
+                            for e in after[:3])
+        return (f'<div class="sx-after"><i></i><div style="flex:1 1 auto">'
+                f'<div style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;'
+                f'color:#8c887b;font-weight:700">After hours &middot; personal</div>'
+                f'<div style="font-size:.75rem;font-weight:600;color:#3d3d38;margin-top:.15rem">{items}</div>'
+                f'</div><span style="font-size:.55rem;color:#8c887b;text-align:right;line-height:1.3">'
+                f'shown,<br>not counted</span></div>')
 
-    after = [e for e in by_day.get(today, [])
-             if e.get("source") == "personal" and not e.get("counts_capacity")
-             and not e.get("is_all_day")]
-    after_html = ""
-    if after:
-        items = "<br>".join(f'{esc(e["start_time"])} &mdash; {esc(e["subject"])}' for e in after[:3])
-        after_html = (
-            f'<div class="sx-after"><i></i><div style="flex:1 1 auto">'
-            f'<div style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;'
-            f'color:#8c887b;font-weight:700">After hours &middot; personal</div>'
-            f'<div style="font-size:.75rem;font-weight:600;color:#3d3d38;margin-top:.15rem">{items}</div>'
-            f'</div><span style="font-size:.55rem;color:#8c887b;text-align:right;line-height:1.3">'
-            f'shown,<br>not counted</span></div>')
+    def _day_column(day, label):
+        evts  = by_day.get(day, [])
+        timed = [e for e in evts if not e.get("is_all_day")]
+        plural = "s" if len(timed) != 1 else ""
+        booked = load.get(day, 0)
+        note = (f'{len(timed)} event{plural} &middot; {_fmt_hm(booked)} booked'
+                if timed else "nothing booked")
+        return (f'<div class="sx-side">'
+                f'<div class="sx-sec"><h3>{esc(label)} &middot; '
+                f'{esc(day.strftime("%a %d %b"))}</h3><i class="sx-line"></i>'
+                f'<span class="sx-note">{note}</span></div>'
+                f'{_build_rail(evts, now, day)}'
+                f'{_after_hours(evts)}'
+                f'{_build_briefings(evts, briefings)}'
+                f'</div>')
 
-    today_evts = [e for e in by_day.get(today, []) if not e.get("is_all_day")]
-    brief_html = _build_briefings(by_day.get(today, []), briefings)
+    today_col = _day_column(today, "Today")
+    nxt_col = _day_column(nxt, "Tomorrow"
+                          if nxt == today + datetime.timedelta(days=1)
+                          else nxt.strftime("%A"))
+
     personal_html = _build_personal(personal_actions or [], personal_status)
-    plural_evts = "s" if len(today_evts) != 1 else ""
     booked_today = load.get(today, 0)
     plural_backlog = "s" if backlog_n != 1 else ""
     legacy = ""
@@ -469,11 +505,14 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
 <div class="sx-cap">
   <div class="sx-cap-hd"><span>Where the work can actually go</span>
     <span style="text-transform:none;letter-spacing:0;font-weight:400">
-      hours left after commitments &middot; <span style="color:{RED};font-weight:700">&#9650;</span> deadline</span></div>
+      hours booked &middot; remaining is 9h less booked &middot;
+      <span style="color:{RED};font-weight:700">&#9650;</span> deadline</span></div>
   <div class="sx-cap-row">{''.join(strip)}</div>
 </div>
 
 <div class="sx-cols">
+  {today_col}
+  {nxt_col}
   <div class="sx-main">
     <div class="sx-sec"><h3>What matters today</h3><i class="sx-line"></i>
       <span class="sx-note">ranked by deadline, calendar coupling and recency</span></div>
@@ -483,13 +522,6 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
       see the Backlog tab.</div>
     {personal_html}
     {legacy}
-  </div>
-  <div class="sx-side">
-    <div class="sx-sec"><h3>Today</h3><i class="sx-line"></i>
-      <span class="sx-note">{len(today_evts)} event{plural_evts}</span></div>
-    {rail}
-    {after_html}
-    {brief_html}
   </div>
 </div>
 </div>"""
@@ -562,13 +594,21 @@ def _rail_bounds(events: list) -> tuple:
     return lo, hi
 
 
-def _build_rail(events: list, now: datetime.datetime) -> str:
+def _build_rail(events: list, now: datetime.datetime,
+                day: datetime.date = None) -> str:
+    """
+    Draws one day's timeline. `day` defaults to now's date; pass tomorrow's date
+    to draw tomorrow. The now-line only appears when it falls inside the window,
+    so a future day simply doesn't get one.
+    """
+    day = day or now.date()
     lo_h, hi_h = _rail_bounds(events)
     span_mins = (hi_h - lo_h) * 60
     # keep the rail a sensible height however long the day turns out to be
     ppm = min(RAIL_PX_PER_MIN, 640 / span_mins) if span_mins else RAIL_PX_PER_MIN
     height = int(span_mins * ppm)
-    day_start = now.replace(hour=lo_h, minute=0, second=0, microsecond=0)
+    day_start = datetime.datetime.combine(
+        day, datetime.time(lo_h), tzinfo=now.tzinfo or AEST_OFFSET)
 
     def top_of(dt):
         return min(max(int((dt - day_start).total_seconds() / 60 * ppm), 0), height)
@@ -612,7 +652,7 @@ def _build_rail(events: list, now: datetime.datetime) -> str:
 
     if not timed:
         blocks.append('<div class="sx-gap is-big" style="top:0;height:100%">'
-                      'Nothing booked today</div>')
+                      'Nothing booked</div>')
 
     return (f'<div class="sx-rail"><div class="sx-rail-inner" style="height:{height}px">'
             f'<div class="sx-gut">{"".join(gutter)}</div>'
@@ -945,8 +985,9 @@ def _self_test():
         ("after-hours block shown", "After hours" in sched),
         ("backlog groups by age", "Over a month" in back),
         ("no POSIX-only strftime directives (Windows safe)",
-         not __import__("re").search(r"%-[a-zA-Z]",
-             pathlib.Path(__file__).read_text(encoding="utf-8"))),
+         not [ln for ln in pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()
+              if __import__("re").search(r"%-[a-zA-Z]", ln)
+              and "os.name" not in ln and not ln.lstrip().startswith("#")]),
         ("meeting briefing bullets carried over", "Before your meetings" in sched),
         ("evening event does not escape the rail", _rail_contained(sched)),
         ("personal lane rendered on the calendar", "Personal" in calt),

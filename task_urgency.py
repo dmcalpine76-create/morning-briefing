@@ -146,10 +146,16 @@ def score_task(task: dict, events: list, today: datetime.date) -> dict:
         score += W_IMPORTANT
         reasons.append("flagged high in To Do")
 
+    # Age orders equals; it must never qualify a task on its own. Keeping the
+    # pre-age figure is what enforces that: a 40-day-old task with no signal
+    # scored 4.0 and was promoted into the shortlist as "no urgency signal
+    # found", which is exactly the stale padding the shortlist exists to avoid.
+    signal_score = score
     days_over = task.get("days_over", 0) or 0
     score += min(days_over, 30) * 0.1        # gentle tiebreak, never a driver
 
     return {**task, "urgency_score": round(score, 1),
+            "signal_score": round(signal_score, 1),
             "urgency_reasons": reasons,
             "urgency_reason": reasons[0] if reasons else "no urgency signal found"}
 
@@ -161,14 +167,21 @@ def rank_tasks(tasks: list, events: list = None, today: datetime.date = None,
 
     live    — the ranked shortlist for the Schedule tab
     backlog — everything else, newest first, for the Backlog tab
+
+    Only real To Do tasks reach the backlog. An inbox-extracted 'proposed'
+    action that scores nothing is not a backlog item: it is a suggestion you
+    have not accepted, it has no due date and nothing on the Backlog tab can
+    accept or dismiss it, so it sat there undated and unactionable and came
+    back every run. Those live on the Actions tab, which has the checkboxes.
     """
     today = today or datetime.datetime.now(AEST_OFFSET).date()
     scored = [score_task(t, events or [], today) for t in tasks or []]
     scored.sort(key=lambda t: (-t["urgency_score"], t.get("days_over", 0)))
 
-    live = [t for t in scored if t["urgency_score"] > 0][:shortlist]
+    live = [t for t in scored if t.get("signal_score", t["urgency_score"]) > 0][:shortlist]
     live_ids = {t.get("id") for t in live}
-    backlog = [t for t in scored if t.get("id") not in live_ids]
+    backlog = [t for t in scored
+               if t.get("id") not in live_ids and t.get("source") != "proposed"]
     backlog.sort(key=lambda t: t.get("days_over", 0))
     return {"live": live, "backlog": backlog}
 

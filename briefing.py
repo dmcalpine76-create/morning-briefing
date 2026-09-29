@@ -2991,8 +2991,13 @@ def main():
             _todo = _todotasks.fetch_todo_tasks()
             if _todo.get("error"):
                 print(f"   !  To Do: {_todo['error']}")
+            # Recently completed titles suppress a re-proposal of the same
+            # action while its source email is still inside the 48h window.
+            _done = _todotasks.fetch_recent_completions()
+            if _done:
+                print(f"   .  {len(_done)} recently completed title(s) will not be re-proposed")
             _merged = _todotasks.merge_with_inbox_actions(
-                _todo.get("tasks", []), (email_analysis or {}).get("actions", []))
+                _todo.get("tasks", []), (email_analysis or {}).get("actions", []), _done)
             ranked_tasks = _urgency.rank_tasks(_merged, fortnight.get("events", []))
             try:
                 _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
