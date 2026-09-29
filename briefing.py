@@ -1498,7 +1498,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                                       'color:var(--ink-light);font-style:italic">No scheduled '
                                       'blocks yet.</div>')
         schedule_tab_body = ('<div style="max-width:800px;margin:0 auto;padding:1.5rem">'
-                             '<div style="font-family:var(--font-display);font-size:1.1rem;'
+                             '<div style="font-family:var(--font-body);font-size:1.1rem;'
                              'font-weight:700;margin-bottom:1rem;padding-bottom:0.5rem;'
                              'border-bottom:3px solid var(--ink)">Today\'s Scheduled Work Blocks</div>'
                              + _fallback + '</div>')
@@ -1553,6 +1553,9 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             --rule:         #cdc8b5;
             --accent:       #c0392b;
             --white:        #ffffff;
+            /* The masthead's newspaper face. Tab content uses --font-body;
+               mixing the two is what made News and My Topics look like a
+               different document from the rebuilt tabs. */
             --font-display: 'Playfair Display', Georgia, serif;
             --font-body:    'Source Sans 3', 'Helvetica Neue', sans-serif;
         }}
@@ -1604,6 +1607,24 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .widget-topic-link:hover {{ background: var(--ink); color: var(--white); border-color: var(--ink); }}
         .widget-topic-link:hover .label {{ color: rgba(255,255,255,0.6); }}
         .widget-topic-link:hover .value {{ color: var(--white); }}
+
+        /* ── FROZEN PAGE HEAD ──
+           Masthead, widget bar and weather bar ride together as one block so
+           the tabs and the day's numbers stay reachable at any scroll depth.
+           --head-h is measured by script below; the column and day headers
+           inside the tabs offset against it so they do not stick underneath. */
+        :root {{ --head-h: 0px; }}
+        html {{ scroll-padding-top: var(--head-h); }}
+        .page-head {{
+            position: sticky; top: 0; z-index: 50;
+            background: var(--paper); box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }}
+        /* On a short or narrow viewport the block eats the screen - the
+           masthead wraps to three rows on a phone - so it scrolls normally. */
+        @media (max-width: 900px), (max-height: 620px) {{
+            .page-head {{ position: static; box-shadow: none; }}
+            :root {{ --head-h: 0px; }}
+        }}
 
         /* ── WEATHER / INFO BAR ── */
         .weather-bar {{
@@ -1679,7 +1700,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
         /* ── EMAIL TAB LAYOUT (mirrors email.html) ── */
         .email-view {{ max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; grid-template-columns: 1.3fr 1fr 0.95fr 1fr; gap: 1.4rem; align-items: start; }}
-        .ep-panel-title {{ font-family: var(--font-display); font-size: 1rem; font-weight: 700; padding-bottom: 0.5rem; border-bottom: 3px solid var(--ink); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }}
+        .ep-panel-title {{ font-family: var(--font-body); font-size: 1rem; font-weight: 700; padding-bottom: 0.5rem; border-bottom: 3px solid var(--ink); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }}
         .ep-count {{ font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }}
         /* email digest cards */
         .ep-card {{ background: var(--white); border: 1px solid var(--rule); border-radius: 3px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; transition: box-shadow .12s; }}
@@ -1687,14 +1708,14 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .ep-card-unread {{ border-left: 3px solid #2980b9; }}
         .ep-meta {{ display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; flex-wrap: wrap; }}
         .ep-from {{ font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-light); margin-bottom: 0.2rem; }}
-        .ep-subject {{ font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
+        .ep-subject {{ font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
         .ep-summary {{ font-size: 0.84rem; color: #444; line-height: 1.6; }}
         .ep-action-tag {{ margin-top: 0.4rem; font-size: 0.68rem; font-weight: 700; color: var(--accent); }}
         .ep-folder-tag {{ font-size: 0.58rem; color: var(--ink-light); background: var(--paper-2); padding: 0.1rem 0.35rem; border-radius: 2px; margin-left: auto; }}
         .ep-sent-tag {{ font-size: 0.6rem; font-weight: 700; color: #888; background: #f0f0f0; padding: 0.1rem 0.35rem; border-radius: 2px; }}
         /* action rows */
         .ep-action-row {{ display: flex; gap: 0.75rem; padding: 0.75rem 0.9rem; background: var(--white); border: 1px solid var(--rule); border-radius: 3px; margin-bottom: 0.5rem; }}
-        .ep-action-num {{ font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; color: var(--rule); line-height: 1; padding-top: 0.1rem; flex-shrink: 0; width: 1.2rem; text-align: center; }}
+        .ep-action-num {{ font-family: var(--font-body); font-size: 1.2rem; font-weight: 900; color: var(--rule); line-height: 1; padding-top: 0.1rem; flex-shrink: 0; width: 1.2rem; text-align: center; }}
         .ep-action-title {{ font-size: 0.91rem; font-weight: 600; line-height: 1.35; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }}
         .ep-action-context {{ font-size: 0.81rem; color: #555; line-height: 1.55; }}
         .ep-action-ref {{ font-size: 0.65rem; color: var(--ink-light); margin-top: 0.2rem; font-style: italic; }}
@@ -1786,10 +1807,10 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             display: flex; align-items: center; gap: 0.5rem;
             padding: 0.75rem 0.9rem 0.6rem; background: var(--white);
             border-bottom: 3px solid var(--section-color, var(--ink));
-            position: sticky; top: 0; z-index: 10;
+            position: sticky; top: var(--head-h); z-index: 10;
         }}
         .column-emoji {{ font-size: 1rem; line-height: 1; flex-shrink: 0; }}
-        .column-title {{ font-family: var(--font-display); font-size: 0.88rem; font-weight: 700; line-height: 1.2; flex: 1; min-width: 0; }}
+        .column-title {{ font-family: var(--font-body); font-size: 0.88rem; font-weight: 700; line-height: 1.2; flex: 1; min-width: 0; }}
         .story-count {{ font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; flex-shrink: 0; }}
 
         /* ── STORY CARDS ── */
@@ -1805,7 +1826,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .badge-major    {{ background: #fef3e2; color: #d35400; }}
         .badge-notable  {{ background: #e8f4e8; color: #27ae60; }}
         .story-source {{ font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-        .story-headline {{ font-family: var(--font-display); font-size: 0.93rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
+        .story-headline {{ font-family: var(--font-body); font-size: 0.93rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.3rem; }}
         .story-headline a {{ color: var(--ink); text-decoration: none; }}
         .story-headline a:hover {{ color: var(--accent); text-decoration: underline; }}
         .story-summary {{ font-size: 0.83rem; color: #484848; line-height: 1.6; }}
@@ -1815,7 +1836,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             display: flex; align-items: center; gap: 0.6rem;
             padding: 0.7rem 1.25rem; background: var(--white);
             border-bottom: 3px solid var(--tc, var(--ink));
-            font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+            font-family: var(--font-body); font-size: 1rem; font-weight: 700;
         }}
         .topic-tab-count {{ font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }}
 
@@ -1828,10 +1849,10 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             padding: 0.65rem 1.25rem;
             background: var(--paper-2);
             border-bottom: 1px solid var(--rule);
-            position: sticky; top: 0; z-index: 10;
+            position: sticky; top: var(--head-h); z-index: 10;
         }}
         .cal-day-label {{
-            font-family: var(--font-display); font-size: 0.75rem;
+            font-family: var(--font-body); font-size: 0.75rem;
             font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
             color: var(--ink);
         }}
@@ -1986,6 +2007,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     ⚠️ This is NOT today's briefing — it was generated on {date_str}. Check the GitHub Actions run.
 </div>
 
+<div class="page-head" id="page-head">
 <header class="masthead">
     <div class="masthead-left">
         <h1 class="masthead-title">Doug's Morning Briefing</h1>
@@ -2012,6 +2034,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
 <!-- ── WEATHER BAR ── -->
 {weather_html}
+</div><!-- /page-head -->
 
 <!-- ── NEWS TAB ── -->
 <div id="view-news">
@@ -2068,6 +2091,21 @@ const BRIEFING_DATE_ISO = "{generated_at.strftime('%Y-%m-%d')}";
 }})();
 
 // ── Tab switching ──
+// Measure the frozen head so the sticky headers inside each tab offset
+// against it rather than sliding underneath. Re-measured on resize and on
+// every tab switch, because the masthead wraps at narrow widths and the
+// widget and weather bars differ in height between runs.
+function measureHead() {{
+    var el = document.getElementById('page-head');
+    if (!el) return;
+    var stuck = getComputedStyle(el).position === 'sticky';
+    document.documentElement.style.setProperty(
+        '--head-h', stuck ? Math.round(el.getBoundingClientRect().height) + 'px' : '0px');
+}}
+window.addEventListener('resize', measureHead);
+window.addEventListener('load', measureHead);
+document.addEventListener('DOMContentLoaded', measureHead);
+
 function showTab(tab) {{
     // Hide all views
     ['view-news','view-market','view-email','view-calendar','view-schedule','view-backlog'].forEach(id => {{
@@ -2083,6 +2121,7 @@ function showTab(tab) {{
     if (view) view.style.display = '';
     const btn = document.getElementById('tab-' + tab);
     if (btn) btn.classList.add('tab-active');
+    measureHead();
     // Show To Do footer only on email tab AND only on local review server
     var _h = window.location.hostname, _p = window.location.port;
     var _isReview = window.__REVIEW_SERVER__ === true ||

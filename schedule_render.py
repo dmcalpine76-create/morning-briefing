@@ -73,9 +73,10 @@ def build_css() -> str:
 .sx-meta { font-size:.62rem; color:#5c5a52; margin-top:.35rem; }
 .sx-verdict { font-size:.6rem; font-weight:700; line-height:1.2; margin-top:.25rem; min-height:1.1em; }
 
+/* Four even columns. The day rails were fixed-width, which left the list
+   column taking every spare pixel and the rails looking squeezed. */
 .sx-cols { display:flex; gap:1rem; align-items:flex-start; }
-.sx-main { flex:1 1 300px; min-width:0; }
-.sx-side { flex:0 0 250px; min-width:0; }
+.sx-main, .sx-side { flex:1 1 0; min-width:0; }
 @media (max-width:1400px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 250px;}
                            .sx-main{flex:1 1 100%;order:4;} }
 @media (max-width:900px){ .sx-cols{flex-direction:column;} .sx-side{flex:1 1 auto;width:100%;}
