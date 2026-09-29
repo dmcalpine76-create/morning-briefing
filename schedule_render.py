@@ -134,6 +134,9 @@ def build_css() -> str:
              white-space:nowrap; display:inline-block; min-height:26px; line-height:20px; }
 
 .sx-brief { margin-top:.7rem; }
+.sx-brief-none { background:#fff; border:1px dashed #d8d4c8; border-radius:3px;
+                 padding:.8rem .9rem; font-size:.75rem; color:#5c5a52;
+                 line-height:1.5; }
 .sx-brief-card { background:#fff; border:1px solid #e4e1d8; border-radius:9px;
                  padding:.6rem .75rem; margin-bottom:.4rem; }
 .sx-brief-top { display:flex; gap:.4rem; align-items:baseline; }
@@ -481,19 +484,36 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
                  else nxt.strftime("%A"))
     nxt_col = _day_column(nxt, nxt_label)
 
-    # Today only. Carrying tomorrow's briefings here as well meant two days of
-    # meetings in one column with nothing but a divider to tell them apart,
-    # which read as one list of times that did not match the rail beside it.
-    brief_today = _build_briefings(by_day.get(today, []), briefings, True)
+    # Today only - carrying tomorrow's briefings here as well put two days of
+    # meeting times under one heading and they stopped matching the rail.
+    #
+    # The column ALWAYS renders. Hiding it when there is nothing to show looks
+    # identical to the feature breaking, and says nothing about which of the
+    # three reasons applies.
+    todays_evts   = by_day.get(today, [])
+    todays_meets  = [e for e in todays_evts
+                     if not e.get("is_all_day") and e.get("source") != "personal"]
+    brief_today   = _build_briefings(todays_evts, briefings, True)
     if brief_today:
-        n_cards = brief_today.count("sx-brief-card")
-        brief_col = (
-            f'<div class="sx-side sx-brief">'
-            f'<div class="sx-sec"><h3>Before your meetings</h3><i class="sx-line"></i>'
-            f'<span class="sx-note">{n_cards} of today\'s briefed</span></div>'
-            f'{brief_today}</div>')
+        n_cards  = brief_today.count("sx-brief-card")
+        note     = f"{n_cards} of today's briefed"
+        body     = brief_today
     else:
-        brief_col = ""
+        note = "none today"
+        if not todays_meets:
+            why = "No work meetings in today's diary to brief."
+        elif not briefings:
+            why = ("Meeting briefings were not generated this run - the "
+                   "calendar or the summariser was unavailable.")
+        else:
+            why = ("Today's meetings carry no briefing notes. Nothing was "
+                   "found in your recent email that relates to them.")
+        body = (f'<div class="sx-brief-none">{esc(why)}</div>')
+    brief_col = (
+        f'<div class="sx-side sx-brief">'
+        f'<div class="sx-sec"><h3>Before your meetings</h3><i class="sx-line"></i>'
+        f'<span class="sx-note">{esc(note)}</span></div>'
+        f'{body}</div>')
 
     personal_html = _build_personal(personal_actions or [], personal_status)
     booked_today = load.get(today, 0)

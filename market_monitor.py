@@ -728,21 +728,25 @@ GRADE_LABEL = {"material": "Material", "notable": "Notable", "background": "Back
 
 CSS = """
 <style>
-.mw-wrap{max-width:1180px;margin:0 auto;padding:1.25rem 1rem 2.5rem}
+/* Same container, panel header and card treatment as the Actions tab, so
+   Market Watch reads as part of the same document. */
+.mw-wrap{max-width:1440px;margin:0 auto;padding:1.5rem 1.5rem 3rem}
 .mw-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.6rem;
   border-bottom:3px solid var(--ink,#1a1a17);padding-bottom:0.5rem;margin-bottom:0.35rem}
-.mw-title{font-family:var(--font-display,Georgia,serif);font-size:1.25rem;font-weight:700}
+.mw-title{font-family:var(--font-body,sans-serif);font-size:1.25rem;font-weight:700}
 .mw-sub{font-size:0.72rem;color:var(--ink-light,#6b6862)}
 .mw-legend{display:flex;gap:0.75rem;font-size:0.62rem;color:var(--ink-light,#6b6862);
   margin:0 0 1.1rem;flex-wrap:wrap}
 .mw-legend span{display:flex;align-items:center;gap:0.3rem}
 .mw-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
 .mw-sec{font-size:0.66rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;
-  color:var(--ink-light,#6b6862);margin:1.4rem 0 0.6rem;padding-bottom:0.25rem;
-  border-bottom:1px solid rgba(0,0,0,0.14)}
-.mw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:0.9rem}
-.mw-card{border:1px solid rgba(0,0,0,0.13);border-radius:5px;background:#fff;
-  padding:0.7rem 0.8rem 0.55rem}
+  color:var(--ink-light,#6b6862);margin:1.8rem 0 1rem;padding-bottom:0.5rem;
+  border-bottom:3px solid var(--ink,#1a1a17)}
+.mw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+  gap:1.4rem;align-items:start}
+.mw-card{border:1px solid var(--rule,rgba(0,0,0,0.13));border-radius:3px;background:#fff;
+  padding:0.85rem 1rem;transition:box-shadow .12s}
+.mw-card:hover{box-shadow:0 1px 5px rgba(0,0,0,.08)}
 .mw-card-h{display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;
   padding-bottom:0.4rem;border-bottom:1px solid rgba(0,0,0,0.09)}
 .mw-name{font-weight:700;font-size:0.86rem}
@@ -758,8 +762,8 @@ CSS = """
 .mw-meta{font-size:0.6rem;color:var(--ink-light,#6b6862);margin:0.2rem 0 0 0.68rem}
 .mw-ps{font-size:0.55rem;font-weight:700;color:#fff;background:#b3261e;
   padding:0.05rem 0.28rem;border-radius:2px;letter-spacing:0.04em}
-.mw-quiet{margin-top:1.4rem;padding:0.6rem 0.8rem;border:1px dashed rgba(0,0,0,0.18);
-  border-radius:5px;font-size:0.68rem;color:var(--ink-light,#6b6862);line-height:1.5}
+.mw-quiet{margin-top:1.4rem;padding:0.85rem 1rem;border:1px dashed rgba(0,0,0,0.18);
+  border-radius:3px;font-size:0.68rem;color:var(--ink-light,#6b6862);line-height:1.5}
 .mw-quiet b{color:#3d3a34;font-weight:600}
 .mw-empty{padding:2rem;text-align:center;color:var(--ink-light,#6b6862);font-style:italic}
 .mw-err{margin-top:1rem;font-size:0.63rem;color:#8a6d1f}

@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BRIEF = (ROOT / "briefing.py").read_text(encoding="utf-8")
 SCHED = (ROOT / "schedule_render.py").read_text(encoding="utf-8")
+MARKET = (ROOT / "market_monitor.py").read_text(encoding="utf-8")
 
 head_open  = BRIEF.index('<div class="page-head"')
 head_close = BRIEF.index("</div><!-- /page-head -->")
@@ -37,8 +38,8 @@ CHECKS = [
     ("the block is sticky", re.search(r"\.page-head \{\{\s*\n?\s*position: sticky", BRIEF) is not None),
     ("it unsticks on small screens",
      re.search(r"@media \(max-width: 900px\), \(max-height: 620px\)", BRIEF) is not None),
-    ("in-tab sticky headers offset against it",
-     BRIEF.count("position: sticky; top: var(--head-h)") == 2
+    ("the remaining in-tab sticky header offsets against it",
+     BRIEF.count("position: sticky; top: var(--head-h)") == 1
      and "position: sticky; top: 0; z-index: 10" not in BRIEF),
     ("the offset is measured, not hard-coded",
      "function measureHead()" in BRIEF and "--head-h" in BRIEF),
@@ -54,6 +55,32 @@ CHECKS = [
     ("no fixed-width day column remains",
      "flex:0 0 250px" not in SCHED and "flex:0 0 300px" not in SCHED
      and "flex:0 0 330px" not in SCHED),
+
+    # Before your meetings must never vanish - an absent column is
+    # indistinguishable from the feature being broken.
+    ("the meeting-prep column always renders",
+     "brief_col = (" in SCHED and 'brief_col = ""' not in SCHED),
+    ("it explains an empty state", "sx-brief-none" in SCHED
+     and "No work meetings in today's diary" in SCHED),
+    ("it still covers today only",
+     "brief_nxt" not in SCHED and "sx-brief-day" not in SCHED),
+
+    # News, My Topics, Market Watch and Actions share one column format.
+    ("news columns use the Actions container",
+     "max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;" in BRIEF
+     and BRIEF.count("max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;") >= 2),
+    ("the hairline newspaper grid is gone",
+     "gap: 1px; background: var(--rule);" not in BRIEF
+     and "gap: 1px;\n            background: var(--rule);" not in BRIEF),
+    ("story cards are discrete, like .ep-card",
+     "border: 1px solid var(--rule); border-radius: 3px; padding: 0.85rem 1rem;" in BRIEF),
+    ("column headers match the panel title rule",
+     "padding-bottom: 0.5rem; margin-bottom: 1rem;" in BRIEF),
+    ("market watch shares the container and card treatment",
+     "max-width:1440px;margin:0 auto;padding:1.5rem 1.5rem 3rem" in MARKET
+     and "padding:0.85rem 1rem;transition:box-shadow .12s" in MARKET),
+    ("market watch uses the body face",
+     "var(--font-display" not in MARKET),
 ]
 
 if __name__ == "__main__":

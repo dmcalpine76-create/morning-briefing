@@ -1794,29 +1794,31 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .todo-push-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
         .todo-push-btn.done    {{ background: #27ae60; }}
 
-        /* ── THREE-COLUMN LAYOUT ── */
+        /* ── COLUMN LAYOUT — shared with the Actions tab ──
+           News, My Topics and Actions all use the same shape: a centred grid
+           of panels, each a rule-underlined title over discrete white cards.
+           News and Topics used to be full-bleed newspaper columns divided by
+           hairlines, which is why the tabs read as different documents. */
         .columns-wrapper {{
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px; background: var(--rule);
-            min-height: calc(100vh - 8rem);
+            max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 1.4rem; align-items: start;
         }}
-        .briefing-column {{ background: var(--paper); display: flex; flex-direction: column; min-width: 0; }}
+        .briefing-column {{ min-width: 0; }}
 
         .column-header {{
             display: flex; align-items: center; gap: 0.5rem;
-            padding: 0.75rem 0.9rem 0.6rem; background: var(--white);
+            padding-bottom: 0.5rem; margin-bottom: 1rem;
             border-bottom: 3px solid var(--section-color, var(--ink));
-            position: sticky; top: var(--head-h); z-index: 10;
         }}
         .column-emoji {{ font-size: 1rem; line-height: 1; flex-shrink: 0; }}
-        .column-title {{ font-family: var(--font-body); font-size: 0.88rem; font-weight: 700; line-height: 1.2; flex: 1; min-width: 0; }}
-        .story-count {{ font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; flex-shrink: 0; }}
+        .column-title {{ font-family: var(--font-body); font-size: 1rem; font-weight: 700; line-height: 1.2; min-width: 0; }}
+        .story-count {{ font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; flex-shrink: 0; margin-left: auto; }}
 
-        /* ── STORY CARDS ── */
-        .stories-list {{ display: flex; flex-direction: column; gap: 1px; background: var(--rule); flex: 1; }}
-        .story-card {{ background: var(--white); padding: 0.85rem 0.9rem; animation: fadeUp 0.35s ease both; animation-delay: var(--delay, 0s); transition: background 0.12s; }}
-        .story-card:hover {{ background: #fdfcf9; }}
+        /* ── STORY CARDS — the .ep-card treatment ── */
+        .stories-list {{ display: flex; flex-direction: column; gap: 0.5rem; }}
+        .story-card {{ background: var(--white); border: 1px solid var(--rule); border-radius: 3px; padding: 0.85rem 1rem; animation: fadeUp 0.35s ease both; animation-delay: var(--delay, 0s); transition: box-shadow 0.12s; }}
+        .story-card:hover {{ box-shadow: 0 1px 5px rgba(0,0,0,.08); }}
 
         @keyframes fadeUp {{ from {{ opacity: 0; transform: translateY(5px); }} to {{ opacity: 1; transform: translateY(0); }} }}
 
@@ -1833,8 +1835,9 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
         /* ── TOPIC TAB HEADER ── */
         .topic-tab-header {{
-            display: flex; align-items: center; gap: 0.6rem;
-            padding: 0.7rem 1.25rem; background: var(--white);
+            max-width: 1440px; margin: 0 auto 1rem; display: flex;
+            align-items: center; gap: 0.6rem;
+            padding: 1.5rem 1.5rem 0.5rem;
             border-bottom: 3px solid var(--tc, var(--ink));
             font-family: var(--font-body); font-size: 1rem; font-weight: 700;
         }}
@@ -1972,21 +1975,10 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
         /* ── TOPICS TAB — responsive columns ── */
         .topics-tab-grid {{
+            max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;
             display: grid;
-            grid-template-columns: repeat(5, minmax(180px, 1fr));
-            gap: 1px;
-            background: var(--rule);
-            min-height: calc(100vh - 8rem);
-        }}
-        @media (max-width: 1200px) {{
-            .topics-tab-grid {{ grid-template-columns: repeat(3, 1fr); }}
-        }}
-        @media (max-width: 860px) {{
-            .topics-tab-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        }}
-        @media (max-width: 540px) {{
-            .topics-tab-grid {{ grid-template-columns: 1fr; }}
-            .topics-tab-grid .column-header {{ position: relative; top: auto; }}
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.4rem; align-items: start;
         }}
         @media (max-width: 600px) {{
             .masthead {{ flex-wrap: wrap; gap: 0.35rem; }}
