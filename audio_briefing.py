@@ -26,11 +26,13 @@ Voice selection:
       en-GB-ThomasNeural     Male, British (older)
 
     AMERICAN
-      en-US-GuyNeural        Male, American
-      en-US-JennyNeural      Female, American
-      en-US-DavisNeural      Male, American (conversational)
-      en-US-AriaNeural       Female, American (expressive)
-      en-US-AndrewNeural     Male, American (newer)
+      en-US-ChristopherNeural  Male, American - the deepest; authoritative (default)
+      en-US-GuyNeural          Male, American - classic newsreader, mid-deep
+      en-US-SteffanNeural      Male, American - documentary narrator, measured
+      en-US-DavisNeural        Male, American - conversational, lighter
+      en-US-AndrewNeural       Male, American - warm, newer
+      en-US-JennyNeural        Female, American
+      en-US-AriaNeural         Female, American (expressive)
 
     OTHER
       en-NZ-MitchellNeural   Male, New Zealand
@@ -61,7 +63,7 @@ except ImportError:
     _ANTHROPIC_AVAILABLE = False
 
 # Voice — override via AUDIO_VOICE env var or .env
-DEFAULT_VOICE = "en-AU-WilliamNeural"
+DEFAULT_VOICE = "en-US-ChristopherNeural"   # deep American male, authoritative
 # `or` (not a .get default) so an empty GitHub secret also falls back;
 # strip removes stray spaces/newlines/quotes pasted into the secret.
 VOICE      = (os.environ.get("AUDIO_VOICE") or DEFAULT_VOICE).strip().strip('"').strip("'") or DEFAULT_VOICE
@@ -152,9 +154,15 @@ def _diary_material(fortnight: dict, ranked_tasks: dict,
                      f"{first_tmw['start_dt'].strftime('%I:%M %p').lstrip('0')} "
                      f"{first_tmw.get('subject','')}.")
 
+    # Deliberately labelled as a separate block: these are a list of their own,
+    # not diary context. Mixing them into the walkthrough is what produced
+    # invented links between a task and whichever meeting sat near it.
     live = (ranked_tasks or {}).get("live", [])
     if live:
-        lines.append("Most pressing tasks, in order:")
+        lines.append("")
+        lines.append("SEPARATE LIST - most pressing tasks, in order. These are "
+                     "NOT related to the diary above and must not be matched to "
+                     "any commitment, gap or time of day:")
         for tsk in live[:3]:
             lines.append(f"  - {tsk.get('title','')} ({tsk.get('urgency_reason','')})")
 
@@ -229,7 +237,8 @@ at State Gas, a junior Queensland gas explorer focused on the Taroom Trough.
 It will be read aloud by a text-to-speech voice, so write for the EAR:
 
 - Open with: "Good morning Doug, it's {date_spoken}. Here's your briefing."
-- 800 to 1000 words total (about six minutes spoken)
+- 600 to 750 words total (about four and a half minutes spoken). Being
+  shorter than this is fine; padding to reach it is not.
 - Flowing conversational prose. No headings, no bullet points, no asterisks,
   no emoji, no URLs, and never spell out ticker codes letter by letter —
   say the company name instead.
@@ -246,29 +255,42 @@ It will be read aloud by a text-to-speech voice, so write for the EAR:
      Comet Ridge, Beach Energy, Santos or Blue Energy. About two minutes.
      Don't repeat a story already covered — just note the connection.
   4. Today's work actions, most urgent first (skip if none).
-  5. THE DAY AHEAD - the closing segment, and the one that matters most.
-     Transition with something like "Now, let's walk through your day."
-     Using the TODAY'S DIARY material, talk Doug through it the way an
-     experienced executive assistant would:
-       - open with the shape of the day: how many commitments, how much
-         time is committed, and where the clear stretches are
-       - then take each commitment in order. Say the time in plain speech
-         ("half past nine", "quarter to three"). Name it, then give the
-         context lines underneath it as preparation - what was circulated,
-         what is outstanding, who organised it. This is the point of the
-         segment: not what is in the diary, but what Doug needs to know
-         before walking into each thing.
-       - call out the gaps as opportunities, and name what could go in the
-         longest one, drawing on the most pressing tasks
-       - treat personal commitments exactly like work ones. A school pickup
-         bounds the afternoon as firmly as a board meeting; if something
-         must finish on time because of what follows it, say so
-       - close with what tomorrow opens with, and the single thing that has
-         to happen today
-     Take as long as this needs - it is the most useful part of the
-     briefing. Never invent context that is not in the material.
+  5. THE DAY AHEAD - the closing segment. Transition with something like
+     "Now, let's walk through your day."
+     Using the TODAY'S DIARY material, read the day out plainly:
+       - open with one sentence on the shape of the day: how many
+         commitments and how much time is committed
+       - then take each commitment in order, in TWO TO THREE SENTENCES and
+         no more. Say the time in plain speech ("half past nine", "quarter
+         to three"), name the commitment, and give only the context lines
+         that appear under it in the material. If there are no context
+         lines, say the time and the name and move on - a short entry is
+         correct, not a gap to fill.
+       - state a long clear stretch as a fact if one exists ("you have two
+         hours clear after that"). Do not suggest what to do in it.
+       - treat personal commitments exactly like work ones, in the same
+         two to three sentences.
+       - close with what tomorrow opens with, in one sentence.
   6. A one-line sign-off.
-- Energy and gas must NOT dominate the headlines segment — give broad
+
+HARD RULES for the day-ahead segment - these matter more than fluency:
+- Say ONLY what is in the material. Never connect one commitment to another,
+  never infer that one relates to, prepares for, follows from, or depends on
+  another, and never explain why something is on the diary. If the material
+  does not state a relationship, there is no relationship to mention.
+- Never match a task to a meeting, a gap or a time of day. The tasks are a
+  separate list; read them where they belong and do not weave them in.
+- Never guess at a purpose, an agenda, a topic, an attendee's role or what
+  might be discussed. A meeting named "Management Meeting" is a management
+  meeting and nothing more.
+- No commentary on how Doug should feel or approach anything. Nothing about
+  the day being busy, heavy, light, challenging, productive or well shaped;
+  no encouragement, no reassurance, no "make sure you", "don't forget to",
+  "this is a big one", "you'll want to be sharp for this". State the facts
+  and stop. He can draw his own conclusions.
+- No filler transitions between commitments beyond the plainest ("then",
+  "after that", "at eleven").
+- Energy and gas must NOT dominate the headlines segment - give broad
   news its fair share.
 
 TODAY'S MATERIAL:
@@ -277,7 +299,7 @@ TODAY'S MATERIAL:
 Respond with ONLY the script text."""
             resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=2200,
+                max_tokens=1800,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=90,
             )
