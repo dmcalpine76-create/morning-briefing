@@ -12,6 +12,11 @@ Pipeline:
   2. edge-tts renders it with a Microsoft neural TTS voice (free,
      no API key needed).
 
+Playback speed:
+  AUDIO_RATE sets how fast the file is spoken, as a signed percentage against
+  normal speech: "+25%" is roughly 1.25x and is the default. It is baked into
+  the mp3, so it is right in every player. "+0%" is normal pace.
+
 Voice selection:
   Set AUDIO_VOICE in your .env or as a GitHub secret to any edge-tts
   voice name. Some good options:
@@ -50,6 +55,7 @@ installed, the briefing simply skips the audio edition.
 """
 
 import os
+import re
 import asyncio
 import datetime
 from pathlib import Path
@@ -67,7 +73,13 @@ DEFAULT_VOICE = "en-US-ChristopherNeural"   # deep American male, authoritative
 # `or` (not a .get default) so an empty GitHub secret also falls back;
 # strip removes stray spaces/newlines/quotes pasted into the secret.
 VOICE      = (os.environ.get("AUDIO_VOICE") or DEFAULT_VOICE).strip().strip('"').strip("'") or DEFAULT_VOICE
-RATE       = "+4%"          # slightly brisk, radio-news pace
+# Playback speed is baked into the file by the TTS engine, so it is right on
+# any player rather than something to set every time. "+25%" is about 1.25x
+# normal speech. Override with AUDIO_RATE; the format is a signed percentage
+# and anything else is ignored rather than passed through to break the render.
+DEFAULT_RATE = "+25%"
+_rate_raw = (os.environ.get("AUDIO_RATE") or DEFAULT_RATE).strip().strip('"').strip("'")
+RATE = _rate_raw if re.fullmatch(r"[+-]\d{1,3}%", _rate_raw or "") else DEFAULT_RATE
 MAX_MP3_MB = 8              # sanity cap for the email attachment
 # GitHub Actions runners use UTC — the 5am/8am AEST runs are still
 # "yesterday" in UTC, so always take the date from Brisbane time.

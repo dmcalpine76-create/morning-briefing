@@ -44,6 +44,8 @@ CHECKS += [
      voice is not None and voice.group(1) == "en-US-ChristopherNeural"),
     ("target length is shorter than the old six minutes",
      words is not None and int(words.group(2)) <= 800),
+    ("playback speed is baked in at about 1.25x",
+     'DEFAULT_RATE = "+25%"' in SRC and "AUDIO_RATE" in SRC),
     ("the emotive-language ban lists concrete words",
      all(w in SRC for w in ("busy", "encouragement", "don't forget to"))),
 ]

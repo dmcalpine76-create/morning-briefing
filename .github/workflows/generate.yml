@@ -100,6 +100,7 @@ jobs:
           BRIEFING_EMAIL_GMAIL: ${{ secrets.BRIEFING_EMAIL_GMAIL }}
           BRIEFING_PASSWORD:    ${{ secrets.BRIEFING_PASSWORD }}
           AUDIO_VOICE:          ${{ secrets.AUDIO_VOICE }}
+          AUDIO_RATE:           ${{ secrets.AUDIO_RATE }}
           # Personal Google calendar (private iCal feed). Without this the
           # scheduled briefings show work commitments only.
           GOOGLE_CAL_ICS_URL:   ${{ secrets.GOOGLE_CAL_ICS_URL }}
