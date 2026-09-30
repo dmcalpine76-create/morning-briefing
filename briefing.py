@@ -1531,11 +1531,11 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             print(f"  WARNING: Global Markets render failed ({_e})")
             global_tab_html = ""
         if global_tab_html:
-            _gm_opps = sum(1 for e in (globalmkt["data"].get("etfs") or [])
-                           if e["signal"] in ("reversal", "momentum"))
-            _gm_label = f" ({_gm_opps})" if _gm_opps else ""
+            # No count on the button: the ETF detail it used to count is no
+            # longer on the page, and a number nothing on the tab explains is
+            # worse than none.
             global_btn = ('<button class="tab-btn" onclick="showTab(\'global\')" '
-                          f'id="tab-global">&#127758; Global Markets{_gm_label}</button>')
+                          'id="tab-global">&#127758; Global Markets</button>')
 
     backlog_btn = ('<button class="tab-btn" onclick="showTab(\'backlog\')" id="tab-backlog">'
                    f'&#128230; Backlog ({backlog_count})</button>') if backlog_tab_html else ""

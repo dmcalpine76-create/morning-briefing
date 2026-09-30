@@ -53,8 +53,14 @@ empty = im.build_tab({"indices": {}, "sectors": [], "etfs": [], "missing": [],
 
 CHECKS = [
     # scope
-    ("the ASX indices are excluded",
-     not {"ASX200", "AORD"} & idx_ids),
+    ("Australia has its own card, read as yesterday",
+     {"ASX200", "AORD"} <= idx_ids
+     and any(r["id"] == "australia" for r in im.REGIONS)),
+    ("Australia leads the row", im.REGIONS[0]["id"] == "australia"),
+    ("five region cards across the top", len(im.REGIONS) == 5),
+    ("the round-up is told Australia is a different session",
+     "do not describe it as overnight" in
+     __import__("pathlib").Path(im.__file__).read_text(encoding="utf-8")),
     ("Australian-tracking ETFs are excluded - no overnight gap exists for them",
      not {"STW", "A200", "IOZ", "VAS", "QRE"} & etf_codes),
     ("the Australian bond ETF is excluded - it has no overnight underlying",
@@ -85,9 +91,16 @@ CHECKS = [
     ("the tab renders", "Overnight round-up" in html and "gm-wrap" in html),
     ("the round-up prose appears", "Wall Street rose." in html),
     ("the stance chip appears", "Bullish" in html),
-    ("the ETF section explains what a reversal is", "reversal is a fund down over the week" in html),
-    ("it is framed as observation, not advice", "not recommendations" in html),
-    ("it says the ASX is covered elsewhere", "the ASX is in the widget bar" in html),
+    # the .gm-etf rules stay in the stylesheet so the flag alone brings the
+    # section back; what must be absent is the rendered markup.
+    ("the per-ETF detail is off the page", im.SHOW_ETF_DETAIL is False
+     and "BetaShares" not in html
+     and 'class="gm-etf"' not in html
+     and "ASX-listed international ETFs" not in html),
+    ("the ETF signals are still computed, so the flag is all it takes",
+     len(im.ETFS) >= 14 and "signal" in data["etfs"][0]),
+    ("it says which session each figure is from", "yesterday" in html and "overnight" in html),
+    ("it warns the 5:17 US figures are pre-close", "before Wall Street shuts" in html),
     ("no data renders a message rather than an empty page",
      "no market data returned" in empty),
     ("it shares the page-width cap", "var(--page-max" in im.CSS),

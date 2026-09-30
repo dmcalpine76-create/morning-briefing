@@ -42,6 +42,10 @@ AEST_OFFSET = datetime.timezone(datetime.timedelta(hours=10))
 # ── instruments ─────────────────────────────────────────────────────────────
 
 INDICES = [
+    # Australia sits first and is a YESTERDAY read, not an overnight one: the
+    # ASX closed before this runs, while New York and London closed overnight.
+    {"id": "ASX200",  "sym": "^AXJO",     "name": "ASX 200",       "region": "australia", "flag": "\U0001F1E6\U0001F1FA"},
+    {"id": "AORD",    "sym": "^AORD",     "name": "All Ordinaries","region": "australia", "flag": "\U0001F1E6\U0001F1FA"},
     {"id": "SP500",   "sym": "^GSPC",     "name": "S&P 500",       "region": "us",     "flag": "\U0001F1FA\U0001F1F8"},
     {"id": "NASDAQ",  "sym": "^IXIC",     "name": "Nasdaq",        "region": "us",     "flag": "\U0001F1FA\U0001F1F8"},
     {"id": "DOW",     "sym": "^DJI",      "name": "Dow Jones",     "region": "us",     "flag": "\U0001F1FA\U0001F1F8"},
@@ -62,6 +66,7 @@ INDICES = [
 ]
 
 REGIONS = [
+    {"id": "australia",   "name": "Australia",     "flag": "\U0001F1E6\U0001F1FA"},
     {"id": "us",          "name": "United States", "flag": "\U0001F1FA\U0001F1F8"},
     {"id": "europe",      "name": "Europe",        "flag": "\U0001F1EA\U0001F1FA"},
     {"id": "asia",        "name": "Asia",          "flag": "\U0001F30F"},
@@ -94,6 +99,10 @@ ETFS = [
     {"code": "GOLD", "name": "Global X Physical Gold",     "under": "GOLD",    "mer": 0.15},
     {"code": "OOO",  "name": "BetaShares Crude Oil",       "under": "OIL",     "mer": 0.69},
 ]
+
+# The per-ETF list is computed but not rendered: useful to have, not useful to
+# read every morning. Flip this to put the cards back - the data is always there.
+SHOW_ETF_DETAIL = False
 
 # signal thresholds, unchanged from the dashboard
 WEEK_MOVE   = 1.5     # % over five sessions that counts as a trend
@@ -269,6 +278,10 @@ Write a round-up for an Australian company director reading at 5am, before the
 ASX opens. For EACH region listed above, write exactly two sentences: what moved
 and by how much, then the most likely driver. Use the actual numbers.
 
+Australia is yesterday's completed ASX session - it closed before this was
+written. Everything else closed overnight. Write Australia in the past tense as
+yesterday's session, and do not describe it as overnight.
+
 Rules:
 - Only what the data above supports. Never invent a cause you cannot see in the
   numbers; if the driver is not evident, say what moved and stop.
@@ -329,7 +342,7 @@ CSS = """
 .gm-sec .gm-note{margin-left:auto;font-size:.62rem;font-weight:700;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink-light,#6b6862);background:var(--paper-2,#f4f1e8);
   border:1px solid var(--rule,#e4e1d8);padding:.12rem .4rem;border-radius:2rem}
-.gm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+.gm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
   gap:1.4rem;align-items:start;margin-bottom:2rem}
 .gm-card{background:#fff;border:1px solid var(--rule,#e4e1d8);border-radius:3px;
   padding:.85rem 1rem;transition:box-shadow .12s}
@@ -435,7 +448,7 @@ def build_tab(data: dict, roundup: dict = None, now: datetime.datetime = None) -
                 f'<span>MER {e["mer"]:.2f}%</span>'
                 f'</div></div>')
     etf_block = ""
-    if etfs:
+    if etfs and SHOW_ETF_DETAIL:
         etf_block = ('<div class="gm-sec">ASX-listed international ETFs'
                      f'<span class="gm-note">{len(etfs)} tracked</span></div>'
                      '<div class="gm-lead">Each ETF trades on the ASX while its underlying market '
@@ -451,9 +464,10 @@ def build_tab(data: dict, roundup: dict = None, now: datetime.datetime = None) -
     return (CSS + '<div class="gm-wrap">'
             f'<div class="gm-sec">Overnight round-up'
             f'<span class="gm-note">{_esc(asof_txt)}</span></div>'
-            '<div class="gm-lead">Offshore markets only &mdash; the ASX is in the widget bar '
-            'above and the news columns. Figures are the last completed session on each '
-            'exchange, so US and European numbers are from overnight.</div>'
+            '<div class="gm-lead">The last completed session on each exchange. Australia is '
+            'yesterday&rsquo;s ASX close; everything else closed overnight. Note the US figures '
+            'in the 5:17 briefing are taken before Wall Street shuts &mdash; the 8:15 run has '
+            'the settled close.</div>'
             f'<div class="gm-grid">{"".join(cards)}</div>'
             f'{heat}{etf_block}{miss}</div>')
 
