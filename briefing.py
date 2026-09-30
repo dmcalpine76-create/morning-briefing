@@ -1405,7 +1405,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                    calendar_data=None, schedule_result=None, graph_token=None, todo_list_id=None,
                    gsh_gas_data=None, gas_history=None, token_days_left=None,
                    fortnight=None, ranked_tasks=None, personal_actions=None,
-                   personal_status=None, market=None) -> str:
+                   personal_status=None, market=None, globalmkt=None) -> str:
     date_str      = generated_at.strftime(f"%A, {DAYFMT} %B %Y")
     time_str      = generated_at.strftime("%H:%M AEST")
     token_badge   = ""
@@ -1520,6 +1520,22 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                          else (f" ({_mw_count})" if _mw_count else ""))
             market_btn = ('<button class="tab-btn" onclick="showTab(\'market\')" '
                           f'id="tab-market">&#128200; Market Watch{_mw_label}</button>')
+
+    # ── Global Markets tab ──────────────────────────────────────────────
+    global_tab_html, global_btn = "", ""
+    if globalmkt and (globalmkt.get("data") or {}).get("indices"):
+        try:
+            import international_markets as _intl
+            global_tab_html = _intl.build_tab(globalmkt["data"], globalmkt.get("roundup"))
+        except Exception as _e:
+            print(f"  WARNING: Global Markets render failed ({_e})")
+            global_tab_html = ""
+        if global_tab_html:
+            _gm_opps = sum(1 for e in (globalmkt["data"].get("etfs") or [])
+                           if e["signal"] in ("reversal", "momentum"))
+            _gm_label = f" ({_gm_opps})" if _gm_opps else ""
+            global_btn = ('<button class="tab-btn" onclick="showTab(\'global\')" '
+                          f'id="tab-global">&#127758; Global Markets{_gm_label}</button>')
 
     backlog_btn = ('<button class="tab-btn" onclick="showTab(\'backlog\')" id="tab-backlog">'
                    f'&#128230; Backlog ({backlog_count})</button>') if backlog_tab_html else ""
@@ -2014,6 +2030,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     <nav class="masthead-tabs">
         <button class="tab-btn tab-active" onclick="showTab('news')" id="tab-news">📰 News</button>
         {market_btn}
+        {global_btn}
         {topic_tab_btns}
         <button class="tab-btn" onclick="showTab('email')" id="tab-email">⚡ Actions{"" if not email_count else f" ({email_count})"}</button>
         <button class="tab-btn" onclick="showTab('schedule')" id="tab-schedule">🗓️ Schedule{"" if not sched_count and not sched_flagged else f" ({sched_count})" if sched_count else " (⚑)"}</button>
@@ -2041,6 +2058,10 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 </div>
 
 <!-- ── MARKET WATCH TAB ── -->
+<div id="view-global" style="display:none">
+{global_tab_html}
+</div>
+
 <div id="view-market" style="display:none">
 {market_tab_html}
 </div>
@@ -2105,7 +2126,7 @@ document.addEventListener('DOMContentLoaded', measureHead);
 
 function showTab(tab) {{
     // Hide all views
-    ['view-news','view-market','view-email','view-calendar','view-schedule','view-backlog'].forEach(id => {{
+    ['view-news','view-market','view-global','view-email','view-calendar','view-schedule','view-backlog'].forEach(id => {{
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     }});
@@ -3063,6 +3084,32 @@ def main():
             print(f"   !  Market Watch unavailable: {_e}")
             market = None
 
+    # ── Global Markets (offshore indices, US sectors, ASX-listed intl ETFs) ──
+    globalmkt = None
+    try:
+        import international_markets as _intl
+        print("\n\U0001F30D   Global markets\u2026")
+        _gdata = _intl.fetch_markets()
+        if _gdata.get("error"):
+            print(f"   !  {_gdata['error']}")
+        else:
+            _gmiss = len(_gdata.get("missing") or [])
+            print(f"   OK {len(_gdata['indices'])} indices, {len(_gdata['sectors'])} sectors, "
+                  f"{len(_gdata['etfs'])} ETFs"
+                  + (f" ({_gmiss} symbol(s) returned nothing)" if _gmiss else ""))
+            _groundup = {}
+            try:
+                _gclient = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+                _groundup = _intl.write_roundup(_gclient, _gdata)
+                if _groundup:
+                    print(f"   OK round-up written for {len(_groundup)} region(s)")
+            except Exception:
+                pass
+            globalmkt = {"data": _gdata, "roundup": _groundup}
+    except Exception as _e:
+        print(f"   !  Global markets unavailable: {_e}")
+        globalmkt = None
+
     html = generate_html(all_sections, generated, active_topics, email_analysis,
                          asx_ann_data, market_data, all_topic_stories, asx_data,
                          weather_data, sunshine_data, gas_data, hh_gas_data,
@@ -3077,7 +3124,7 @@ def main():
                          ranked_tasks=ranked_tasks,
                          personal_actions=personal_actions,
                          personal_status=personal_status,
-                         market=market)
+                         market=market, globalmkt=globalmkt)
     (out_dir / "briefing.html").write_text(html, encoding="utf-8")
     print(f"\n  Briefing saved to: {out_dir.resolve()}")
 

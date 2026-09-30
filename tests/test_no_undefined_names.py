@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MODULES = ["briefing.py", "market_monitor.py", "schedule_render.py",
            "asx_announcements.py", "calendar_data.py", "calendar_lanes.py",
            "personal_calendar.py", "gmail_personal.py", "todo_tasks.py",
-           "task_urgency.py", "settings_server.py"]
+           "task_urgency.py", "settings_server.py", "international_markets.py"]
 
 if __name__ == "__main__":
     try:
