@@ -730,7 +730,7 @@ CSS = """
 <style>
 /* Same container, panel header and card treatment as the Actions tab, so
    Market Watch reads as part of the same document. */
-.mw-wrap{max-width:1440px;margin:0 auto;padding:1.5rem 1.5rem 3rem}
+.mw-wrap{max-width:var(--page-max,1800px);margin:0 auto;padding:1.5rem 1.5rem 3rem}
 .mw-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.6rem;
   border-bottom:3px solid var(--ink,#1a1a17);padding-bottom:0.5rem;margin-bottom:0.35rem}
 .mw-title{font-family:var(--font-body,sans-serif);font-size:1.25rem;font-weight:700}

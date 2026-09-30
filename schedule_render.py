@@ -75,6 +75,7 @@ def build_css() -> str:
 
 /* Four even columns. The day rails were fixed-width, which left the list
    column taking every spare pixel and the rails looking squeezed. */
+.sx-wrap { max-width:var(--page-max,1800px); margin:0 auto; padding:0 1.5rem 3rem; }
 .sx-cols { display:flex; gap:1rem; align-items:flex-start; }
 .sx-main, .sx-side { flex:1 1 0; min-width:0; }
 @media (max-width:1400px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 250px;}
@@ -191,7 +192,7 @@ def build_css() -> str:
            background:#fff; border:1px solid #e4e1d8; border-radius:9px; padding:.7rem .9rem; }
 
 /* ── calendar: a fortnight across, hours down the side ── */
-.cg-wrap{max-width:1560px;margin:0 auto;padding:1.1rem 1rem 2.4rem}
+.cg-wrap{max-width:var(--page-max,1800px);margin:0 auto;padding:1.5rem 1.5rem 3rem}
 .cg-legend{display:flex;flex-wrap:wrap;gap:.85rem;margin-bottom:.8rem;font-size:.63rem;color:#3d3a34}
 .cg-lg{display:flex;align-items:center;gap:.3rem}
 .cg-lg i{width:10px;height:10px;border-radius:2px;display:block;flex:0 0 auto}

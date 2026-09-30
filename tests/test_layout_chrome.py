@@ -50,6 +50,9 @@ CHECKS = [
      "scroll-padding-top: var(--head-h)" in BRIEF),
     ("the display face is used by the masthead only",
      all("masthead" in ln for ln in display_users)),
+    ("one page-width cap drives every tab",
+     "--page-max: 1800px" in BRIEF and "var(--page-max" in SCHED
+     and "var(--page-max" in MARKET and "1440px" not in BRIEF),
     ("the Schedule tab's columns are even",
      re.search(r"\.sx-main, \.sx-side \{ flex:1 1 0", SCHED) is not None),
     ("no fixed-width day column remains",
@@ -67,8 +70,7 @@ CHECKS = [
 
     # News, My Topics, Market Watch and Actions share one column format.
     ("news columns use the Actions container",
-     "max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;" in BRIEF
-     and BRIEF.count("max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;") >= 2),
+     BRIEF.count("max-width: var(--page-max); margin: 0 auto; padding: 1.5rem 1.5rem 3rem;") >= 2),
     ("the hairline newspaper grid is gone",
      "gap: 1px; background: var(--rule);" not in BRIEF
      and "gap: 1px;\n            background: var(--rule);" not in BRIEF),
@@ -77,7 +79,7 @@ CHECKS = [
     ("column headers match the panel title rule",
      "padding-bottom: 0.5rem; margin-bottom: 1rem;" in BRIEF),
     ("market watch shares the container and card treatment",
-     "max-width:1440px;margin:0 auto;padding:1.5rem 1.5rem 3rem" in MARKET
+     "margin:0 auto;padding:1.5rem 1.5rem 3rem" in MARKET
      and "padding:0.85rem 1rem;transition:box-shadow .12s" in MARKET),
     ("market watch uses the body face",
      "var(--font-display" not in MARKET),

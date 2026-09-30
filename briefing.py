@@ -1556,6 +1556,11 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             /* The masthead's newspaper face. Tab content uses --font-body;
                mixing the two is what made News and My Topics look like a
                different document from the rebuilt tabs. */
+            /* One cap for every tab. 1800px is what the ~80-character
+               readability limit allows for the News tab's three fixed
+               columns, which is the binding constraint - Actions and
+               Schedule could take more. */
+            --page-max: 1800px;
             --font-display: 'Playfair Display', Georgia, serif;
             --font-body:    'Source Sans 3', 'Helvetica Neue', sans-serif;
         }}
@@ -1699,7 +1704,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
         .tab-active {{ background: var(--accent) !important; color: var(--white) !important; border-color: var(--accent) !important; }}
 
         /* ── EMAIL TAB LAYOUT (mirrors email.html) ── */
-        .email-view {{ max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; grid-template-columns: 1.3fr 1fr 0.95fr 1fr; gap: 1.4rem; align-items: start; }}
+        .email-view {{ max-width: var(--page-max); margin: 0 auto; padding: 1.5rem 1.5rem 3rem; display: grid; grid-template-columns: 1.3fr 1fr 0.95fr 1fr; gap: 1.4rem; align-items: start; }}
         .ep-panel-title {{ font-family: var(--font-body); font-size: 1rem; font-weight: 700; padding-bottom: 0.5rem; border-bottom: 3px solid var(--ink); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }}
         .ep-count {{ font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); background: var(--paper-2); border: 1px solid var(--rule); padding: 0.12rem 0.4rem; border-radius: 2rem; margin-left: auto; }}
         /* email digest cards */
@@ -1800,7 +1805,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
            News and Topics used to be full-bleed newspaper columns divided by
            hairlines, which is why the tabs read as different documents. */
         .columns-wrapper {{
-            max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;
+            max-width: var(--page-max); margin: 0 auto; padding: 1.5rem 1.5rem 3rem;
             display: grid; grid-template-columns: repeat(3, 1fr);
             gap: 1.4rem; align-items: start;
         }}
@@ -1835,7 +1840,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
         /* ── TOPIC TAB HEADER ── */
         .topic-tab-header {{
-            max-width: 1440px; margin: 0 auto 1rem; display: flex;
+            max-width: var(--page-max); margin: 0 auto 1rem; display: flex;
             align-items: center; gap: 0.6rem;
             padding: 1.5rem 1.5rem 0.5rem;
             border-bottom: 3px solid var(--tc, var(--ink));
@@ -1975,7 +1980,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
 
         /* ── TOPICS TAB — responsive columns ── */
         .topics-tab-grid {{
-            max-width: 1440px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem;
+            max-width: var(--page-max); margin: 0 auto; padding: 1.5rem 1.5rem 3rem;
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
             gap: 1.4rem; align-items: start;
