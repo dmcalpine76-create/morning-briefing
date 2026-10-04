@@ -107,6 +107,40 @@ def _bucket(due, today):
 
 def fetch_todo_tasks(list_name: str = None, include_completed: bool = False) -> dict:
     """
+    With no list named, read EVERY To Do list (tasks are often added straight
+    into lists other than Daily Priorities) and merge them, each task tagged
+    with its list. Name a list to read just that one, as before.
+    """
+    if list_name is None:
+        return _fetch_all_lists(include_completed)
+    return _fetch_one_list(list_name, include_completed)
+
+
+def _fetch_all_lists(include_completed: bool = False) -> dict:
+    try:
+        token = _get_token()
+        lists = (_graph_get(token, "/me/todo/lists", {}) or {}).get("value", []) or []
+    except Exception:
+        return _fetch_one_list(TASK_LIST_NAME, include_completed)   # fall back to the old behaviour
+    merged, errors = [], []
+    for lst in lists:
+        r = _fetch_one_list(lst.get("displayName", ""), include_completed)
+        if r.get("error"):
+            errors.append(r["error"])
+        for t in r.get("tasks", []):
+            t["list"] = lst.get("displayName", "")
+            merged.append(t)
+    order = {"overdue": 0, "today": 1, "next-7": 2, "no-date": 3, "later": 4}
+    rank  = {"high": 0, "normal": 1, "low": 2}
+    merged.sort(key=lambda x: (order.get(x["bucket"], 9),
+                               x["due_date"] or datetime.date.max,
+                               rank.get(x["importance"], 1)))
+    return {"tasks": merged, "list_name": "all lists",
+            "error": None if merged or not errors else errors[0]}
+
+
+def _fetch_one_list(list_name: str = None, include_completed: bool = False) -> dict:
+    """
     Returns {"tasks": [...], "list_name": str, "error": None | str}
 
     Each task:
