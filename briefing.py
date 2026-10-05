@@ -1581,8 +1581,12 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             --font-body:    'Source Sans 3', 'Helvetica Neue', sans-serif;
         }}
 
-        html {{ scroll-behavior: smooth; }}
-        body {{ background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; min-height: 100vh; }}
+        /* One point up on the root. Every size in these tabs is in rem, and
+           rem resolves against the ROOT element - not body - so this is the
+           single lever that moves all of them together. 16px + 1pt = 17.33px.
+           body is 1rem so it follows rather than staying pinned at 16. */
+        html {{ scroll-behavior: smooth; font-size: 17.33px; }}
+        body {{ background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; min-height: 100vh; }}
 
         /* ── MASTHEAD ── */
         .masthead {{

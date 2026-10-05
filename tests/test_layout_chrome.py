@@ -50,6 +50,20 @@ CHECKS = [
      "scroll-padding-top: var(--head-h)" in BRIEF),
     ("the display face is used by the masthead only",
      all("masthead" in ln for ln in display_users)),
+    # The root font-size and the pixel geometry must move together: the rail
+    # and the calendar grid are sized in px by Python while their text is in
+    # rem, and both clip with overflow:hidden, so a mismatch hides content
+    # silently rather than breaking the layout where you would see it.
+    ("the root carries the font size, not body",
+     "font-size: 17.33px" in BRIEF and "font-size: 1rem; line-height" in BRIEF),
+    ("no size is pinned in px against the root",
+     "font-size: 16px" not in BRIEF),
+    ("the pixel geometry tracks the root font-size",
+     "FONT_SCALE      = 17.33 / 16" in SCHED
+     and "0.85 * FONT_SCALE" in SCHED
+     and "round(30 * FONT_SCALE)" in SCHED
+     and "(640 * FONT_SCALE)" in SCHED),
+
     ("one page-width cap drives every tab",
      "--page-max: 1800px" in BRIEF and "var(--page-max" in SCHED
      and "var(--page-max" in MARKET and "1440px" not in BRIEF),

@@ -23,7 +23,8 @@ AEST_OFFSET = datetime.timezone(datetime.timedelta(hours=10))
 
 RAIL_START_HOUR = 7
 RAIL_END_HOUR   = 18
-RAIL_PX_PER_MIN = 0.85
+FONT_SCALE      = 17.33 / 16      # must track the root font-size in briefing.py
+RAIL_PX_PER_MIN = 0.85 * FONT_SCALE
 
 INK       = "#1a1a1a"
 MID       = "#5c5a52"
@@ -646,7 +647,7 @@ def _build_rail(events: list, now: datetime.datetime,
     lo_h, hi_h = _rail_bounds(events)
     span_mins = (hi_h - lo_h) * 60
     # keep the rail a sensible height however long the day turns out to be
-    ppm = min(RAIL_PX_PER_MIN, 640 / span_mins) if span_mins else RAIL_PX_PER_MIN
+    ppm = min(RAIL_PX_PER_MIN, (640 * FONT_SCALE) / span_mins) if span_mins else RAIL_PX_PER_MIN
     height = int(span_mins * ppm)
     day_start = datetime.datetime.combine(
         day, datetime.time(lo_h), tzinfo=now.tzinfo or AEST_OFFSET)
@@ -710,7 +711,7 @@ def _build_rail(events: list, now: datetime.datetime,
 NOMINAL_DAY_H = 9.0
 WORK_START_H  = 7
 WORK_END_H    = 18
-CG_ROW        = 30          # pixels per hour
+CG_ROW        = round(30 * FONT_SCALE)   # pixels per hour, tracking the font
 
 # "%#d" (no-pad day) is Windows-only; Linux (GitHub Actions) uses "%-d".
 DAYFMT = "%#d" if os.name == "nt" else "%-d"
