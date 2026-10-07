@@ -209,6 +209,33 @@ ASX_WATCHLIST = [
 # RSS FETCHING
 # ─────────────────────────────────────────────
 
+# A feed that stops publishing keeps serving the same items forever and still
+# parses perfectly, so nothing ever complains. naturalgasworld.com/rss froze in
+# February 2025 and kept feeding a 19-month-old Egypt story into the Domestic
+# Gas topic every single day. Items older than this are dropped and the feed is
+# named in the run log.
+MAX_ITEM_AGE_DAYS = 21
+
+
+def _item_age_days(published: str):
+    """Age of an item in days, or None when the feed gives no usable date."""
+    if not published:
+        return None
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(published)
+    except Exception:
+        try:
+            dt = datetime.datetime.fromisoformat(published.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return (datetime.datetime.now(datetime.timezone.utc) - dt).days
+
+
 def fetch_feed_items(feed_url: str, max_items: int = MAX_FEED_ITEMS) -> list[dict]:
     """Parse a single RSS feed and return a list of story dicts."""
     try:
@@ -232,9 +259,21 @@ def fetch_feed_items(feed_url: str, max_items: int = MAX_FEED_ITEMS) -> list[dic
                     "summary": summary[:200],   # truncate so we don't blow the prompt
                     "link":    link,
                     "published": pub,
+                    "age_days": _item_age_days(pub),
                     "source":  feed.feed.get("title", feed_url),
                 })
-        return items
+
+        # Undated items are kept - plenty of feeds omit the date and they are
+        # not necessarily stale. Only a known, provably old item is dropped.
+        fresh = [i for i in items
+                 if i["age_days"] is None or i["age_days"] <= MAX_ITEM_AGE_DAYS]
+        if items and not fresh:
+            oldest = min((i["age_days"] for i in items
+                          if i["age_days"] is not None), default=None)
+            age = f"{oldest}d old" if oldest is not None else "undated"
+            print(f"  !  STALE FEED, all {len(items)} items dropped "
+                  f"(newest {age}): {feed_url}")
+        return fresh
     except Exception as e:
         print(f"  ⚠️  Failed to fetch {feed_url}: {e}")
         return []
@@ -290,7 +329,7 @@ For each selected story return a JSON array with objects containing:
   - "headline": a crisp, informative headline (max 10 words)
   - "summary": ONE sentence only — the single most important fact. Max 25 words. No fluff.
   - "source": the publication name
-  - "link": the URL if available (use the one from the item)
+  - "index": the [n] number of the item you are summarising, exactly as shown above
   - "significance": one of ["critical", "major", "notable"]
 
 Return ONLY the JSON array — no markdown fences, no extra text.
@@ -300,23 +339,41 @@ NEWS ITEMS:
 """
 
 
-def _clean_stories(raw) -> list[dict]:
+def _clean_stories(raw, items: list[dict] = None) -> list[dict]:
     """
     Normalise the AI's JSON so downstream rendering can never hit a None.
-    Haiku sometimes returns "link": null (or omits fields) — .get(key, "")
-    does NOT protect against explicit nulls, so coerce every string field.
+    Haiku sometimes returns null (or omits fields) — .get(key, "") does NOT
+    protect against explicit nulls, so coerce every string field.
+
+    The link is NOT taken from the model. The prompt never showed it a URL,
+    only titles and summaries, so when it was asked for "the URL from the
+    item" it had nothing to copy and emitted the publication's home page
+    instead - every link in the News and My Topics tabs was a guess. The
+    model now returns the item's index and the real URL is looked up here,
+    which makes an invented link structurally impossible rather than merely
+    discouraged. A story whose index does not resolve keeps an empty link and
+    renders as plain text.
     """
     if not isinstance(raw, list):
         return []
+    items = items or []
     cleaned = []
     for s in raw:
         if not isinstance(s, dict):
             continue
+        link = ""
+        idx = s.get("index")
+        try:
+            i = int(idx) - 1
+            if 0 <= i < len(items):
+                link = str(items[i].get("link") or "").strip()
+        except (TypeError, ValueError):
+            pass
         cleaned.append({
             "headline":     str(s.get("headline") or "").strip(),
             "summary":      str(s.get("summary") or "").strip(),
             "source":       str(s.get("source") or "").strip(),
-            "link":         str(s.get("link") or "").strip(),
+            "link":         link,
             "significance": str(s.get("significance") or "notable").strip().lower(),
         })
     return [s for s in cleaned if s["headline"]]
@@ -339,7 +396,7 @@ def summarise_category(client: anthropic.Anthropic, category_name: str,
             )
             raw = message.content[0].text.strip()
             raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-            return _clean_stories(json.loads(raw))
+            return _clean_stories(json.loads(raw), items[:30])
         except Exception as e:
             print(f"  ⚠️  Attempt {attempt+1}/3 failed for {category_name}: {e}")
             if attempt < 2:
@@ -2474,7 +2531,7 @@ For each selected story return a JSON array with:
   - "headline":     crisp headline (max 10 words)
   - "summary":      ONE sentence only — the single most important fact. Max 25 words. Be direct.
   - "source":       publication name
-  - "link":         URL from the item
+  - "index":        the [n] number of the item you are summarising, exactly as shown above
   - "significance": one of ["critical", "major", "notable"]
 
 Return ONLY the JSON array — no markdown fences, no extra text.
@@ -2503,7 +2560,7 @@ def summarise_topic(client: anthropic.Anthropic, topic: dict,
             )
             raw = message.content[0].text.strip()
             raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-            return _clean_stories(json.loads(raw))
+            return _clean_stories(json.loads(raw), items[:30])
         except Exception as e:
             print(f"  ⚠️  Attempt {attempt+1}/3 failed for topic '{topic['name']}': {e}")
             if attempt < 2:
