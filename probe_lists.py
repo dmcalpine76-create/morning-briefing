@@ -1,52 +1,37 @@
-"""Temporary diagnostic. Counts and AGES only - no subjects, no titles."""
-import datetime, os, collections
-import todo_tasks as tt, task_urgency as tu, outlook_email as oe, anthropic
-
-now = datetime.datetime.now(datetime.timezone.utc)
-def age_h(ts):
-    if not ts: return None
-    try:
-        d = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-        if d.tzinfo is None: d = d.replace(tzinfo=datetime.timezone.utc)
-        return round((now - d).total_seconds() / 3600, 1)
-    except Exception:
-        return None
+"""Temporary. Prints JSON KEY NAMES and value TYPES only - never values."""
+import os, json, anthropic, outlook_email as oe
 
 tok = oe.get_access_token()
 emails = oe.fetch_recent_emails(tok)
-print(f"HOURS_BACK constant              : {oe.HOURS_BACK}")
-print(f"emails fetched                   : {len(emails)}")
-ages = [a for a in (age_h(e.get('received')) for e in emails) if a is not None]
-if ages:
-    print(f"  age range (hours)              : {min(ages)} .. {max(ages)}")
-    buckets = collections.Counter()
-    for a in ages:
-        buckets["0-24h" if a <= 24 else "24-48h" if a <= 48 else
-                "48-168h" if a <= 168 else "OLDER THAN A WEEK"] += 1
-    for k in ("0-24h", "24-48h", "48-168h", "OLDER THAN A WEEK"):
-        if buckets[k]: print(f"    {k:<20}: {buckets[k]}")
-print(f"  sent / received                : {sum(1 for e in emails if e.get('is_sent'))}"
-      f" / {sum(1 for e in emails if not e.get('is_sent'))}")
-
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-an = oe.analyse_emails(client, emails)
-acts = an.get("actions", []) or []
-print(f"\nactions returned                 : {len(acts)} (cap {oe.MAX_ACTIONS})")
-print(f"  with a resolved msg_id         : {sum(1 for a in acts if a.get('msg_id'))}")
-print(f"  derived from a SENT email      : {sum(1 for a in acts if a.get('src_sent'))}")
-sa = [age_h(a.get("src_time")) for a in acts]
-for i, a in enumerate(sa, 1):
-    print(f"    action {i}: source email {a}h old" if a is not None
-          else f"    action {i}: source UNRESOLVED")
 
-todo = tt.fetch_todo_tasks(); tasks = todo.get("tasks", [])
-done = tt.fetch_recent_completions(); dsrc = tt.fetch_recent_completion_sources()
-idx = tt.suppression_index(tasks, done, dsrc)
-kept, dropped, why = tt.drop_suppressed(acts, idx)
-print(f"\nsuppressed                       : {dropped} {why}")
-merged = tt.merge_with_inbox_actions(tasks, kept, done)
-r = tu.rank_tasks(merged, [])
-print(f"open tasks                       : {len(tasks)}")
-print(f"live / below_cut / quiet         : {len(r['live'])} / "
-      f"{len(r.get('below_cut',[]))} / {len(r.get('quiet',[]))}")
-print(f"backlog total (tab button count) : {len(r['backlog'])}")
+# call the model exactly as analyse_emails does, but keep the raw text
+import datetime
+today = datetime.date.today().strftime("%A, %d %B %Y")
+emails_text = "\n".join(oe._fmt(e, i) for i, e in enumerate(emails))
+knowledge_block = ""
+try:
+    knowledge_block = oe._knowledge_block()
+except Exception:
+    pass
+MAX_DIGEST_ITEMS, MAX_ACTIONS, MAX_PEOPLE = oe.MAX_DIGEST_ITEMS, oe.MAX_ACTIONS, oe.MAX_PEOPLE
+HOURS_BACK = oe.HOURS_BACK
+src = oe.__file__
+import re
+m = re.search(r'prompt = f"""(.*?)"""', open(src, encoding="utf-8").read(), re.S)
+prompt = eval('f"""' + m.group(1) + '"""')
+msg = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=4000,
+                             messages=[{"role": "user", "content": prompt}])
+raw = msg.content[0].text.strip()
+raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+d = json.loads(raw)
+acts = d.get("actions", []) or []
+print(f"actions: {len(acts)}")
+for i, a in enumerate(acts[:3], 1):
+    print(f"  action {i} keys: {sorted(a.keys())}")
+    for k, v in a.items():
+        if k in ("index", "email_index", "source_index", "n"):
+            print(f"      {k} = {v!r} (type {type(v).__name__})")
+print()
+print("prompt mentions 'index'  :", "index (the [n]" in prompt)
+print("prompt char length       :", len(prompt))
