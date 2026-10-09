@@ -2318,7 +2318,7 @@ async function pushToTodo() {{
                     importance: 'high',
                     body:       {{ contentType: 'text',
                                   content: (task.detail || '')
-                                           + (task.msg_id ? '\n\n[src:' + task.msg_id + ']' : '') }},
+                                           + (task.msg_id ? ' [src:' + task.msg_id + ']' : '') }},
                 }}),
             }});
             if (tr.ok) {{
