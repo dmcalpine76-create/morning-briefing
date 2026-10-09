@@ -1,0 +1,56 @@
+name: Probe To Do lists
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Restore Outlook token
+        env:
+          OUTLOOK_TOKEN_CACHE: ${{ secrets.OUTLOOK_TOKEN_CACHE }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, json, sys
+          raw = os.environ.get("OUTLOOK_TOKEN_CACHE", "")
+          if not raw:
+              print("WARNING: OUTLOOK_TOKEN_CACHE not set — Outlook features skipped")
+              sys.exit(0)
+          try:
+              parsed = json.loads(raw)
+              with open(".outlook_token_cache.bin", "w", encoding="utf-8") as f:
+                  json.dump(parsed, f)
+              print("OK: Outlook token cache restored")
+          except json.JSONDecodeError:
+              with open(".outlook_token_cache.bin", "w", encoding="utf-8") as f:
+                  f.write(raw)
+              print("OK: Outlook token cache restored (plain text format)")
+          PYEOF
+
+      # ── 5. (removed) Google token restore ─────────────────────────────────
+      # Gmail/Google Calendar integration was fully removed (C2) —
+      # gmail_email.py and google_calendar.py no longer exist and nothing
+      # reads GOOGLE_TOKEN_CACHE or gmail_actions.json.
+
+      # ── 6. Run briefing generator ──────────────────────────────────────────
+      - name: Probe
+        env:
+          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
+          OUTLOOK_TENANT_ID: ${{ secrets.OUTLOOK_TENANT_ID }}
+        run: python probe_lists.py > probe_lists.txt 2>&1 || true
+      - name: Publish counts only
+        run: |
+          git config user.name  "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan list-probe
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          git add -f probe_lists.txt
+          git commit -m "list probe"
+          git push -f origin list-probe
