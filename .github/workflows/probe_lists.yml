@@ -44,6 +44,7 @@ jobs:
         env:
           OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
           OUTLOOK_TENANT_ID: ${{ secrets.OUTLOOK_TENANT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python probe_lists.py > probe_lists.txt 2>&1 || true
       - name: Publish counts only
         run: |
