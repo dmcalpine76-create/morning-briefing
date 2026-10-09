@@ -40,6 +40,9 @@ MAX_ACTIONS      = 8
 MAX_PEOPLE       = 8
 REQUEST_TIMEOUT  = 12   # seconds per API call
 MAX_FOLDERS      = 20   # never crawl more than this many folders
+# The prompt used to claim "the last 24 hours" while the fetch defaulted to 48,
+# so the model was told one window and handed another. One constant now.
+HOURS_BACK       = 48
 
 
 # ─────────────────────────────────────────────
@@ -162,7 +165,7 @@ def _parse_msg(msg: dict, folder_name: str, is_sent: bool) -> dict:
     }
 
 
-def fetch_recent_emails(token: str, hours_back: int = 48) -> list:
+def fetch_recent_emails(token: str, hours_back: int = HOURS_BACK) -> list:
     """
     Fetch recent emails using three targeted calls only:
       1. Inbox (received)
@@ -294,7 +297,9 @@ def analyse_emails(client: anthropic.Anthropic, emails: list) -> dict:
     ) if knowledge else ""
 
     prompt = f"""You are a sharp executive assistant. Today is {today}.
-You have {len(emails)} emails from the last 24 hours (received + sent).
+You have {len(emails)} emails from the last {HOURS_BACK} hours (received + sent).
+Each is numbered [n] and carries its own Time: line. Judge recency from those
+times, not from the order they appear in.
 Return a JSON object with exactly three keys: "digest", "actions", "people".
 
 "digest": up to {MAX_DIGEST_ITEMS} most important emails.
@@ -304,7 +309,12 @@ summary (2 sentences max), action (short phrase or "").
 
 "actions": up to {MAX_ACTIONS} concrete things YOU need to do today.
 Each: action (specific task), context (1 sentence), deadline ("" if none),
-priority ("urgent"|"high"|"normal"), from_email (subject reference).
+priority ("urgent"|"high"|"normal"), index (the [n] of the email the action
+comes from, exactly as numbered above).
+Return ONLY genuine actions. Fewer is correct - do NOT pad the list to reach
+the maximum, and do not invent an action from an email that asks nothing of
+you. An email you SENT is an action only if you committed to doing something
+in it; chasing a reply is not an action unless you said you would follow up.
 
 "people": up to {MAX_PEOPLE} people to contact or meetings to schedule.
 Each: name, email, action ("contact"|"schedule-meeting"|"follow-up"),
@@ -326,6 +336,28 @@ EMAILS:
         raw = message.content[0].text.strip()
         raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         result = json.loads(raw)
+        # Resolve each action's source email HERE. The model used to return
+        # "from_email (subject reference)" - a field named for an address and
+        # documented as a subject, so in practice neither, and nothing tied an
+        # action back to the message it came from. It now returns the index it
+        # was shown and the real identifiers are looked up, which gives every
+        # action a stable msg_id that survives the wording changing between
+        # runs, plus the true date so a stale action is visible as stale.
+        for a in result.get("actions", []) or []:
+            if not isinstance(a, dict):
+                continue
+            src = None
+            try:
+                i = int(a.get("index")) - 1
+                if 0 <= i < len(emails):
+                    src = emails[i]
+            except (TypeError, ValueError):
+                pass
+            a["msg_id"]     = (src or {}).get("msg_id", "")
+            a["src_subject"]= (src or {}).get("subject", "")
+            a["src_time"]   = (src or {}).get("received", "")
+            a["src_sent"]   = bool((src or {}).get("is_sent"))
+            a["from_email"] = (src or {}).get("subject", "") or str(a.get("from_email") or "")
         return {
             "digest":  result.get("digest", []),
             "actions": result.get("actions", []),

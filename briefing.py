@@ -1287,6 +1287,8 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
             "due":      datetime.date.today().isoformat(),
             "priority": item.get("priority", "normal"),
             "web_link": item.get("web_link", ""),
+            # carried so a completed task can suppress the same action tomorrow
+            "msg_id":   item.get("msg_id", ""),
         })
 
     # Personal Gmail actions join the same payload, so selection, Select all,
@@ -2314,7 +2316,9 @@ async function pushToTodo() {{
                 body: JSON.stringify({{
                     title:      task.title,
                     importance: 'high',
-                    body:       {{ contentType: 'text', content: task.detail || '' }},
+                    body:       {{ contentType: 'text',
+                                  content: (task.detail || '')
+                                           + (task.msg_id ? '\n\n[src:' + task.msg_id + ']' : '') }},
                 }}),
             }});
             if (tr.ok) {{
@@ -2618,17 +2622,23 @@ def serve_briefing(out_dir: Path):
     briefing_html = briefing_html_raw.replace('</head>', inject + '</head>', 1)
     shutdown_event = threading.Event()
 
-    def _create_task(title: str, detail: str, due: str, priority: str) -> bool:
+    def _create_task(title: str, detail: str, due: str, priority: str,
+                     src: str = "") -> bool:
         # Re-acquire the token on every push — MSAL refreshes silently, so a
         # dashboard left open past the ~60-90 min access-token life keeps working.
         try:
             _tok = _outlook.get_access_token()
         except Exception:
             _tok = token
+        # The [src:...] marker is what lets a completed task suppress the same
+        # action tomorrow. Without it the only key is the title, which the
+        # model rewrites every run.
+        _marker = _todotasks.src_marker(src) if src else ""
         body = {
             "title":      title,
             "importance": "high",
-            "body":       {"contentType": "text", "content": detail},
+            "body":       {"contentType": "text",
+                           "content": (detail + ("\n\n" + _marker if _marker else ""))},
         }
         try:
             resp = requests.post(
@@ -2677,6 +2687,7 @@ def serve_briefing(out_dir: Path):
                         t.get("detail", ""),
                         t.get("due", str(datetime.date.today())),
                         t.get("priority", "normal"),
+                        t.get("msg_id", ""),
                     )
                     results.append({"id": t["id"], "success": ok})
                     print(f"   {chr(10003) if ok else chr(10007)}  {t.get('title','')[:60]}")
@@ -3115,18 +3126,23 @@ def main():
             if _done:
                 print(f"   .  {len(_done)} recently completed title(s) will not be re-proposed")
 
-            # One suppression set for BOTH tabs. The Actions tab used to render
-            # the raw inbox actions, so an item cleared in To Do came straight
-            # back the next morning while the Schedule tab had already dropped
-            # it - the two tabs disagreed about what was outstanding.
-            _suppress = _todotasks.suppressed_titles(_todo.get("tasks", []), _done)
-            if email_analysis is not None and _suppress:
-                _kept, _dropped = _todotasks.drop_suppressed(
+            # One suppression index for BOTH tabs, keyed on the source email
+            # wherever possible. Title matching alone never worked: the model
+            # rewords the action on every run, so the same item came back
+            # looking different and matched nothing.
+            _done_src = _todotasks.fetch_recent_completion_sources()
+            if _done_src:
+                print(f"   .  {len(_done_src)} completed source email(s) recorded")
+            _suppress = _todotasks.suppression_index(
+                _todo.get("tasks", []), _done, _done_src)
+            if email_analysis is not None:
+                _kept, _dropped, _why = _todotasks.drop_suppressed(
                     email_analysis.get("actions", []), _suppress)
                 if _dropped:
                     email_analysis["actions"] = _kept
+                    _reason = "; ".join(f"{v} {k}" for k, v in _why.items())
                     print(f"   .  {_dropped} inbox action(s) hidden from the Actions tab "
-                          f"- already on a To Do list or completed recently")
+                          f"({_reason})")
 
             _merged = _todotasks.merge_with_inbox_actions(
                 _todo.get("tasks", []), (email_analysis or {}).get("actions", []), _done)

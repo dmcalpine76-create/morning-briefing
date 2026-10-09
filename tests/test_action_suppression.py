@@ -2,17 +2,23 @@
 test_action_suppression.py
 --------------------------
 Clearing a task in To Do had no effect on whether it reappeared in Work
-Actions the next morning. The Actions tab rendered analysis["actions"]
-straight from the inbox read; the de-duplication only ever ran on the path
-feeding the Schedule and Backlog tabs, so the two tabs disagreed about what
-was still outstanding.
+Actions. Two separate reasons, found in that order:
 
-Two narrower faults rode along with it:
-  * fetch_recent_completions read Daily Priorities alone, while open tasks had
-    started coming from every list - complete something anywhere else and it
-    was invisible to the suppression.
-  * Microsoft's Flagged Emails list is every email ever flagged in Outlook,
-    served through the To Do API as tasks. Merged in, it buried the backlog.
+  1. The Actions tab rendered analysis["actions"] straight from the inbox
+     read - the de-duplication only ran on the path feeding the Schedule and
+     Backlog tabs.
+  2. Fixing (1) changed nothing, because matching was on the action TITLE and
+     the model rewords the action on every run. A probe against the live
+     mailbox found 0 of 8 actions suppressed despite 277 completed tasks.
+
+The fix is to key on the source email. Each action now carries the msg_id of
+the message it came from, that id is written into the task body as [src:...]
+when the task is created, and a completed task suppresses the same action
+however it is worded next time.
+
+Open tasks are deliberately NOT suppressed: Doug runs inbox_actions first,
+which captures everything into To Do, so hiding anything already captured
+would empty the Actions tab of the items just captured.
 
     py tests/test_action_suppression.py
 """
@@ -21,65 +27,64 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import todo_tasks as tt
 
-SRC  = (Path(__file__).resolve().parent.parent / "todo_tasks.py").read_text(encoding="utf-8")
+SRC   = (Path(__file__).resolve().parent.parent / "todo_tasks.py").read_text(encoding="utf-8")
 BRIEF = (Path(__file__).resolve().parent.parent / "briefing.py").read_text(encoding="utf-8")
+MAIL  = (Path(__file__).resolve().parent.parent / "outlook_email.py").read_text(encoding="utf-8")
+# assert against the PROMPT, not the whole file - the comments explaining the
+# old behaviour quote the very strings we are checking have gone
+PROMPT = MAIL[MAIL.index('prompt = f"""You are a sharp executive assistant'):
+              MAIL.index("EMAILS:")]
 
-OPEN_TASKS = [
-    {"title": "Lodge ATP 2062 renewal", "list": "Daily Priorities"},
-    {"title": "Call Tony about the board pack", "list": "Work"},
+TASKS = [
+    {"title": "Lodge ATP 2062 renewal", "list": "Daily Priorities",
+     "is_completed": False, "detail": "x " + tt.src_marker("AAA-open")},
+    {"title": "Send Vroom the signed form", "list": "Work",
+     "is_completed": True,  "detail": "done " + tt.src_marker("BBB-done")},
 ]
-COMPLETED = {tt._norm_title("Send Vroom the signed form")}
+idx = tt.suppression_index(TASKS, completed={tt._norm_title("Old worded task")},
+                           completed_src=tt._task_src_ids(TASKS))
 
 ACTIONS = [
-    {"action": "Lodge ATP 2062 renewal",        "context": "already an open task"},
-    {"action": "Send Vroom the signed form",    "context": "completed last week"},
-    {"action": "Call Tony about the board pack","context": "open, but in another list"},
-    {"action": "Review the drilling budget",    "context": "genuinely new"},
+    {"action": "Chase Vroom for the counter-signed copy", "msg_id": "BBB-done"},
+    {"action": "Lodge ATP 2062 renewal",                  "msg_id": "AAA-open"},
+    {"action": "Old worded task",                         "msg_id": ""},
+    {"action": "Review the drilling budget",              "msg_id": "CCC-new"},
 ]
-
-sup = tt.suppressed_titles(OPEN_TASKS, COMPLETED)
-kept, dropped = tt.drop_suppressed(ACTIONS, sup)
-kept_titles = [a["action"] for a in kept]
-
-none_kept, none_dropped = tt.drop_suppressed(ACTIONS, set())
+kept, dropped, why = tt.drop_suppressed(ACTIONS, idx)
+titles = [a["action"] for a in kept]
 
 CHECKS = [
-    ("an action already captured as an open task is hidden",
-     "Lodge ATP 2062 renewal" not in kept_titles),
-    ("an action completed recently is hidden",
-     "Send Vroom the signed form" not in kept_titles),
-    ("an open task in ANY list suppresses, not just Daily Priorities",
-     "Call Tony about the board pack" not in kept_titles),
-    ("a genuinely new action survives",
-     "Review the drilling budget" in kept_titles),
-    ("the count of hidden items is reported", dropped == 3),
-    ("an empty suppression set changes nothing",
-     none_dropped == 0 and len(none_kept) == len(ACTIONS)),
-    ("matching ignores case and punctuation",
-     tt._norm_title("Lodge ATP-2062 Renewal!") == tt._norm_title("lodge atp 2062 renewal")),
+    ("a reworded action is caught by its source email",
+     "Chase Vroom for the counter-signed copy" not in titles),
+    ("an OPEN task does not suppress - inbox_actions runs first",
+     "Lodge ATP 2062 renewal" in titles),
+    ("the title fallback still catches pre-marker completions",
+     "Old worded task" not in titles),
+    ("a genuinely new action survives", "Review the drilling budget" in titles),
+    ("the count is right", dropped == 2),
+    ("the reason is reported per cause", set(why) and sum(why.values()) == 2),
+    ("an empty index changes nothing",
+     tt.drop_suppressed(ACTIONS, {})[1] == 0),
+    ("source ids are read only from COMPLETED tasks",
+     tt._task_src_ids(TASKS) == {"BBB-done"}),
 
-    # completions now cover the same ground as the open-task read
-    ("completions scan every list when none is named",
-     'if list_name is None:' in SRC and '/me/todo/lists' in SRC
-     and "out |= fetch_recent_completions(" in SRC),
+    # plumbing
+    ("the action schema asks for the email index, not a subject",
+     "index (the [n] of the email" in PROMPT
+     and "from_email (subject reference)" not in PROMPT),
+    ("the source is resolved server-side", 'a["msg_id"]     = (src or {}).get("msg_id"' in MAIL),
+    ("the model is told the real window, not 24h",
+     "HOURS_BACK       = 48" in MAIL and "last 24 hours" not in PROMPT
+     and "{HOURS_BACK} hours" in PROMPT),
+    ("the model is told not to pad to the maximum", "do NOT pad the list" in MAIL),
+    ("the marker is written on the server push path", "src_marker(src)" in BRIEF),
+    ("the marker is written on the browser push path", "[src:' + task.msg_id" in BRIEF),
+    ("msg_id is carried into the task payload", '"msg_id":   item.get("msg_id"' in BRIEF),
+    ("completions are scanned for source ids",
+     "fetch_recent_completion_sources" in SRC and "fetch_recent_completion_sources()" in BRIEF),
 
-    # non-task lists
-    ("Flagged Emails is excluded", "flaggedemails" in tt.EXCLUDED_WELLKNOWN),
-    ("the exclusion matches on wellknownListName, not the display name",
-     'wk = (lst.get("wellknownListName")' in SRC),
-    ("excluded lists are skipped when merging", "if _excluded(lst):" in SRC),
-    ("skipped lists are named in the run log", "skipped non-task list(s)" in SRC),
-    ("the exclusion also applies to the completions scan",
-     SRC.count("if _excluded(lst):") >= 2),
-
-    # the wiring that was missing
-    ("the Actions tab is filtered before it renders",
-     "drop_suppressed(" in BRIEF
-     and BRIEF.index("drop_suppressed(") < BRIEF.index("html = generate_html(")),
-    ("the filter runs after the inbox is read",
-     BRIEF.index("email_analysis = _outlook.get_email_analysis") < BRIEF.index("drop_suppressed(")),
-    ("the run log says how many were hidden and why",
-     "hidden from the Actions tab" in BRIEF),
+    # the list exclusion, unchanged
+    ("Flagged Emails is still excluded", "flaggedemails" in tt.EXCLUDED_WELLKNOWN),
 ]
 
 if __name__ == "__main__":

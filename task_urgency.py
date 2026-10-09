@@ -183,7 +183,16 @@ def rank_tasks(tasks: list, events: list = None, today: datetime.date = None,
     backlog = [t for t in scored
                if t.get("id") not in live_ids and t.get("source") != "proposed"]
     backlog.sort(key=lambda t: t.get("days_over", 0))
-    return {"live": live, "backlog": backlog}
+
+    # The backlog is two different things wearing one label. Tasks with a real
+    # signal are only there because the shortlist is capped - 62 of 114 on the
+    # day this was found - while the tab told Doug they carried no deadline,
+    # matched nothing on the calendar and had not been touched. Split them so
+    # the description is true of what it describes.
+    below = [t for t in backlog if t.get("signal_score", 0) > 0]
+    below.sort(key=lambda t: -t.get("signal_score", 0))
+    quiet = [t for t in backlog if t.get("signal_score", 0) <= 0]
+    return {"live": live, "backlog": backlog, "below_cut": below, "quiet": quiet}
 
 
 def refine_with_claude(client, live: list, events: list) -> list:

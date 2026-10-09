@@ -1,0 +1,250 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Preview</title>
+<style>
+.sx-wrap, .cw-wrap, .bk-wrap { font-size: 0.85rem; color: #1a1a1a; }
+.sx-head { display:flex; align-items:flex-end; justify-content:space-between;
+           gap:1rem; border-bottom:2px solid #1a1a1a; padding-bottom:.6rem; margin-bottom:1rem; }
+.sx-title { font-size:1.5rem; font-weight:700; margin:0; }
+.sx-sum { font-size:.8rem; color:#5c5a52; margin-top:.3rem; }
+.sx-sum b { color:#1a1a1a; }
+
+.sx-cap { background:#fff; border:1px solid #e4e1d8; border-radius:10px;
+          padding:.8rem 1rem 1rem; margin-bottom:1.1rem; }
+.sx-cap-hd { display:flex; justify-content:space-between; align-items:baseline;
+             font-size:.65rem; letter-spacing:.14em; text-transform:uppercase;
+             color:#5c5a52; font-weight:600; margin-bottom:.7rem; }
+.sx-cap-row { display:flex; gap:.55rem; }
+.sx-day { flex:1 1 0; border:1px solid #e4e1d8; border-radius:8px;
+          padding:.5rem .55rem .6rem; background:#fcfbf7; min-width:0; }
+.sx-day.is-today { background:#f3f5f8; border-color:#1a3a5c; }
+.sx-day.is-best  { background:#f2f6f2; border:2px solid #1a4a2e; }
+.sx-day.is-off   { background:#f1efe7; }
+.sx-day-top { display:flex; justify-content:space-between; align-items:center; height:14px; }
+.sx-day-lbl { font-size:.62rem; letter-spacing:.08em; font-weight:700; color:#5c5a52; }
+.sx-day.is-today .sx-day-lbl { color:#1a3a5c; }
+.sx-pin { color:#9b1c1c; font-size:.7rem; font-weight:700; }
+.sx-free { font-size:1.35rem; font-weight:700; line-height:1; margin:.3rem 0; }
+.sx-bar { height:7px; background:#dfdacc; border-radius:4px; overflow:hidden; display:flex; }
+.sx-bar i { display:block; height:100%; }
+.sx-meta { font-size:.62rem; color:#5c5a52; margin-top:.35rem; }
+.sx-verdict { font-size:.6rem; font-weight:700; line-height:1.2; margin-top:.25rem; min-height:1.1em; }
+
+/* Four even columns. The day rails were fixed-width, which left the list
+   column taking every spare pixel and the rails looking squeezed. */
+.sx-wrap { max-width:var(--page-max,1800px); margin:0 auto; padding:0 1.5rem 3rem; }
+.sx-cols { display:flex; gap:1rem; align-items:flex-start; }
+.sx-main, .sx-side { flex:1 1 0; min-width:0; }
+@media (max-width:1400px){ .sx-cols{flex-wrap:wrap;} .sx-side{flex:1 1 250px;}
+                           .sx-main{flex:1 1 100%;order:4;} }
+@media (max-width:900px){ .sx-cols{flex-direction:column;} .sx-side{flex:1 1 auto;width:100%;}
+                          .sx-cap-row{overflow-x:auto;} .sx-day{min-width:88px;} }
+
+.sx-sec { display:flex; align-items:center; gap:.6rem; margin:.2rem 0 .7rem; }
+.sx-sec h3 { margin:0; font-size:1.05rem; font-weight:600; }
+.sx-sec .sx-line { flex:1 1 auto; height:1px; background:#d8d4c6; }
+.sx-sec .sx-note { font-size:.68rem; color:#5c5a52; }
+
+.sx-task { display:flex; align-items:flex-start; gap:.7rem; background:#fff;
+           border:1px solid #e4e1d8; border-radius:8px; padding:.65rem .8rem; margin-bottom:.45rem; }
+.sx-task.is-proposed { background:#fcfaf2; border:1px dashed #cfc8b0; }
+.sx-rank { flex:0 0 auto; width:20px; height:20px; border-radius:50%; background:#1a3a5c;
+           color:#fff; font-size:.62rem; font-weight:700; display:flex;
+           align-items:center; justify-content:center; margin-top:.1rem; }
+.sx-task.is-proposed .sx-rank { background:#8a5a00; }
+.sx-task-body { flex:1 1 auto; min-width:0; }
+.sx-task-title { font-size:.85rem; font-weight:600; line-height:1.3; }
+.sx-why { font-size:.68rem; color:#1a3a5c; margin-top:.2rem; }
+.sx-task.is-proposed .sx-why { color:#8a5a00; }
+.sx-task-meta { font-size:.62rem; color:#5c5a52; margin-top:.2rem; }
+.sx-chip { font-size:.6rem; font-weight:700; border-radius:4px; padding:.15rem .4rem;
+           white-space:nowrap; border:1px solid #e4e1d8; background:#f1efe7; color:#5c5a52; }
+
+.sx-rail { background:#fff; border:1px solid #e4e1d8; border-radius:10px; padding:.9rem; }
+.sx-rail-inner { position:relative; overflow:hidden; }
+.sx-gut { position:absolute; left:0; top:0; width:38px; height:100%; }
+.sx-gut span { position:absolute; font-size:.6rem; color:#8c887b; }
+.sx-track { position:absolute; left:38px; right:0; top:0; height:100%; }
+.sx-hr { position:absolute; left:0; right:0; height:1px; background:#eeebe1; }
+.sx-now { position:absolute; left:-6px; right:0; height:2px; background:#9b1c1c; }
+.sx-now i { position:absolute; left:-6px; top:-5px; width:11px; height:11px;
+            border-radius:50%; background:#9b1c1c; display:block; }
+.sx-ev { position:absolute; left:8px; right:0; border-radius:5px; padding:.25rem .5rem;
+         box-sizing:border-box; overflow:hidden; font-size:.65rem; }
+.sx-ev b { display:block; font-size:.72rem; font-weight:700; line-height:1.2; }
+.sx-gap { position:absolute; left:8px; right:0; border:1px dashed #d8d4c6; border-radius:5px;
+          display:flex; align-items:center; justify-content:center; font-size:.63rem; color:#8c887b; }
+.sx-gap.is-big { background:#f2f6f2; border-color:#1a4a2e; color:#1a4a2e; font-weight:700; }
+.sx-after { background:#f7f7f4; border:1px solid #d8d6cc; border-radius:10px;
+            padding:.6rem .8rem; margin-top:.7rem; display:flex; gap:.6rem; align-items:center; }
+.sx-after i { width:4px; height:28px; background:#3d3d38; border-radius:2px; display:block; flex:0 0 auto; }
+
+.sx-pers { background:#fcfcfa; border:1px solid #d8d6cc; border-radius:8px;
+            padding:.6rem .75rem; margin-bottom:.45rem; display:flex;
+            align-items:flex-start; gap:.7rem; }
+.sx-pers-dot { flex:0 0 auto; width:8px; height:8px; border-radius:50%;
+               background:#3d3d38; margin-top:.45rem; }
+.sx-pers-b { flex:1 1 auto; min-width:0; }
+.sx-pers-t { font-size:.82rem; font-weight:600; line-height:1.3; }
+.sx-pers-c { font-size:.66rem; color:#5c5a52; margin-top:.2rem; }
+.sx-pers-a { font-size:.6rem; font-weight:700; color:#fff; background:#3d3d38;
+             border-radius:4px; padding:.3rem .6rem; text-decoration:none;
+             white-space:nowrap; display:inline-block; min-height:26px; line-height:20px; }
+
+.sx-brief { margin-top:.7rem; }
+.sx-brief-none { background:#fff; border:1px dashed #d8d4c8; border-radius:3px;
+                 padding:.8rem .9rem; font-size:.75rem; color:#5c5a52;
+                 line-height:1.5; }
+.sx-brief-card { background:#fff; border:1px solid #e4e1d8; border-radius:9px;
+                 padding:.6rem .75rem; margin-bottom:.4rem; }
+.sx-brief-top { display:flex; gap:.4rem; align-items:baseline; }
+.sx-brief-t { font-size:.62rem; font-weight:700; letter-spacing:.04em; flex:0 0 auto; }
+.sx-brief-s { font-size:.75rem; font-weight:600; line-height:1.25; min-width:0; }
+.sx-brief-l { margin:.35rem 0 0; padding-left:.9rem; }
+.sx-brief-l li { font-size:.68rem; color:#4a4a44; line-height:1.45; margin-bottom:.15rem; }
+
+/* ── swimlane calendar ── */
+.cw-scroll { overflow-x:auto; }
+.cw-panel { background:#fff; border:1px solid #e4e1d8; border-radius:10px;
+            padding:.9rem 1rem 1rem; min-width:1240px; position:relative; }
+.cw-row { display:grid; grid-template-columns:132px repeat(14, minmax(0,1fr)); align-items:stretch; }
+.cw-hdr { padding-bottom:.5rem; text-align:center; }
+.cw-hdr-d { font-size:.58rem; letter-spacing:.1em; font-weight:600; color:#8c887b; }
+.cw-hdr-n { font-size:1rem; font-weight:600; }
+.cw-hdr.is-today .cw-hdr-d, .cw-hdr.is-today .cw-hdr-n { color:#1a3a5c; font-weight:700; }
+.cw-hdr.is-wknd .cw-hdr-n { color:#8c887b; font-weight:400; }
+.cw-cell-wknd { background:#f4f2ea; }
+.cw-cell-today { box-shadow: inset 0 0 0 2px #1a3a5c; border-radius:4px; }
+.cw-lane-lbl { display:flex; align-items:flex-start; gap:.4rem; padding:.55rem .5rem .55rem 0; }
+.cw-lane-lbl i { width:4px; height:22px; border-radius:2px; display:block; flex:0 0 auto; margin-top:.1rem; }
+.cw-lane-name { font-size:.68rem; font-weight:700; line-height:1.2; }
+.cw-lane-sub { font-size:.55rem; font-weight:600; color:#8c887b; }
+.cw-lane-track { grid-column:2 / -1; display:grid;
+                 grid-template-columns:repeat(14, minmax(0,1fr)); row-gap:5px;
+                 padding:.6rem 0; }
+.cw-bar { border-radius:4px; padding:.28rem .4rem; font-size:.63rem; font-weight:700;
+          line-height:1.2; min-height:2.1em; margin-right:2px; overflow:hidden;
+          display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.cw-load { display:flex; flex-direction:column; align-items:center; gap:3px; padding-bottom:.4rem; }
+.cw-load-bar { width:70%; max-width:34px; border-radius:2px; }
+.cw-load-n { font-size:.55rem; color:#5c5a52; }
+.cw-sep { border-top:1px solid #f0ede4; }
+.cw-readout { display:flex; gap:.8rem; margin-top:.9rem; flex-wrap:wrap; }
+.cw-card { flex:1 1 220px; background:#fff; border:1px solid #e4e1d8; border-radius:10px; padding:.7rem .85rem; }
+.cw-card-h { font-size:.58rem; letter-spacing:.14em; text-transform:uppercase;
+             color:#5c5a52; font-weight:700; margin-bottom:.3rem; }
+.cw-card-b { font-size:.78rem; line-height:1.4; }
+
+/* ── backlog ── */
+.bk-grp { margin-bottom:1.2rem; }
+.bk-grp-h { display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem; }
+.bk-grp-h span { font-size:.65rem; letter-spacing:.14em; text-transform:uppercase;
+                 font-weight:700; color:#5c5a52; }
+.bk-grp-h i { flex:1 1 auto; height:1px; background:#d8d4c6; display:block; }
+.bk-why { font-size:.68rem; color:#5c5a52; margin-top:.15rem; line-height:1.4; }
+.bk-more { font-size:.68rem; color:#8c887b; padding:.5rem .2rem; font-style:italic; }
+.bk-list { font-size:.58rem; font-weight:700; letter-spacing:.06em;
+           text-transform:uppercase; color:#8c887b; background:#f4f1e8;
+           border:1px solid #e4e1d8; border-radius:2rem;
+           padding:.05rem .4rem; margin-left:.45rem; white-space:nowrap; }
+.bk-item { display:flex; align-items:center; gap:.7rem; background:#fdfcf8;
+           border:1px solid #e9e6dd; border-radius:7px; padding:.45rem .7rem; margin-bottom:.3rem; }
+.bk-item-t { flex:1 1 auto; font-size:.8rem; min-width:0; }
+.bk-age { font-size:.6rem; color:#8c887b; white-space:nowrap; }
+.bk-lead { font-size:.78rem; color:#5c5a52; line-height:1.5; margin-bottom:1rem;
+           background:#fff; border:1px solid #e4e1d8; border-radius:9px; padding:.7rem .9rem; }
+
+/* ── calendar: a fortnight across, hours down the side ── */
+.cg-wrap{max-width:var(--page-max,1800px);margin:0 auto;padding:1.5rem 1.5rem 3rem}
+.cg-legend{display:flex;flex-wrap:wrap;gap:.85rem;margin-bottom:.8rem;font-size:.63rem;color:#3d3a34}
+.cg-lg{display:flex;align-items:center;gap:.3rem}
+.cg-lg i{width:10px;height:10px;border-radius:2px;display:block;flex:0 0 auto}
+.cg-lg-note{color:#8c887b}
+.cg-lg-g{background:#fff;border:1px solid #e4e1d8}
+.cg-adrow{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin-bottom:.7rem;
+  font-size:.66rem}
+.cg-adlbl{font-size:.55rem;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:#8c887b;margin-right:.2rem}
+.cg-ad{background:#fff;border:1px solid #e4e1d8;border-radius:3px;padding:.15rem .4rem}
+.cg-panel{background:#fff;border:1px solid #e4e1d8;border-radius:8px;padding:.7rem .8rem 1rem;
+  overflow-x:auto}
+.cg-grid{display:grid;grid-template-columns:46px repeat(14,minmax(64px,1fr));gap:0 3px;
+  min-width:1080px}
+.cg-dh{padding:0 0 .4rem;border-bottom:1px solid #e4e1d8}
+.cg-dh.cg-wknd{opacity:.5}
+.cg-dh.cg-today .cg-dnum{background:#1a1a17;color:#fff;border-radius:4px;padding:0 .28rem}
+.cg-wkstart{border-left:1px solid #e4e1d8}
+.cg-dh.cg-wkstart{padding-left:4px}
+.cg-dow{font-size:.55rem;font-weight:700;letter-spacing:.09em;color:#8c887b}
+.cg-dnum{font-size:.86rem;font-weight:600;display:inline-block;line-height:1.3}
+.cg-meter{height:5px;background:#f0ede4;border-radius:3px;overflow:hidden;margin:.2rem 0 .14rem}
+.cg-fill{height:100%;background:#1a3a5c;border-radius:3px}
+.cg-fill.cg-over{background:#b3261e}
+.cg-mnum{font-size:.52rem;color:#3d3a34;font-weight:600;line-height:1.25}
+.cg-free{color:#8c887b;font-weight:400}
+.cg-ax{position:relative}
+.cg-hr{height:30px;border-top:1px solid #f0ede4;position:relative}
+.cg-hr span{position:absolute;top:-6px;right:5px;font-size:.54rem;color:#8c887b}
+.cg-col{position:relative;border-left:1px solid #f0ede4;
+  background:repeating-linear-gradient(to bottom,transparent 0,transparent 29px,
+    #f0ede4 29px,#f0ede4 30px)}
+.cg-col.cg-wknd{background-color:#faf8f3}
+.cg-blk{position:absolute;left:1px;right:1px;border-radius:4px;padding:1px 4px;color:#fff;
+  overflow:hidden;display:flex;flex-direction:column;justify-content:center;
+  box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.cg-tag{font-size:.47rem;font-weight:700;letter-spacing:.09em;opacity:.72;line-height:1.1}
+.cg-ttl{font-size:.55rem;font-weight:600;line-height:1.15;overflow:hidden}
+.cg-tm{font-size:.49rem;opacity:.72;line-height:1.2}
+.cg-src{font-size:.45rem;opacity:.65}
+.cg-now{position:absolute;left:-1px;right:-1px;height:2px;background:#b3261e;z-index:3}
+.cg-now:before{content:'';position:absolute;left:-3px;top:-2px;width:6px;height:6px;
+  border-radius:50%;background:#b3261e}
+@media(max-width:900px){.cg-grid{min-width:1080px}}
+</style>
+<style>body{margin:0;padding:24px;background:#faf9f5;font-family:system-ui,sans-serif}section{margin-bottom:56px}</style></head><body><section><div class="sx-wrap">
+<div class="sx-head">
+  <div><h2 class="sx-title">Schedule</h2>
+    <div class="sx-sum"><b>3</b> worth your attention &middot;
+      <b>4h</b> booked today &middot;
+      longest clear window <b>9h</b>
+      on Fri 25 Sep</div>
+  </div>
+  <div style="text-align:right;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:#5c5a52">
+    Outlook + personal<br>Wed 23 Sep, 08:40
+  </div>
+</div>
+
+<div class="sx-cap">
+  <div class="sx-cap-hd"><span>Where the work can actually go</span>
+    <span style="text-transform:none;letter-spacing:0;font-weight:400">
+      hours booked &middot; remaining is 9h less booked &middot;
+      <span style="color:#9b1c1c;font-weight:700">&#9650;</span> deadline</span></div>
+  <div class="sx-cap-row"><div class="sx-day is-today"><div class="sx-day-top"><span class="sx-day-lbl">WED 23</span><span class="sx-pin">&#9650;</span></div><div class="sx-free" style="color:#1a4a2e">4h</div><div class="sx-bar"><i style="width:44%;background:#1a3a5c"></i><i style="width:0%;background:#3d3d38"></i></div><div class="sx-meta">5h left of 9h</div><div class="sx-verdict" style="color:#5c5a52">&nbsp;</div></div><div class="sx-day"><div class="sx-day-top"><span class="sx-day-lbl">THU 24</span></div><div class="sx-free" style="color:#1a4a2e">1h</div><div class="sx-bar"><i style="width:0%;background:#7d8a96"></i><i style="width:11%;background:#3d3d38"></i></div><div class="sx-meta">8h left of 9h &middot; incl. 1h personal</div><div class="sx-verdict" style="color:#5c5a52">&nbsp;</div></div><div class="sx-day is-best"><div class="sx-day-top"><span class="sx-day-lbl">FRI 25</span></div><div class="sx-free" style="color:#1a4a2e">0h</div><div class="sx-bar"><i style="width:0%;background:#7d8a96"></i><i style="width:0%;background:#3d3d38"></i></div><div class="sx-meta">9h left of 9h</div><div class="sx-verdict" style="color:#1a4a2e">lightest this week</div></div><div class="sx-day is-off"><div class="sx-day-top"><span class="sx-day-lbl">SAT 26</span></div><div class="sx-free" style="color:#a8a396">&mdash;</div><div class="sx-bar"><i style="width:0%;background:#7d8a96"></i><i style="width:0%;background:#3d3d38"></i></div><div class="sx-meta">weekend</div><div class="sx-verdict" style="color:#5c5a52">&nbsp;</div></div><div class="sx-day is-off"><div class="sx-day-top"><span class="sx-day-lbl">SUN 27</span></div><div class="sx-free" style="color:#a8a396">&mdash;</div><div class="sx-bar"><i style="width:0%;background:#7d8a96"></i><i style="width:0%;background:#3d3d38"></i></div><div class="sx-meta">weekend</div><div class="sx-verdict" style="color:#5c5a52">&nbsp;</div></div><div class="sx-day"><div class="sx-day-top"><span class="sx-day-lbl">MON 28</span></div><div class="sx-free" style="color:#9b1c1c">8h</div><div class="sx-bar"><i style="width:88%;background:#7d8a96"></i><i style="width:0%;background:#3d3d38"></i></div><div class="sx-meta">1h left of 9h</div><div class="sx-verdict" style="color:#5c5a52">&nbsp;</div></div><div class="sx-day"><div class="sx-day-top"><span class="sx-day-lbl">TUE 29</span></div><div class="sx-free" style="color:#1a4a2e">30m</div><div class="sx-bar"><i style="width:5%;background:#7d8a96"></i><i style="width:0%;background:#3d3d38"></i></div><div class="sx-meta">8h 30m left of 9h</div><div class="sx-verdict" style="color:#5c5a52">&nbsp;</div></div></div>
+</div>
+
+<div class="sx-cols">
+  <div class="sx-side"><div class="sx-sec"><h3>Today &middot; Wed 23 Sep</h3><i class="sx-line"></i><span class="sx-note">6 events &middot; 4h booked</span></div><div class="sx-rail"><div class="sx-rail-inner" style="height:693px"><div class="sx-gut"><span style="top:-6px">7 am</span><span style="top:86px">9 am</span><span style="top:178px">11 am</span><span style="top:271px">1 pm</span><span style="top:363px">3 pm</span><span style="top:456px">5 pm</span><span style="top:548px">7 pm</span><span style="top:640px">9 pm</span></div><div class="sx-track"><div class="sx-hr" style="top:0px"></div><div class="sx-hr" style="top:92px"></div><div class="sx-hr" style="top:184px"></div><div class="sx-hr" style="top:277px"></div><div class="sx-hr" style="top:369px"></div><div class="sx-hr" style="top:462px"></div><div class="sx-hr" style="top:554px"></div><div class="sx-hr" style="top:646px"></div><div class="sx-now" style="top:77px"><i></i></div><div class="sx-gap" style="top:0px;height:46px">1h clear</div><div class="sx-ev" style="top:46px;height:23px;background:#1a4a2e14;border:1px solid #1a4a2e"><b>8:00 AM &middot; Ops stand-up</b></div><div class="sx-gap" style="top:69px;height:23px">30m clear</div><div class="sx-ev" style="top:92px;height:69px;background:#1a3a5c14;border:1px solid #1a3a5c"><span style="font-weight:700;color:#1a3a5c">9:00 AM &ndash; 10:30 AM</span><b>Board paper review — Q3 🎯</b></div><div class="sx-gap is-big" style="top:161px;height:161px">3h 30m clear</div><div class="sx-ev" style="top:323px;height:46px;background:#4a2a1a14;border:1px solid #4a2a1a"><span style="font-weight:700;color:#4a2a1a">2:00 PM &ndash; 3:00 PM</span><b>DNRM submission walkthrough</b></div><div class="sx-gap" style="top:369px;height:46px">1h clear</div><div class="sx-ev" style="top:415px;height:46px;background:#3a1a4a14;border:1px solid #3a1a4a"><span style="font-weight:700;color:#3a1a4a">4:00 PM &ndash; 5:00 PM</span><b>Investor call — institutional</b></div><div class="sx-gap" style="top:462px;height:46px">1h clear</div><div class="sx-ev" style="top:508px;height:69px;background:#3d3d3814;border:1px solid #3d3d38"><span style="font-weight:700;color:#3d3d38">6:00 PM &ndash; 7:30 PM</span><b>Family dinner</b></div><div class="sx-gap" style="top:577px;height:23px">30m clear</div><div class="sx-ev" style="top:600px;height:92px;background:#3d3d3814;border:1px solid #3d3d38"><span style="font-weight:700;color:#3d3d38">8:00 PM &ndash; 10:00 PM</span><b>Weekly Vroom Meeting</b></div></div></div></div><div class="sx-after"><i></i><div style="flex:1 1 auto"><div style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;color:#8c887b;font-weight:700">After hours &middot; personal</div><div style="font-size:.75rem;font-weight:600;color:#3d3d38;margin-top:.15rem">6:00 PM &mdash; Family dinner<br>8:00 PM &mdash; Weekly Vroom Meeting</div></div><span style="font-size:.55rem;color:#8c887b;text-align:right;line-height:1.3">shown,<br>not counted</span></div></div>
+  <div class="sx-side"><div class="sx-sec"><h3>Tomorrow &middot; Thu 24 Sep</h3><i class="sx-line"></i><span class="sx-note">1 event &middot; 1h booked</span></div><div class="sx-rail"><div class="sx-rail-inner" style="height:607px"><div class="sx-gut"><span style="top:-6px">7 am</span><span style="top:104px">9 am</span><span style="top:214px">11 am</span><span style="top:325px">1 pm</span><span style="top:435px">3 pm</span><span style="top:546px">5 pm</span></div><div class="sx-track"><div class="sx-hr" style="top:0px"></div><div class="sx-hr" style="top:110px"></div><div class="sx-hr" style="top:220px"></div><div class="sx-hr" style="top:331px"></div><div class="sx-hr" style="top:441px"></div><div class="sx-hr" style="top:552px"></div><div class="sx-gap" style="top:0px;height:55px">1h clear</div><div class="sx-ev" style="top:55px;height:55px;background:#3d3d3814;border:1px solid #3d3d38"><span style="font-weight:700;color:#3d3d38">8:00 AM &ndash; 9:00 AM</span><b>Dentist</b></div></div></div></div></div>
+  <div class="sx-side sx-brief"><div class="sx-sec"><h3>Before your meetings</h3><i class="sx-line"></i><span class="sx-note">2 of today&#x27;s briefed</span></div><div class="sx-brief-card"><div class="sx-brief-top"><span class="sx-brief-t" style="color:#1a3a5c">9:00 AM</span><span class="sx-brief-s">Board paper review — Q3 🎯</span></div><ul class="sx-brief-l"><li>Aaron circulated revised Q3 figures on Monday; comments still outstanding.</li><li>Cashflow forecast for BDO is referenced but not yet attached.</li></ul></div><div class="sx-brief-card"><div class="sx-brief-top"><span class="sx-brief-t" style="color:#4a2a1a">2:00 PM</span><span class="sx-brief-s">DNRM submission walkthrough</span></div><ul class="sx-brief-l"><li>Relates to the ATP 2062 lodgement window closing Friday.</li></ul></div></div>
+  <div class="sx-main">
+    <div class="sx-sec"><h3>What Else Matters Today</h3><i class="sx-line"></i>
+      <span class="sx-note">ranked by deadline, calendar coupling and recency</span></div>
+    <div class="sx-task"><span class="sx-rank">1</span><div class="sx-task-body"><div class="sx-task-title">Lodge ATP 2062 renewal application</div><div class="sx-why">ATP2062 is on the calendar Fri 25 Sep</div></div><span class="sx-chip">21d on the list</span></div><div class="sx-task"><span class="sx-rank">2</span><div class="sx-task-body"><div class="sx-task-title">Review and approve draft 2026 Annual Report</div><div class="sx-why">names a deadline (“by Friday”)</div></div><span class="sx-chip">20d on the list</span></div><div class="sx-task is-proposed"><span class="sx-rank">3</span><div class="sx-task-body"><div class="sx-task-title">Reply to Santos re gas supply MOU</div><div class="sx-why">raised in this morning&#x27;s inbox</div><div class="sx-task-meta">M. Lawson — needs a view before Friday</div></div><button type="button" class="sx-chip" style="background:#1a3a5c;color:#fff;border-color:#1a3a5c;cursor:pointer">Add</button></div>
+    <div style="font-size:.7rem;color:#5c5a52;margin-top:.6rem">
+      3 further open items with no urgency signal &mdash;
+      see the Backlog tab.</div>
+    
+    
+  </div>
+</div>
+</div></section><section><div class="cg-wrap"><div class="cg-legend"><span class="cg-lg"><i style="background:#1a3a5c"></i>Board &amp; Governance</span><span class="cg-lg"><i style="background:#3a1a4a"></i>Investors &amp; External</span><span class="cg-lg"><i style="background:#4a2a1a"></i>Regulatory &amp; Government</span><span class="cg-lg"><i style="background:#1a4a2e"></i>Internal &amp; Team</span><span class="cg-lg"><i style="background:#15514f"></i>Travel &amp; Site</span><span class="cg-lg"><i style="background:#3d3d38"></i>Personal</span><span class="cg-lg"><i style="background:#8c887b"></i>Unfiled</span><span class="cg-lg cg-lg-note"><i class="cg-lg-g"></i>G = personal, not counted in booked hours</span></div><div class="cg-panel"><div class="cg-grid"><div class="cg-axhead"></div><div class="cg-dh cg-today"><div class="cg-dow">WED</div><div class="cg-dnum">23</div><div class="cg-meter"><div class="cg-fill" style="width:44%"></div></div><div class="cg-mnum">4h booked<span class="cg-free"> &middot; 5h free</span></div></div><div class="cg-dh"><div class="cg-dow">THU</div><div class="cg-dnum">24</div><div class="cg-meter"><div class="cg-fill" style="width:11%"></div></div><div class="cg-mnum">1h booked<span class="cg-free"> &middot; 8h free</span></div></div><div class="cg-dh"><div class="cg-dow">FRI</div><div class="cg-dnum">25</div><div class="cg-meter"><div class="cg-fill" style="width:0%"></div></div><div class="cg-mnum">0h booked<span class="cg-free"> &middot; 9h free</span></div></div><div class="cg-dh cg-wknd"><div class="cg-dow">SAT</div><div class="cg-dnum">26</div></div><div class="cg-dh cg-wknd"><div class="cg-dow">SUN</div><div class="cg-dnum">27</div></div><div class="cg-dh cg-wkstart"><div class="cg-dow">MON</div><div class="cg-dnum">28</div><div class="cg-meter"><div class="cg-fill" style="width:88%"></div></div><div class="cg-mnum">8h booked<span class="cg-free"> &middot; 1h free</span></div></div><div class="cg-dh"><div class="cg-dow">TUE</div><div class="cg-dnum">29</div><div class="cg-meter"><div class="cg-fill" style="width:5%"></div></div><div class="cg-mnum">0.5h booked<span class="cg-free"> &middot; 8.5h free</span></div></div><div class="cg-dh"><div class="cg-dow">WED</div><div class="cg-dnum">30</div><div class="cg-meter"><div class="cg-fill" style="width:33%"></div></div><div class="cg-mnum">3h booked<span class="cg-free"> &middot; 6h free</span></div></div><div class="cg-dh"><div class="cg-dow">THU</div><div class="cg-dnum">1</div><div class="cg-meter"><div class="cg-fill" style="width:88%"></div></div><div class="cg-mnum">8h booked<span class="cg-free"> &middot; 1h free</span></div></div><div class="cg-dh"><div class="cg-dow">FRI</div><div class="cg-dnum">2</div><div class="cg-meter"><div class="cg-fill" style="width:0%"></div></div><div class="cg-mnum">0h booked<span class="cg-free"> &middot; 9h free</span></div></div><div class="cg-dh cg-wknd"><div class="cg-dow">SAT</div><div class="cg-dnum">3</div></div><div class="cg-dh cg-wknd"><div class="cg-dow">SUN</div><div class="cg-dnum">4</div></div><div class="cg-dh cg-wkstart"><div class="cg-dow">MON</div><div class="cg-dnum">5</div><div class="cg-meter"><div class="cg-fill" style="width:0%"></div></div><div class="cg-mnum">0h booked<span class="cg-free"> &middot; 9h free</span></div></div><div class="cg-dh"><div class="cg-dow">TUE</div><div class="cg-dnum">6</div><div class="cg-meter"><div class="cg-fill" style="width:0%"></div></div><div class="cg-mnum">0h booked<span class="cg-free"> &middot; 9h free</span></div></div><div class="cg-ax" style="height:480px"><div class="cg-hr"><span>7am</span></div><div class="cg-hr"><span>8am</span></div><div class="cg-hr"><span>9am</span></div><div class="cg-hr"><span>10am</span></div><div class="cg-hr"><span>11am</span></div><div class="cg-hr"><span>12pm</span></div><div class="cg-hr"><span>1pm</span></div><div class="cg-hr"><span>2pm</span></div><div class="cg-hr"><span>3pm</span></div><div class="cg-hr"><span>4pm</span></div><div class="cg-hr"><span>5pm</span></div><div class="cg-hr"><span>6pm</span></div><div class="cg-hr"><span>7pm</span></div><div class="cg-hr"><span>8pm</span></div><div class="cg-hr"><span>9pm</span></div></div><div class="cg-col" style="height:480px"><div class="cg-blk" style="top:32.0px;height:15px;background:#1a4a2e" title="Ops stand-up &mdash; Internal &amp; Team &mdash; 8am&ndash;8:30am"><span class="cg-tag">INT</span><span class="cg-ttl">Ops stand-up</span></div><div class="cg-blk" style="top:64.0px;height:46.0px;background:#1a3a5c" title="Board paper review — Q3 🎯 &mdash; Board &amp; Governance &mdash; 9am&ndash;10:30am"><span class="cg-tag">BOA</span><span class="cg-ttl">Board paper review — Q3 🎯</span><span class="cg-tm">9am&ndash;10:30am</span></div><div class="cg-blk" style="top:224.0px;height:30.0px;background:#4a2a1a" title="DNRM submission walkthrough &mdash; Regulatory &amp; Government &mdash; 2pm&ndash;3pm"><span class="cg-tag">REG</span><span class="cg-ttl">DNRM submission walkthrough</span></div><div class="cg-blk" style="top:288.0px;height:30.0px;background:#3a1a4a" title="Investor call — institutional &mdash; Investors &amp; External &mdash; 4pm&ndash;5pm"><span class="cg-tag">INV</span><span class="cg-ttl">Investor call — institutional</span></div><div class="cg-blk" style="top:352.0px;height:46.0px;background:#3d3d38" title="Family dinner &mdash; Personal &mdash; 6pm&ndash;7:30pm"><span class="cg-tag">PER</span><span class="cg-ttl">Family dinner</span> <span class="cg-src">G</span><span class="cg-tm">6pm&ndash;7:30pm</span></div><div class="cg-blk" style="top:416.0px;height:62.0px;background:#3d3d38" title="Weekly Vroom Meeting &mdash; Personal &mdash; 8pm&ndash;10pm"><span class="cg-tag">PER</span><span class="cg-ttl">Weekly Vroom Meeting</span> <span class="cg-src">G</span><span class="cg-tm">8pm&ndash;10pm</span></div><div class="cg-now" style="top:53.333333333333314px"></div></div><div class="cg-col" style="height:480px"><div class="cg-blk" style="top:32.0px;height:30.0px;background:#3d3d38" title="Dentist &mdash; Personal &mdash; 8am&ndash;9am"><span class="cg-tag">PER</span><span class="cg-ttl">Dentist</span> <span class="cg-src">G</span></div></div><div class="cg-col" style="height:480px"></div><div class="cg-col cg-wknd" style="height:480px"></div><div class="cg-col cg-wknd" style="height:480px"></div><div class="cg-col cg-wkstart" style="height:480px"><div class="cg-blk" style="top:32.0px;height:254.0px;background:#15514f" title="Rolleston West site visit &mdash; Travel &amp; Site &mdash; 8am&ndash;4pm"><span class="cg-tag">TRA</span><span class="cg-ttl">Rolleston West site visit</span><span class="cg-tm">8am&ndash;4pm</span></div></div><div class="cg-col" style="height:480px"><div class="cg-blk" style="top:128.0px;height:15px;background:#8c887b" title="Catch-up — J. Hartley &mdash; Unfiled &mdash; 11am&ndash;11:30am"><span class="cg-tag">UNF</span><span class="cg-ttl">Catch-up — J. Hartley</span></div></div><div class="cg-col" style="height:480px"><div class="cg-blk" style="top:64.0px;height:94.0px;background:#1a3a5c" title="Board meeting &mdash; Board &amp; Governance &mdash; 9am&ndash;12pm"><span class="cg-tag">BOA</span><span class="cg-ttl">Board meeting</span><span class="cg-tm">9am&ndash;12pm</span></div></div><div class="cg-col" style="height:480px"><div class="cg-blk" style="top:64.0px;height:254.0px;background:#3a1a4a" title="Sydney roadshow &mdash; Investors &amp; External &mdash; 9am&ndash;5pm"><span class="cg-tag">INV</span><span class="cg-ttl">Sydney roadshow</span><span class="cg-tm">9am&ndash;5pm</span></div></div><div class="cg-col" style="height:480px"></div><div class="cg-col cg-wknd" style="height:480px"></div><div class="cg-col cg-wknd" style="height:480px"></div><div class="cg-col cg-wkstart" style="height:480px"></div><div class="cg-col" style="height:480px"></div></div></div></div></section><section><div class="bk-wrap">
+<div class="sx-head"><div><h2 class="sx-title">Backlog</h2>
+  <div class="sx-sum">0 ranked below the shortlist &middot;
+  3 with no urgency signal</div></div></div>
+<div class="bk-lead">Two different things, kept apart. The first group has real urgency
+signals and is here only because the shortlist shows eight; the second carries no deadline
+in its text, matches nothing on the next fortnight's calendar, and has not been touched
+recently. Due dates are the dates items were captured, not dates they are owed &mdash; so
+age means age, not lateness. Every To Do list is read, so the tag after each title says
+which one it came from.</div>
+
+<div class="bk-grp"><div class="bk-grp-h"><span>Two to four weeks</span><i></i><span>1</span></div><div class="bk-item"><div class="bk-item-t">Post approved LinkedIn article</div><span class="bk-age">22d</span></div></div><div class="bk-grp"><div class="bk-grp-h"><span>Over a month</span><i></i><span>1</span></div><div class="bk-item"><div class="bk-item-t">Follow up Warwick Squire re introduction</div><span class="bk-age">36d</span></div></div><div class="bk-grp"><div class="bk-grp-h"><span>No due date</span><i></i><span>1</span></div><div class="bk-item"><div class="bk-item-t">Tidy shared drive</div><span class="bk-age">&mdash;</span></div></div>
+</div></section></body></html>

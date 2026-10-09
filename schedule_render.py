@@ -185,6 +185,8 @@ def build_css() -> str:
 .bk-grp-h span { font-size:.65rem; letter-spacing:.14em; text-transform:uppercase;
                  font-weight:700; color:#5c5a52; }
 .bk-grp-h i { flex:1 1 auto; height:1px; background:#d8d4c6; display:block; }
+.bk-why { font-size:.68rem; color:#5c5a52; margin-top:.15rem; line-height:1.4; }
+.bk-more { font-size:.68rem; color:#8c887b; padding:.5rem .2rem; font-style:italic; }
 .bk-list { font-size:.58rem; font-weight:700; letter-spacing:.06em;
            text-transform:uppercase; color:#8c887b; background:#f4f1e8;
            border:1px solid #e4e1d8; border-radius:2rem;
@@ -870,13 +872,20 @@ def build_calendar_tab(cal: dict, now: datetime.datetime = None) -> str:
 
 def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
     now = now or datetime.datetime.now(AEST_OFFSET)
-    backlog = (ranked or {}).get("backlog", [])
+    ranked = ranked or {}
+    below = ranked.get("below_cut")
+    if below is None:                      # older callers
+        below = [t for t in ranked.get("backlog", []) if t.get("signal_score", 0) > 0]
+    quiet = ranked.get("quiet")
+    if quiet is None:
+        quiet = [t for t in ranked.get("backlog", []) if t.get("signal_score", 0) <= 0]
+    backlog = ranked.get("backlog", [])
     if not backlog:
         return ('<div class="bk-wrap"><div class="bk-lead">Nothing in the backlog. '
                 'Everything open has an urgency signal.</div></div>')
 
     groups = {"Under a fortnight old": [], "Two to four weeks": [], "Over a month": [], "No due date": []}
-    for t in backlog:
+    for t in quiet:
         d = t.get("days_over", 0) or 0
         if not t.get("due_date"):
             groups["No due date"].append(t)
@@ -886,6 +895,23 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
             groups["Two to four weeks"].append(t)
         else:
             groups["Over a month"].append(t)
+
+    def _row(t):
+        tag = (f'<span class="bk-list">{esc(t["list"])}</span>' if t.get("list") else "")
+        why = esc(t.get("urgency_reason", ""))
+        return (f'<div class="bk-item"><div class="bk-item-t">{esc(t.get("title"))}{tag}'
+                f'<div class="bk-why">{why}</div></div>'
+                f'<span class="bk-age">{t.get("signal_score", 0):g}</span></div>')
+
+    below_html = ""
+    if below:
+        below_html = ('<div class="bk-grp"><div class="bk-grp-h">'
+                      '<span>Ranked below the shortlist</span><i></i>'
+                      f'<span>{len(below)}</span></div>'
+                      + "".join(_row(t) for t in below[:40])
+                      + ('<div class="bk-more">and '
+                         f'{len(below) - 40} more</div>' if len(below) > 40 else "")
+                      + '</div>')
 
     out = []
     for name, items in groups.items():
@@ -905,11 +931,15 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
 
     return f"""<div class="bk-wrap">
 <div class="sx-head"><div><h2 class="sx-title">Backlog</h2>
-  <div class="sx-sum">{len(backlog)} open items with no current urgency signal</div></div></div>
-<div class="bk-lead">These carry no deadline in their text, match nothing on the next
-fortnight's calendar, and have not been touched recently. Their due dates are the dates
-they were captured, not dates they are owed &mdash; so age here means age, not lateness.
-Every To Do list is read, so the tag after each title says which one it came from.</div>
+  <div class="sx-sum">{len(below)} ranked below the shortlist &middot;
+  {len(quiet)} with no urgency signal</div></div></div>
+<div class="bk-lead">Two different things, kept apart. The first group has real urgency
+signals and is here only because the shortlist shows eight; the second carries no deadline
+in its text, matches nothing on the next fortnight's calendar, and has not been touched
+recently. Due dates are the dates items were captured, not dates they are owed &mdash; so
+age means age, not lateness. Every To Do list is read, so the tag after each title says
+which one it came from.</div>
+{below_html}
 {''.join(out)}
 </div>"""
 

@@ -310,6 +310,56 @@ def fetch_recent_completions(list_name: str = None, days: int = 45) -> set:
     return out
 
 
+def fetch_recent_completion_sources(list_name: str = None, days: int = 45) -> set:
+    """
+    Message ids recorded in the bodies of recently completed tasks.
+
+    This is the strong half of the suppression: the action text changes
+    between runs, the id of the email it came from does not.
+    """
+    if list_name is None:
+        try:
+            token = _get_token()
+            lists = (_graph_get(token, "/me/todo/lists", {}) or {}).get("value", []) or []
+        except Exception:
+            return set()
+        out = set()
+        for lst in lists:
+            if not _excluded(lst):
+                out |= fetch_recent_completion_sources(lst.get("displayName", ""), days)
+        return out
+
+    try:
+        token = _get_token()
+        lst = _resolve_list(token, list_name)
+        if not lst:
+            return set()
+        data = _graph_get(token, f"/me/todo/lists/{lst['id']}/tasks",
+                          {"$filter": "status eq 'completed'", "$top": 200})
+    except Exception:
+        return set()
+
+    import re as _re
+    cutoff = datetime.datetime.now(AEST_OFFSET).date() - datetime.timedelta(days=days)
+    out = set()
+    for t in data.get("value", []) or []:
+        when = (t.get("completedDateTime") or {}).get("dateTime") or \
+               t.get("lastModifiedDateTime") or ""
+        keep = True
+        if when:
+            try:
+                keep = datetime.datetime.fromisoformat(
+                    when.replace("Z", "+00:00")).date() >= cutoff
+            except Exception:
+                keep = True
+        if not keep:
+            continue
+        body = ((t.get("body") or {}).get("content") or "")
+        for m in _re.finditer(r"\[src:([^\]]{4,})\]", body):
+            out.add(m.group(1).strip())
+    return out
+
+
 def _norm_title(s: str) -> str:
     return "".join(ch for ch in (s or "").lower() if ch.isalnum())[:60]
 
@@ -404,25 +454,70 @@ if __name__ == "__main__":
     sys.exit(_self_test())
 
 
-def suppressed_titles(tasks: list, completed: set = None) -> set:
+SRC_TAG = "[src:%s]"          # written into a task body when it is created
+
+
+def src_marker(msg_id: str) -> str:
+    return SRC_TAG % msg_id if msg_id else ""
+
+
+def suppression_index(tasks: list, completed: set = None,
+                      completed_src: set = None) -> dict:
     """
-    Everything the Actions tab should stop offering: already captured as an
-    open task, or completed recently.
+    What the Actions tab should stop offering, and why.
 
-    This exists so the Actions tab and the Schedule tab agree. The Actions tab
-    rendered analysis["actions"] straight from the inbox read with no
-    suppression at all - the de-duplication only ever ran on the path feeding
-    the Schedule and Backlog tabs - so ticking a task off in To Do had no
-    effect on whether it reappeared in Work Actions the next morning.
+    Two keys, deliberately different in strength:
+
+      "src"   - message ids of emails whose task has been COMPLETED. Exact,
+                survives the wording changing between runs, and is the only
+                reliable signal we have.
+      "title" - normalised titles of COMPLETED tasks. A weak fallback for
+                tasks created before source ids were recorded.
+
+    Open tasks are NOT suppressed. An earlier version hid actions already
+    captured as open tasks; that collides with running inbox_actions first,
+    which captures everything into To Do and would then empty the Actions tab
+    of the very items just captured. Only "I have finished this" hides an item.
     """
-    return ({_norm_title(t.get("title", "")) for t in (tasks or [])
-             if t.get("title")} | set(completed or ()))
+    titles = {_norm_title(t.get("title", "")) for t in (tasks or [])
+              if t.get("title") and t.get("is_completed")}
+    return {"src": set(completed_src or ()), "title": set(completed or ()) | titles}
 
 
-def drop_suppressed(actions: list, suppress: set) -> tuple:
-    """Returns (kept, dropped_count). An empty suppress set keeps everything."""
-    if not suppress:
-        return list(actions or []), 0
-    kept = [a for a in (actions or [])
-            if _norm_title(a.get("action", "")) not in suppress]
-    return kept, len(actions or []) - len(kept)
+def _task_src_ids(tasks: list) -> set:
+    """Message ids recorded in task bodies, for tasks that are completed."""
+    import re as _re
+    out = set()
+    for t in (tasks or []):
+        if not t.get("is_completed"):
+            continue
+        for m in _re.finditer(r"\[src:([^\]]{4,})\]", t.get("detail", "") or ""):
+            out.add(m.group(1).strip())
+    return out
+
+
+def drop_suppressed(actions: list, index: dict) -> tuple:
+    """
+    Returns (kept, dropped, reasons) where reasons counts by cause.
+
+    Matching prefers the message id. Title matching is a fallback only, and
+    only against completed work - the action text is regenerated by the model
+    on every run, so the same item comes back worded differently and title
+    matching alone never caught it.
+    """
+    index = index or {}
+    by_src, by_title = index.get("src") or set(), index.get("title") or set()
+    if not by_src and not by_title:
+        return list(actions or []), 0, {}
+    kept, reasons = [], {"source email completed": 0, "title matches completed task": 0}
+    for a in (actions or []):
+        mid = (a.get("msg_id") or "").strip()
+        if mid and mid in by_src:
+            reasons["source email completed"] += 1
+            continue
+        if _norm_title(a.get("action", "")) in by_title:
+            reasons["title matches completed task"] += 1
+            continue
+        kept.append(a)
+    reasons = {k: v for k, v in reasons.items() if v}
+    return kept, len(actions or []) - len(kept), reasons
