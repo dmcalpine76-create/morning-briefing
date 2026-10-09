@@ -3114,6 +3114,20 @@ def main():
             _done = _todotasks.fetch_recent_completions()
             if _done:
                 print(f"   .  {len(_done)} recently completed title(s) will not be re-proposed")
+
+            # One suppression set for BOTH tabs. The Actions tab used to render
+            # the raw inbox actions, so an item cleared in To Do came straight
+            # back the next morning while the Schedule tab had already dropped
+            # it - the two tabs disagreed about what was outstanding.
+            _suppress = _todotasks.suppressed_titles(_todo.get("tasks", []), _done)
+            if email_analysis is not None and _suppress:
+                _kept, _dropped = _todotasks.drop_suppressed(
+                    email_analysis.get("actions", []), _suppress)
+                if _dropped:
+                    email_analysis["actions"] = _kept
+                    print(f"   .  {_dropped} inbox action(s) hidden from the Actions tab "
+                          f"- already on a To Do list or completed recently")
+
             _merged = _todotasks.merge_with_inbox_actions(
                 _todo.get("tasks", []), (email_analysis or {}).get("actions", []), _done)
             ranked_tasks = _urgency.rank_tasks(_merged, fortnight.get("events", []))

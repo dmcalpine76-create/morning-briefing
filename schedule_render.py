@@ -185,6 +185,10 @@ def build_css() -> str:
 .bk-grp-h span { font-size:.65rem; letter-spacing:.14em; text-transform:uppercase;
                  font-weight:700; color:#5c5a52; }
 .bk-grp-h i { flex:1 1 auto; height:1px; background:#d8d4c6; display:block; }
+.bk-list { font-size:.58rem; font-weight:700; letter-spacing:.06em;
+           text-transform:uppercase; color:#8c887b; background:#f4f1e8;
+           border:1px solid #e4e1d8; border-radius:2rem;
+           padding:.05rem .4rem; margin-left:.45rem; white-space:nowrap; }
 .bk-item { display:flex; align-items:center; gap:.7rem; background:#fdfcf8;
            border:1px solid #e9e6dd; border-radius:7px; padding:.45rem .7rem; margin-bottom:.3rem; }
 .bk-item-t { flex:1 1 auto; font-size:.8rem; min-width:0; }
@@ -887,8 +891,13 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
     for name, items in groups.items():
         if not items:
             continue
+        # Tasks come from every To Do list now, so the list name is the only
+        # way to tell a real backlog item from something that arrived with a
+        # list you never think of as a task list.
         rows = "".join(
-            f'<div class="bk-item"><div class="bk-item-t">{esc(t.get("title"))}</div>'
+            f'<div class="bk-item"><div class="bk-item-t">{esc(t.get("title"))}'
+            + (f'<span class="bk-list">{esc(t["list"])}</span>' if t.get("list") else "")
+            + f'</div>'
             f'<span class="bk-age">{(str(t["days_over"]) + "d") if t.get("days_over") else "&mdash;"}</span></div>'
             for t in items)
         out.append(f'<div class="bk-grp"><div class="bk-grp-h"><span>{esc(name)}</span>'
@@ -899,7 +908,8 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
   <div class="sx-sum">{len(backlog)} open items with no current urgency signal</div></div></div>
 <div class="bk-lead">These carry no deadline in their text, match nothing on the next
 fortnight's calendar, and have not been touched recently. Their due dates are the dates
-they were captured, not dates they are owed &mdash; so age here means age, not lateness.</div>
+they were captured, not dates they are owed &mdash; so age here means age, not lateness.
+Every To Do list is read, so the tag after each title says which one it came from.</div>
 {''.join(out)}
 </div>"""
 

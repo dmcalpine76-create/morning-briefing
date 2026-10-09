@@ -61,6 +61,19 @@ def _graph_get(token: str, path: str, params: dict = None) -> dict:
     return resp.json()
 
 
+# Microsoft's Flagged Emails list is every email you ever flagged in Outlook,
+# surfaced through the To Do API as if each were a task. Merged in, it buries
+# the backlog in items you never created and duplicates the Priority Digest.
+# Matched on wellknownListName, so a user list that happens to be called
+# something similar is untouched.
+EXCLUDED_WELLKNOWN = {"flaggedemails"}
+
+
+def _excluded(lst: dict) -> bool:
+    wk = (lst.get("wellknownListName") or "").strip().lower()
+    return wk in EXCLUDED_WELLKNOWN
+
+
 def _resolve_list(token: str, list_name: str) -> dict:
     data  = _graph_get(token, "/me/todo/lists")
     lists = data.get("value", []) or []
@@ -122,8 +135,11 @@ def _fetch_all_lists(include_completed: bool = False) -> dict:
         lists = (_graph_get(token, "/me/todo/lists", {}) or {}).get("value", []) or []
     except Exception:
         return _fetch_one_list(TASK_LIST_NAME, include_completed)   # fall back to the old behaviour
-    merged, errors = [], []
+    merged, errors, skipped = [], [], []
     for lst in lists:
+        if _excluded(lst):
+            skipped.append(lst.get("displayName", "") or lst.get("wellknownListName", ""))
+            continue
         r = _fetch_one_list(lst.get("displayName", ""), include_completed)
         if r.get("error"):
             errors.append(r["error"])
@@ -135,7 +151,9 @@ def _fetch_all_lists(include_completed: bool = False) -> dict:
     merged.sort(key=lambda x: (order.get(x["bucket"], 9),
                                x["due_date"] or datetime.date.max,
                                rank.get(x["importance"], 1)))
-    return {"tasks": merged, "list_name": "all lists",
+    if skipped:
+        print(f"   .  skipped non-task list(s): {', '.join(skipped)}")
+    return {"tasks": merged, "list_name": "all lists", "skipped": skipped,
             "error": None if merged or not errors else errors[0]}
 
 
@@ -211,16 +229,35 @@ def _fetch_one_list(list_name: str = None, include_completed: bool = False) -> d
 
 def fetch_recent_completions(list_name: str = None, days: int = 45) -> set:
     """
-    Normalised titles of tasks completed in the last `days`.
+    Normalised titles of tasks completed in the last `days`, across EVERY list
+    unless one is named.
 
     Needed because the open-task list cannot suppress a re-proposal: the moment
     you tick a task off it leaves that list, so an inbox action matching it was
     proposed all over again while its source email was still in the window.
     Completing something made it come back, which is the opposite of useful.
 
+    It used to read Daily Priorities alone. Once open tasks began coming from
+    every list, that left the two halves asymmetric - a task completed anywhere
+    else was invisible here and came straight back.
+
     Best-effort — any failure returns an empty set and the merge simply behaves
     as it did before.
     """
+    if list_name is None:
+        try:
+            token = _get_token()
+            lists = (_graph_get(token, "/me/todo/lists", {}) or {}).get("value", []) or []
+        except Exception as e:
+            print(f"   !  completed-task check skipped: {e}")
+            return set()
+        out = set()
+        for lst in lists:
+            if _excluded(lst):
+                continue
+            out |= fetch_recent_completions(lst.get("displayName", ""), days)
+        return out
+
     list_name = list_name or TASK_LIST_NAME
     try:
         token = _get_token()
@@ -365,3 +402,27 @@ if __name__ == "__main__":
     except Exception:
         pass
     sys.exit(_self_test())
+
+
+def suppressed_titles(tasks: list, completed: set = None) -> set:
+    """
+    Everything the Actions tab should stop offering: already captured as an
+    open task, or completed recently.
+
+    This exists so the Actions tab and the Schedule tab agree. The Actions tab
+    rendered analysis["actions"] straight from the inbox read with no
+    suppression at all - the de-duplication only ever ran on the path feeding
+    the Schedule and Backlog tabs - so ticking a task off in To Do had no
+    effect on whether it reappeared in Work Actions the next morning.
+    """
+    return ({_norm_title(t.get("title", "")) for t in (tasks or [])
+             if t.get("title")} | set(completed or ()))
+
+
+def drop_suppressed(actions: list, suppress: set) -> tuple:
+    """Returns (kept, dropped_count). An empty suppress set keeps everything."""
+    if not suppress:
+        return list(actions or []), 0
+    kept = [a for a in (actions or [])
+            if _norm_title(a.get("action", "")) not in suppress]
+    return kept, len(actions or []) - len(kept)
