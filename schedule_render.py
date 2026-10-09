@@ -89,6 +89,19 @@ def build_css() -> str:
 .sx-sec .sx-line { flex:1 1 auto; height:1px; background:#d8d4c6; }
 .sx-sec .sx-note { font-size:.68rem; color:#5c5a52; }
 
+.sx-next { margin-top:.9rem; border:1px solid #e4e1d8; border-radius:3px; background:#fff; }
+.sx-next > summary { cursor:pointer; padding:.6rem .8rem; font-size:.74rem; font-weight:700;
+                     color:#3d3a34; list-style:none; }
+.sx-next > summary::-webkit-details-marker { display:none; }
+.sx-next > summary::before { content:'\25B8 '; color:#8c887b; }
+.sx-next[open] > summary::before { content:'\25BE '; }
+.sx-next-i { display:flex; gap:.6rem; padding:.45rem .8rem; border-top:1px solid #f0ede4; }
+.sx-next-n { font-size:.66rem; font-weight:700; color:#8c887b; min-width:1.8rem;
+             font-variant-numeric:tabular-nums; padding-top:.1rem; }
+.sx-next-t { font-size:.8rem; font-weight:600; line-height:1.3; }
+.sx-next-w { font-size:.68rem; color:#5c5a52; line-height:1.4; }
+.sx-next-m { font-size:.68rem; color:#8c887b; font-style:italic; padding:.5rem .8rem;
+             border-top:1px solid #f0ede4; }
 .sx-task { display:flex; align-items:flex-start; gap:.7rem; background:#fff;
            border:1px solid #e4e1d8; border-radius:8px; padding:.65rem .8rem; margin-bottom:.45rem; }
 .sx-task.is-proposed { background:#fcfaf2; border:1px dashed #cfc8b0; }
@@ -343,7 +356,12 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
     now   = now or datetime.datetime.now(AEST_OFFSET)
     today = now.date()
     live  = (ranked or {}).get("live", [])
-    backlog_n = len((ranked or {}).get("backlog", []))
+    # Only the genuinely signal-free tasks are "backlog". Everything that
+    # merely lost the top-eight race is ranked work and belongs here, under
+    # the shortlist - 60 of the 112 items Doug was seeing were in that group.
+    below_cut = (ranked or {}).get("below_cut") or []
+    quiet_n   = (ranked or {}).get("quiet")
+    backlog_n = len(quiet_n) if quiet_n is not None else len((ranked or {}).get("backlog", []))
     days  = (cal or {}).get("days", [])[:7]
     load  = (cal or {}).get("load", {})
     by_day = (cal or {}).get("by_day", {})
@@ -421,6 +439,19 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
             f'<div class="sx-meta">{meta}</div>'
             f'<div class="sx-verdict" style="color:{vcol}">{verdict or "&nbsp;"}</div>'
             f'</div>')
+
+    next_html = ""
+    if below_cut:
+        _items = "".join(
+            f'<div class="sx-next-i"><span class="sx-next-n">{t.get("signal_score", 0):g}</span>'
+            f'<div><div class="sx-next-t">{esc(t.get("title"))}</div>'
+            f'<div class="sx-next-w">{esc(t.get("urgency_reason", ""))}</div></div></div>'
+            for t in below_cut[:12])
+        _more = (f'<div class="sx-next-m">and {len(below_cut) - 12} more below these</div>'
+                 if len(below_cut) > 12 else "")
+        next_html = (f'<details class="sx-next"><summary>Next in line &mdash; '
+                     f'{len(below_cut)} more with an urgency signal</summary>'
+                     f'{_items}{_more}</details>')
 
     # priorities
     rows = []
@@ -560,8 +591,9 @@ def build_schedule_tab(ranked: dict, cal: dict, pc_cfg: dict = None,
     <div class="sx-sec"><h3>What Else Matters Today</h3><i class="sx-line"></i>
       <span class="sx-note">ranked by deadline, calendar coupling and recency</span></div>
     {''.join(rows)}
+    {next_html}
     <div style="font-size:.7rem;color:#5c5a52;margin-top:.6rem">
-      {backlog_n} further open item{plural_backlog} with no urgency signal &mdash;
+      {backlog_n} further open item{plural_backlog} with no urgency signal at all &mdash;
       see the Backlog tab.</div>
     {personal_html}
     {legacy}
@@ -879,10 +911,9 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
     quiet = ranked.get("quiet")
     if quiet is None:
         quiet = [t for t in ranked.get("backlog", []) if t.get("signal_score", 0) <= 0]
-    backlog = ranked.get("backlog", [])
-    if not backlog:
+    if not quiet:
         return ('<div class="bk-wrap"><div class="bk-lead">Nothing in the backlog. '
-                'Everything open has an urgency signal.</div></div>')
+                'Everything open carries an urgency signal.</div></div>')
 
     groups = {"Under a fortnight old": [], "Two to four weeks": [], "Over a month": [], "No due date": []}
     for t in quiet:
@@ -903,16 +934,6 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
                 f'<div class="bk-why">{why}</div></div>'
                 f'<span class="bk-age">{t.get("signal_score", 0):g}</span></div>')
 
-    below_html = ""
-    if below:
-        below_html = ('<div class="bk-grp"><div class="bk-grp-h">'
-                      '<span>Ranked below the shortlist</span><i></i>'
-                      f'<span>{len(below)}</span></div>'
-                      + "".join(_row(t) for t in below[:40])
-                      + ('<div class="bk-more">and '
-                         f'{len(below) - 40} more</div>' if len(below) > 40 else "")
-                      + '</div>')
-
     out = []
     for name, items in groups.items():
         if not items:
@@ -931,15 +952,13 @@ def build_backlog_tab(ranked: dict, now: datetime.datetime = None) -> str:
 
     return f"""<div class="bk-wrap">
 <div class="sx-head"><div><h2 class="sx-title">Backlog</h2>
-  <div class="sx-sum">{len(below)} ranked below the shortlist &middot;
-  {len(quiet)} with no urgency signal</div></div></div>
-<div class="bk-lead">Two different things, kept apart. The first group has real urgency
-signals and is here only because the shortlist shows eight; the second carries no deadline
-in its text, matches nothing on the next fortnight's calendar, and has not been touched
-recently. Due dates are the dates items were captured, not dates they are owed &mdash; so
-age means age, not lateness. Every To Do list is read, so the tag after each title says
-which one it came from.</div>
-{below_html}
+  <div class="sx-sum">{len(quiet)} open items with no urgency signal</div></div></div>
+<div class="bk-lead">Only tasks with no urgency signal at all: no deadline in the text,
+nothing matching on the next fortnight's calendar, not touched recently. The
+{len(below)} tasks that do carry a signal but lost the top-eight race are on the Schedule
+tab under the shortlist, not here. Due dates are the dates items were captured, not dates
+they are owed &mdash; so age means age, not lateness. The tag after each title says which
+To Do list it came from.</div>
 {''.join(out)}
 </div>"""
 

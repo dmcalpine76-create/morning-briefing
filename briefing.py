@@ -1538,7 +1538,12 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
                 personal_actions=None,
                 personal_status=None)
             backlog_tab_html  = _srender.build_backlog_tab(ranked_tasks or {})
-            backlog_count     = len((ranked_tasks or {}).get("backlog", []))
+            # the button counts what the tab actually holds: the signal-free
+            # tasks. Items that merely lost the top-eight race are on the
+            # Schedule tab now, under the shortlist.
+            _q = (ranked_tasks or {}).get("quiet")
+            backlog_count     = len(_q if _q is not None
+                                    else (ranked_tasks or {}).get("backlog", []))
         except Exception as _e:
             import traceback as _tb
             _detail = _tb.format_exc()

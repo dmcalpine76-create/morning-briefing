@@ -87,6 +87,27 @@ CHECKS = [
     ("Flagged Emails is still excluded", "flaggedemails" in tt.EXCLUDED_WELLKNOWN),
 ]
 
+# The model labels the emails [1], [2]... and returns the index THAT way -
+# "[1]", not 1 - so int() threw on every action and every source was lost
+# silently. A live probe found 0 of 6 resolved. Parse the digits out of
+# whatever shape arrives.
+import re as _re
+def _idx(raw):
+    m = _re.search(r"\d+", str(raw or ""))
+    return int(m.group(0)) - 1 if m else None
+
+CHECKS += [
+    ("the bracketed form the model actually sends resolves", _idx("[1]") == 0),
+    ("a two-digit bracketed index resolves", _idx(" [15] ") == 14),
+    ("a bare int resolves", _idx(3) == 2),
+    ("a bare string resolves", _idx("3") == 2),
+    ("other shapes resolve", _idx("#3") == 2 and _idx("Email 2") == 1),
+    ("nothing usable stays unresolved",
+     _idx(None) is None and _idx("") is None and _idx("none") is None),
+    ("the parser in outlook_email is the digit-extracting one",
+     '_re.search' in MAIL or 're.search(r"\\d+", str(raw_idx' in MAIL),
+]
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

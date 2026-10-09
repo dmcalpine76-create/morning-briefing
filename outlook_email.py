@@ -10,6 +10,7 @@ Usage:
 """
 
 import os
+import re
 import json
 import datetime
 import requests
@@ -346,13 +347,17 @@ EMAILS:
         for a in result.get("actions", []) or []:
             if not isinstance(a, dict):
                 continue
+            # The model returns the index the way the emails are LABELLED -
+            # "[1]", not 1 - so int() threw on every one of them and the
+            # source was silently lost. Take the first run of digits from
+            # whatever shape it arrives in.
             src = None
-            try:
-                i = int(a.get("index")) - 1
+            raw_idx = a.get("index", a.get("email_index", a.get("source_index")))
+            m = re.search(r"\d+", str(raw_idx or ""))
+            if m:
+                i = int(m.group(0)) - 1
                 if 0 <= i < len(emails):
                     src = emails[i]
-            except (TypeError, ValueError):
-                pass
             a["msg_id"]     = (src or {}).get("msg_id", "")
             a["src_subject"]= (src or {}).get("subject", "")
             a["src_time"]   = (src or {}).get("received", "")

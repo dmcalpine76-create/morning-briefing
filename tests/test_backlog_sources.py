@@ -69,7 +69,17 @@ CHECKS = [
     ("every backlog item carries a due date from To Do",
      all(t.get("due_date") for t in ranked["backlog"])),
     ("the backlog tab still renders",
-     "Backlog" in sr.build_backlog_tab(ranked)),
+     "Backlog" in sr.build_backlog_tab(ranked)
+     or "Nothing in the backlog" in sr.build_backlog_tab(ranked)),
+    # the tab is now ONLY the signal-free tasks; anything that merely lost the
+    # top-eight race is ranked work and sits under the shortlist instead
+    ("the backlog holds only signal-free tasks",
+     all(t.get("signal_score", 0) <= 0 for t in ranked.get("quiet", []))),
+    ("tasks that lost the cap are kept separate",
+     all(t.get("signal_score", 0) > 0 for t in ranked.get("below_cut", []))),
+    ("the two groups together are the old backlog",
+     len(ranked.get("below_cut", [])) + len(ranked.get("quiet", []))
+     == len(ranked["backlog"])),
 ]
 
 if __name__ == "__main__":
