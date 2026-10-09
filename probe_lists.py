@@ -1,57 +1,52 @@
-"""
-Temporary diagnostic. Graph is unreachable from both the cloud workspace and
-the desktop VM, so this runs on the runner.
+"""Temporary diagnostic. Counts and AGES only - no subjects, no titles."""
+import datetime, os, collections
+import todo_tasks as tt, task_urgency as tu, outlook_email as oe, anthropic
 
-The repo is PUBLIC: prints COUNTS ONLY - no task titles, no list names, no
-email subjects.
-"""
-import datetime, os
-import todo_tasks as tt
-import task_urgency as tu
-import outlook_email as oe
-import anthropic
+now = datetime.datetime.now(datetime.timezone.utc)
+def age_h(ts):
+    if not ts: return None
+    try:
+        d = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if d.tzinfo is None: d = d.replace(tzinfo=datetime.timezone.utc)
+        return round((now - d).total_seconds() / 3600, 1)
+    except Exception:
+        return None
 
-tok = tt._get_token()
+tok = oe.get_access_token()
+emails = oe.fetch_recent_emails(tok)
+print(f"HOURS_BACK constant              : {oe.HOURS_BACK}")
+print(f"emails fetched                   : {len(emails)}")
+ages = [a for a in (age_h(e.get('received')) for e in emails) if a is not None]
+if ages:
+    print(f"  age range (hours)              : {min(ages)} .. {max(ages)}")
+    buckets = collections.Counter()
+    for a in ages:
+        buckets["0-24h" if a <= 24 else "24-48h" if a <= 48 else
+                "48-168h" if a <= 168 else "OLDER THAN A WEEK"] += 1
+    for k in ("0-24h", "24-48h", "48-168h", "OLDER THAN A WEEK"):
+        if buckets[k]: print(f"    {k:<20}: {buckets[k]}")
+print(f"  sent / received                : {sum(1 for e in emails if e.get('is_sent'))}"
+      f" / {sum(1 for e in emails if not e.get('is_sent'))}")
 
-# ── the To Do side ──────────────────────────────────────────────────────────
-lists = (tt._graph_get(tok, "/me/todo/lists", {}) or {}).get("value", []) or []
-print(f"to do lists                      : {len(lists)}")
-print(f"excluded by wellknownListName    : {sum(1 for l in lists if tt._excluded(l))}")
-
-todo = tt.fetch_todo_tasks()
-tasks = todo.get("tasks", [])
-print(f"open tasks after exclusion       : {len(tasks)}")
-
-today = datetime.date.today()
-made_today = sum(1 for t in tasks if t.get("last_modified") == today)
-print(f"  of those, touched today        : {made_today}")
-
-done = tt.fetch_recent_completions()
-print(f"recent completions (all lists)   : {len(done)}")
-
-# ── the inbox side ──────────────────────────────────────────────────────────
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-analysis = oe.get_email_analysis(client)
-actions = analysis.get("actions", []) or []
-print(f"inbox actions extracted          : {len(actions)}")
+an = oe.analyse_emails(client, emails)
+acts = an.get("actions", []) or []
+print(f"\nactions returned                 : {len(acts)} (cap {oe.MAX_ACTIONS})")
+print(f"  with a resolved msg_id         : {sum(1 for a in acts if a.get('msg_id'))}")
+print(f"  derived from a SENT email      : {sum(1 for a in acts if a.get('src_sent'))}")
+sa = [age_h(a.get("src_time")) for a in acts]
+for i, a in enumerate(sa, 1):
+    print(f"    action {i}: source email {a}h old" if a is not None
+          else f"    action {i}: source UNRESOLVED")
 
-open_titles = {tt._norm_title(t.get("title","")) for t in tasks if t.get("title")}
-n_open  = sum(1 for a in actions if tt._norm_title(a.get("action","")) in open_titles)
-n_done  = sum(1 for a in actions
-              if tt._norm_title(a.get("action","")) in done
-              and tt._norm_title(a.get("action","")) not in open_titles)
-print(f"  suppressed: already OPEN task  : {n_open}")
-print(f"  suppressed: completed recently : {n_done}")
-print(f"  surviving to the Actions tab   : {len(actions) - n_open - n_done}")
-
-# ── the ranking side ────────────────────────────────────────────────────────
-sup = tt.suppressed_titles(tasks, done)
-kept, _ = tt.drop_suppressed(actions, sup)
+todo = tt.fetch_todo_tasks(); tasks = todo.get("tasks", [])
+done = tt.fetch_recent_completions(); dsrc = tt.fetch_recent_completion_sources()
+idx = tt.suppression_index(tasks, done, dsrc)
+kept, dropped, why = tt.drop_suppressed(acts, idx)
+print(f"\nsuppressed                       : {dropped} {why}")
 merged = tt.merge_with_inbox_actions(tasks, kept, done)
-ranked = tu.rank_tasks(merged, [])
-live, backlog = ranked["live"], ranked["backlog"]
-print(f"ranked live                      : {len(live)}")
-print(f"backlog                          : {len(backlog)}")
-withsig = sum(1 for t in backlog if t.get("signal_score", 0) > 0)
-print(f"  backlog items WITH a signal    : {withsig}  <- pushed out by the top-8 cap")
-print(f"  backlog items with no signal   : {len(backlog) - withsig}")
+r = tu.rank_tasks(merged, [])
+print(f"open tasks                       : {len(tasks)}")
+print(f"live / below_cut / quiet         : {len(r['live'])} / "
+      f"{len(r.get('below_cut',[]))} / {len(r.get('quiet',[]))}")
+print(f"backlog total (tab button count) : {len(r['backlog'])}")
