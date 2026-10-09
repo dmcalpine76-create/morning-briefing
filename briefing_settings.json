@@ -1524,5 +1524,9 @@
       }
     ],
     "mute": []
-  }
+  },
+  "task_lists": [
+    "Daily Priorities",
+    "Tasks"
+  ]
 }

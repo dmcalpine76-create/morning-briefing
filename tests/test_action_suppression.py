@@ -108,6 +108,34 @@ CHECKS += [
      '_re.search' in MAIL or 're.search(r"\\d+", str(raw_idx' in MAIL),
 ]
 
+# ── which lists are read ────────────────────────────────────────────────────
+# Reading every list put the backlog back to front: the curated lists carry
+# urgency signals so their tasks rank onto the Schedule tab, leaving the
+# backlog as everything EXCEPT the list the real work lives on. An allowlist
+# fixes the direction.
+_LISTS = ([{"displayName": "Daily Priorities", "wellknownListName": "none"},
+           {"displayName": "Tasks",            "wellknownListName": "defaultList"},
+           {"displayName": "Flagged Emails",   "wellknownListName": "flaggedEmails"},
+           {"displayName": "Shopping",         "wellknownListName": "none"},
+           {"displayName": "Someday",          "wellknownListName": "none"}])
+_AL = {a.lower() for a in tt._configured_lists()}
+_read = [l["displayName"] for l in _LISTS if tt._wanted(l, _AL)]
+
+CHECKS += [
+    ("the two working lists are read", _read == ["Daily Priorities", "Tasks"]),
+    ("Flagged Emails stays out", "Flagged Emails" not in _read),
+    ("other lists stay out", "Shopping" not in _read and "Someday" not in _read),
+    ("the default list counts as Tasks even if renamed",
+     tt._wanted({"displayName": "Aufgaben", "wellknownListName": "defaultList"}, _AL)),
+    ("matching ignores case",
+     tt._wanted({"displayName": "daily priorities", "wellknownListName": "none"}, _AL)),
+    ("the allowlist is configurable",
+     "task_lists" in (Path(__file__).resolve().parent.parent
+                      / "briefing_settings.json").read_text(encoding="utf-8")),
+    ("completions follow the same allowlist", SRC.count("_wanted(lst, allowed_lower)") >= 3),
+    ("the run log names the lists it read", "reading " in SRC and "To Do list(s)" in SRC),
+]
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

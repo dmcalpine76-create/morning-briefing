@@ -38,6 +38,45 @@ try:
 except Exception:
     TASK_LIST_NAME = "Daily Priorities"
 
+# Which To Do lists the briefing is allowed to read.
+#
+# Reading EVERY list (4 Oct) pulled in all thirteen, and the result was the
+# opposite of useful: the curated lists carry urgency signals so their tasks
+# rank onto the Schedule tab, leaving the backlog as a pile of everything
+# else - shopping lists, someday lists, anything. An allowlist, not a
+# blocklist: name the lists that hold real work and ignore the rest.
+#
+# Override with "task_lists" in briefing_settings.json.
+DEFAULT_TASK_LISTS = ["Daily Priorities", "Tasks"]
+
+
+def _configured_lists() -> list:
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        cfg = _json.loads((_Path(__file__).parent / "briefing_settings.json")
+                          .read_text(encoding="utf-8"))
+        names = cfg.get("task_lists")
+        if isinstance(names, list) and names:
+            return [str(n).strip() for n in names if str(n).strip()]
+    except Exception:
+        pass
+    return list(DEFAULT_TASK_LISTS)
+
+
+def _wanted(lst: dict, allowed_lower: set) -> bool:
+    """A list is read if it is named in the allowlist, or IS the default list.
+
+    wellknownListName 'defaultList' is Microsoft's "Tasks"; matching it by id
+    as well as by name means a renamed or localised default still counts.
+    """
+    if _excluded(lst):
+        return False
+    name = (lst.get("displayName") or "").strip().lower()
+    wk   = (lst.get("wellknownListName") or "").strip().lower()
+    return name in allowed_lower or (wk == "defaultlist"
+                                     and "tasks" in allowed_lower)
+
 
 def _get_token() -> str:
     """Reuse whichever auth path this project already has working."""
@@ -135,11 +174,14 @@ def _fetch_all_lists(include_completed: bool = False) -> dict:
         lists = (_graph_get(token, "/me/todo/lists", {}) or {}).get("value", []) or []
     except Exception:
         return _fetch_one_list(TASK_LIST_NAME, include_completed)   # fall back to the old behaviour
-    merged, errors, skipped = [], [], []
+    allowed = _configured_lists()
+    allowed_lower = {a.lower() for a in allowed}
+    merged, errors, skipped, used = [], [], [], []
     for lst in lists:
-        if _excluded(lst):
+        if not _wanted(lst, allowed_lower):
             skipped.append(lst.get("displayName", "") or lst.get("wellknownListName", ""))
             continue
+        used.append(lst.get("displayName", ""))
         r = _fetch_one_list(lst.get("displayName", ""), include_completed)
         if r.get("error"):
             errors.append(r["error"])
@@ -151,9 +193,13 @@ def _fetch_all_lists(include_completed: bool = False) -> dict:
     merged.sort(key=lambda x: (order.get(x["bucket"], 9),
                                x["due_date"] or datetime.date.max,
                                rank.get(x["importance"], 1)))
-    if skipped:
-        print(f"   .  skipped non-task list(s): {', '.join(skipped)}")
-    return {"tasks": merged, "list_name": "all lists", "skipped": skipped,
+    print(f"   .  reading {len(used)} of {len(lists)} To Do list(s): "
+          f"{', '.join(used) or 'none matched the allowlist'}")
+    if not used:
+        print(f"   !  none of {allowed} were found - check 'task_lists' "
+              f"in briefing_settings.json")
+    return {"tasks": merged, "list_name": ", ".join(used) or "none",
+            "skipped": skipped, "used": used,
             "error": None if merged or not errors else errors[0]}
 
 
@@ -252,8 +298,9 @@ def fetch_recent_completions(list_name: str = None, days: int = 45) -> set:
             print(f"   !  completed-task check skipped: {e}")
             return set()
         out = set()
+        allowed_lower = {a.lower() for a in _configured_lists()}
         for lst in lists:
-            if _excluded(lst):
+            if not _wanted(lst, allowed_lower):
                 continue
             out |= fetch_recent_completions(lst.get("displayName", ""), days)
         return out
@@ -324,8 +371,9 @@ def fetch_recent_completion_sources(list_name: str = None, days: int = 45) -> se
         except Exception:
             return set()
         out = set()
+        allowed_lower = {a.lower() for a in _configured_lists()}
         for lst in lists:
-            if not _excluded(lst):
+            if _wanted(lst, allowed_lower):
                 out |= fetch_recent_completion_sources(lst.get("displayName", ""), days)
         return out
 
