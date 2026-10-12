@@ -54,6 +54,7 @@ except ImportError:
 # New Schedule / Calendar / Backlog tabs. Guarded so a missing module degrades
 # to the previous layout instead of taking the whole briefing down.
 import task_body as _taskbody
+import run_diag as _diag
 
 try:
     import calendar_data as _caldata
@@ -2919,9 +2920,27 @@ def main():
 
     # ── Outlook full email analysis ──
     email_analysis = {}
-    if _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID"):
+    if not _OUTLOOK_AVAILABLE:
+        _diag.skip("Outlook", "outlook_email.py not importable")
+    elif not os.environ.get("OUTLOOK_CLIENT_ID"):
+        _diag.skip("Outlook", "OUTLOOK_CLIENT_ID not set")
+    else:
         print("\n📬  Fetching Outlook email analysis…")
-        email_analysis = _outlook.get_email_analysis(client)
+        try:
+            email_analysis = _outlook.get_email_analysis(client) or {}
+            _digest  = len(email_analysis.get("digest", []))
+            _actions = len(email_analysis.get("actions", []))
+            if _digest or _actions:
+                _diag.ok("Outlook", f"{_digest} priority emails, {_actions} actions")
+            else:
+                # Everything Outlook-derived is missing from the briefing when
+                # this happens, and until now nothing said so. Usually the CI
+                # token: the cache in OUTLOOK_TOKEN_CACHE is re-presented every
+                # run and never written back, so it eventually stops working.
+                _diag.fail("Outlook", "returned no digest and no actions "
+                                      "(token expired?)")
+        except Exception as _oe:
+            _diag.fail("Outlook", f"{type(_oe).__name__}: {_oe}")
 
     # ── ASX announcements for watchlist tickers ──────────────────────────────
     asx_ann_data = {"announcements": []}
@@ -3259,20 +3278,29 @@ def main():
                                                  ranked_tasks=ranked_tasks,
                                                  briefings=(calendar_data or {}).get("_briefings") or {})
         if audio_path:
+            _mb = audio_path.stat().st_size / 1048576
+            _diag.ok("Audio", f"{_mb:.1f} MB, voice {audio_briefing.VOICE}, "
+                              f"rate {audio_briefing.RATE}")
             print(f"   ✓ Audio briefing: {audio_path.name}")
+        else:
+            _diag.fail("Audio", getattr(audio_briefing, "LAST_ERROR", "")
+                                or "generate_mp3 returned None")
     except ImportError as e:
         # Was a silent pass, which is why a missing edge-tts looked like
         # "the audio just stopped working" for months.
+        _diag.fail("Audio", f"module unavailable: {e}")
         print(f"   !  Audio briefing unavailable: {e}")
         print("      pip install edge-tts")
     except Exception as e:
+        _diag.fail("Audio", f"{type(e).__name__}: {e}")
         print(f"   ⚠️  Audio briefing failed: {e}")
 
     # ── Email briefing to yourself ──
     if _OUTLOOK_AVAILABLE and os.environ.get("OUTLOOK_CLIENT_ID") and os.environ.get("BRIEFING_EMAIL_TO"):
         print("\n✉️   Sending briefing email…")
         _outlook.send_briefing_email(html, out_dir.name, generated, all_sections, email_analysis,
-                                     extra_attachments=[audio_path] if audio_path else None)
+                                     extra_attachments=[audio_path] if audio_path else None,
+                                     diagnostics=_diag.steps())
 
     # ── Serve immediately so the Push to To Do button works ──
     # The server stays open until you press Ctrl+C or click Close in the page.

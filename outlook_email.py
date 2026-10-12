@@ -451,7 +451,8 @@ def get_email_digest(client):
 # SEND BRIEFING EMAIL
 # ─────────────────────────────────────────────
 
-def _build_email_body(analysis: dict, sections: dict, generated_at: datetime.datetime) -> str:
+def _build_email_body(analysis: dict, sections: dict, generated_at: datetime.datetime,
+                      diagnostics: list = None) -> str:
     """
     Build a clean HTML email body with:
       - Top news stories from each category (headline + one-line summary + link)
@@ -579,6 +580,8 @@ def _build_email_body(analysis: dict, sections: dict, generated_at: datetime.dat
         html += f'''<div style="{S["sec_head"]}">📬 Priority Inbox Summary</div>
 <p style="{S["summary"]}">{len(digest)} priority emails · {unread_count} unread · {action_count} need action</p>'''
 
+    html += _build_diag_block(diagnostics)
+
     html += f'''<p style="{S["footer"]}">
 Open the attached <strong>Morning_Briefing_{generated_at.strftime("%Y-%m-%d")}.html</strong>
 in a browser for the full interactive briefing with all topic tabs.
@@ -587,11 +590,53 @@ in a browser for the full interactive briefing with all topic tabs.
     return html
 
 
+def _build_diag_block(diagnostics: list) -> str:
+    """
+    What ran and what didn't. A briefing that quietly lost its audio and every
+    Outlook section still looked like a normal briefing, and the reason was in
+    an Actions log served from a blocked host. Counts and status only - no
+    subjects, senders or task titles.
+    """
+    if not diagnostics:
+        return ""
+
+    failed = [d for d in diagnostics if d.get("status") == "failed"]
+    rows   = []
+    for d in diagnostics:
+        status = d.get("status")
+        colour = {"ok": "#27ae60", "failed": "#c0392b"}.get(status, "#999")
+        mark   = {"ok": "✓", "failed": "✗"}.get(status, "–")
+        detail = (d.get("detail") or "").replace("<", "&lt;").replace(">", "&gt;")
+        rows.append(
+            f'<p style="font-size:11px;color:#666;margin:0 0 2px">'
+            f'<span style="color:{colour};font-weight:700">{mark}</span> '
+            f'<strong>{d.get("step", "")}</strong>'
+            + (f' &mdash; {detail}' if detail else "") + '</p>')
+
+    if failed:
+        banner = ('<p style="font-size:12px;font-weight:700;color:#c0392b;margin:0 0 6px">'
+                  'This briefing is incomplete &mdash; '
+                  + ", ".join(d.get("step", "") for d in failed)
+                  + ' did not run.</p>')
+        border = "#c0392b"
+    else:
+        banner = ""
+        border = "#eee"
+
+    return (f'<div style="margin-top:24px;padding:10px 12px;background:#fafafa;'
+            f'border:1px solid #eee;border-left:3px solid {border};border-radius:2px">'
+            + banner
+            + '<p style="font-size:10px;color:#aaa;text-transform:uppercase;'
+              'letter-spacing:0.5px;margin:0 0 4px">Run status</p>'
+            + "".join(rows) + '</div>')
+
+
 def send_briefing_email(briefing_html: str, out_dir_name: str,
                          generated_at: datetime.datetime,
                          sections: dict = None,
                          analysis: dict = None,
-                         extra_attachments: list = None) -> bool:
+                         extra_attachments: list = None,
+                         diagnostics: list = None) -> bool:
     """
     Send the morning briefing with:
       - HTML body: readable news stories + work actions (works in any email client)
@@ -611,7 +656,8 @@ def send_briefing_email(briefing_html: str, out_dir_name: str,
         filename = f"Morning_Briefing_{generated_at.strftime('%Y-%m-%d')}.html"
 
         # Build readable email body
-        body_html = _build_email_body(analysis or {}, sections or {}, generated_at)
+        body_html = _build_email_body(analysis or {}, sections or {}, generated_at,
+                                      diagnostics=diagnostics)
 
         # Encode full HTML as attachment
         html_b64 = base64.b64encode(briefing_html.encode("utf-8")).decode("ascii")

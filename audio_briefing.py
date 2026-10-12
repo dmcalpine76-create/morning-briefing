@@ -81,6 +81,10 @@ DEFAULT_RATE = "+25%"
 _rate_raw = (os.environ.get("AUDIO_RATE") or DEFAULT_RATE).strip().strip('"').strip("'")
 RATE = _rate_raw if re.fullmatch(r"[+-]\d{1,3}%", _rate_raw or "") else DEFAULT_RATE
 MAX_MP3_MB = 8              # sanity cap for the email attachment
+
+# Why the last generate_mp3() returned None. briefing.py reads this and puts it
+# in the email, because the printed version only reaches the Actions log.
+LAST_ERROR = ""
 # GitHub Actions runners use UTC — the 5am/8am AEST runs are still
 # "yesterday" in UTC, so always take the date from Brisbane time.
 BRISBANE_TZ = datetime.timezone(datetime.timedelta(hours=10))   # QLD has no daylight saving
@@ -353,6 +357,8 @@ def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
     Returns the Path to briefing.mp3, or None if anything went wrong
     (the briefing itself must never fail because of the audio edition).
     """
+    global LAST_ERROR
+    LAST_ERROR = ""
     try:
         _now_for_diary = datetime.datetime.now(BRISBANE_TZ)
         diary = ""
@@ -363,6 +369,7 @@ def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
         material = _collect_material(sections, analysis,
                                      active_topics, topic_stories, diary)
         if not material.strip():
+            LAST_ERROR = "no material to read"
             print("   ⚠️  No material for audio briefing — skipping")
             return None
         now = datetime.datetime.now(BRISBANE_TZ)
@@ -371,13 +378,18 @@ def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
         print(f"   🎙️  Voice: {VOICE}  Rate: {RATE}")
         asyncio.run(_render(script, mp3_path))
         if not mp3_path.exists() or mp3_path.stat().st_size < 10_000:
+            _size = mp3_path.stat().st_size if mp3_path.exists() else 0
+            LAST_ERROR = f"render produced no usable file ({_size} bytes)"
             print("   ⚠️  Audio render produced no usable file — skipping")
             return None
         if mp3_path.stat().st_size > MAX_MP3_MB * 1024 * 1024:
+            LAST_ERROR = (f"{mp3_path.stat().st_size / 1048576:.1f} MB exceeds "
+                          f"the {MAX_MP3_MB} MB attachment cap")
             print("   ⚠️  Audio file too large to attach — skipping")
             return None
         return mp3_path
     except Exception as e:
+        LAST_ERROR = f"{type(e).__name__}: {e}"
         print(f"   ⚠️  Audio briefing error: {e}")
         return None
 
