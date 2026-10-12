@@ -51,12 +51,23 @@ for i, src in enumerate(scripts):
         bad.append(f"script #{i + 1}: " + (first[2] if len(first) > 2 else str(first[:1])))
 CHECKS.append(("every inline script parses as JavaScript", not bad))
 
-# the specific regression
-CHECKS.append(("the push payload has no raw newline in a JS string literal",
-               not re.search(r"'[^'\n]*\n[^']*\[src:", html)))
+# The original regression, checked where it actually lives. A multi-line body
+# is now normal - it is JSON-encoded into the payload, so the newlines must
+# appear ESCAPED and never raw inside the literal. (node --check above is the
+# general guard; this names the specific fault for whoever reads the failure.)
+_payload = re.search(r"BRIEFING_TASKS\s*=\s*(\[.*?\]);", html, re.S)
+CHECKS.append(("the task payload is present", _payload is not None))
+CHECKS.append(("its newlines are escaped, not raw",
+               _payload is not None
+               and "\\n" in _payload.group(1)
+               and "\n" not in _payload.group(1)))
 CHECKS.append(("showTab survives into the page", "function showTab(" in html))
-CHECKS.append(("the source marker still reaches the body",
-               "[src:' + task.msg_id" in html))
+# The marker is no longer concatenated in JavaScript - task_body.build
+# composes the whole body server-side so both push paths send identical text.
+CHECKS.append(("the composed body reaches the page with its marker",
+               "[src:ABC123]" in html))
+CHECKS.append(("the push path sends the body unchanged, building nothing",
+               "content: task.detail || ''" in html))
 
 if __name__ == "__main__":
     try:

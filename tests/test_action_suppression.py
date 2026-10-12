@@ -30,6 +30,7 @@ import todo_tasks as tt
 SRC   = (Path(__file__).resolve().parent.parent / "todo_tasks.py").read_text(encoding="utf-8")
 BRIEF = (Path(__file__).resolve().parent.parent / "briefing.py").read_text(encoding="utf-8")
 MAIL  = (Path(__file__).resolve().parent.parent / "outlook_email.py").read_text(encoding="utf-8")
+SRC_TB = (Path(__file__).resolve().parent.parent / "task_body.py").read_text(encoding="utf-8")
 # assert against the PROMPT, not the whole file - the comments explaining the
 # old behaviour quote the very strings we are checking have gone
 PROMPT = MAIL[MAIL.index('prompt = f"""You are a sharp executive assistant'):
@@ -77,8 +78,15 @@ CHECKS = [
      "HOURS_BACK       = 48" in MAIL and "last 24 hours" not in PROMPT
      and "{HOURS_BACK} hours" in PROMPT),
     ("the model is told not to pad to the maximum", "do NOT pad the list" in MAIL),
-    ("the marker is written on the server push path", "src_marker(src)" in BRIEF),
-    ("the marker is written on the browser push path", "[src:' + task.msg_id" in BRIEF),
+    # The marker used to be concatenated separately on each push path, in two
+    # languages. task_body.build writes it once; the stronger invariant is
+    # that NEITHER path builds a body of its own any more.
+    ("the shared builder writes the marker", "[src:{_clean(msg_id)}]" in SRC_TB),
+    ("the browser path sends the body unchanged",
+     "content: task.detail || ''" in BRIEF and "[src:' + task.msg_id" not in BRIEF),
+    ("the server path sends the body unchanged",
+     '"content": detail}' in BRIEF and "src_marker(src)" not in BRIEF),
+    ("the msg_id reaches the builder", 'msg_id    = item.get("msg_id"' in BRIEF),
     ("msg_id is carried into the task payload", '"msg_id":   item.get("msg_id"' in BRIEF),
     ("completions are scanned for source ids",
      "fetch_recent_completion_sources" in SRC and "fetch_recent_completion_sources()" in BRIEF),

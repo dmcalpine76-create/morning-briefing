@@ -311,7 +311,10 @@ summary (2 sentences max), action (short phrase or "").
 "actions": up to {MAX_ACTIONS} concrete things YOU need to do today.
 Each: action (specific task), context (1 sentence), deadline ("" if none),
 priority ("urgent"|"high"|"normal"), index (the [n] of the email the action
-comes from, exactly as numbered above).
+comes from, exactly as numbered above), summary (2-3 sentences: what the issue
+actually is, who wants what, and why it matters - written so it still makes
+sense read cold in three weeks with the email long gone. State only what the
+email supports; do not speculate about consequences it does not mention).
 Return ONLY genuine actions. Fewer is correct - do NOT pad the list to reach
 the maximum, and do not invent an action from an email that asks nothing of
 you. An email you SENT is an action only if you committed to doing something
@@ -362,6 +365,10 @@ EMAILS:
             a["src_subject"]= (src or {}).get("subject", "")
             a["src_time"]   = (src or {}).get("received", "")
             a["src_sent"]   = bool((src or {}).get("is_sent"))
+            a["src_from"]   = (src or {}).get("from_name", "") or \
+                              (src or {}).get("from_email", "")
+            a["src_link"]   = (src or {}).get("web_link", "")
+            a["summary"]    = str(a.get("summary") or "").strip()
             a["from_email"] = (src or {}).get("subject", "") or str(a.get("from_email") or "")
         return {
             "digest":  result.get("digest", []),

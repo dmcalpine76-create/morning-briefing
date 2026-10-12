@@ -53,6 +53,8 @@ except ImportError:
 
 # New Schedule / Calendar / Backlog tabs. Guarded so a missing module degrades
 # to the previous layout instead of taking the whole briefing down.
+import task_body as _taskbody
+
 try:
     import calendar_data as _caldata
     import schedule_render as _srender
@@ -1242,7 +1244,13 @@ def _personal_column(actions: list, status: dict = None) -> tuple:
         task_data.append({
             "id":       tid,
             "title":    title,
-            "detail":   (detail + (f" (from {who})" if who else "")).strip(),
+            # same builder as the Outlook actions, so a Gmail task reads the
+            # same way - it just has fewer fields to work with
+            "detail":   _taskbody.build(
+                summary   = a.get("summary", ""),
+                context   = detail,
+                from_name = who,
+                deadline  = a.get("deadline", "")),
             "due":      _dt.date.today().isoformat(),
             "priority": priority,
             "web_link": "",
@@ -1283,11 +1291,21 @@ def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: 
         task_data.append({
             "id":       f"action_{i}",
             "title":    item.get("action", ""),
-            "detail":   item.get("context", ""),
             "due":      datetime.date.today().isoformat(),
             "priority": item.get("priority", "normal"),
-            "web_link": item.get("web_link", ""),
-            # carried so a completed task can suppress the same action tomorrow
+            "web_link": item.get("web_link", "") or item.get("src_link", ""),
+            # The body is composed HERE, not at push time, so the dashboard
+            # button and the local review server send identical text. Both
+            # used to build their own, in two languages.
+            "detail":   _taskbody.build(
+                summary   = item.get("summary", ""),
+                context   = item.get("context", ""),
+                from_name = item.get("src_from", ""),
+                subject   = item.get("src_subject", ""),
+                when      = _taskbody.pretty_when(item.get("src_time", "")),
+                deadline  = item.get("deadline", ""),
+                link      = item.get("src_link", ""),
+                msg_id    = item.get("msg_id", "")),
             "msg_id":   item.get("msg_id", ""),
         })
 
@@ -2321,9 +2339,7 @@ async function pushToTodo() {{
                 body: JSON.stringify({{
                     title:      task.title,
                     importance: 'high',
-                    body:       {{ contentType: 'text',
-                                  content: (task.detail || '')
-                                           + (task.msg_id ? ' [src:' + task.msg_id + ']' : '') }},
+                    body:       {{ contentType: 'text', content: task.detail || '' }},
                 }}),
             }});
             if (tr.ok) {{
@@ -2635,15 +2651,12 @@ def serve_briefing(out_dir: Path):
             _tok = _outlook.get_access_token()
         except Exception:
             _tok = token
-        # The [src:...] marker is what lets a completed task suppress the same
-        # action tomorrow. Without it the only key is the title, which the
-        # model rewrites every run.
-        _marker = _todotasks.src_marker(src) if src else ""
+        # detail already carries the summary, provenance and the [src:...]
+        # marker - task_body.build composed it when the payload was made.
         body = {
             "title":      title,
             "importance": "high",
-            "body":       {"contentType": "text",
-                           "content": (detail + ("\n\n" + _marker if _marker else ""))},
+            "body":       {"contentType": "text", "content": detail},
         }
         try:
             resp = requests.post(
