@@ -139,6 +139,12 @@ jobs:
           python wrap_password.py "${OUTPUT_DIR}briefing.html" "${OUTPUT_DIR}index.html" "$BRIEFING_PASSWORD"
           cp "${OUTPUT_DIR}index.html" output/index.html
 
+          # App icons + manifest — so the published page gets a real
+          # home-screen icon when added to a phone (gh-pages serves these
+          # from the site root, beside index.html).
+          cp icon-180.png icon-192.png icon-512.png output/ 2>/dev/null || true
+          cp manifest.webmanifest output/ 2>/dev/null || true
+
           # D5 — rolling gas price history (sparkline source)
           cp "${OUTPUT_DIR}gas_history.json" output/ 2>/dev/null || true
 

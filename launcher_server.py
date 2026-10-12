@@ -16,11 +16,24 @@ from collections import deque
 PORT   = 8780
 FOLDER = Path(__file__).parent
 
+# Only these may be served over HTTP. An allowlist, not a static root —
+# the project folder also holds .env and the Outlook token cache.
+STATIC = {
+    "/icon-180.png":        ("icon-180.png", "image/png"),
+    "/icon-192.png":        ("icon-192.png", "image/png"),
+    "/icon-512.png":        ("icon-512.png", "image/png"),
+    "/logo.svg":            ("logo.svg",     "image/svg+xml"),
+    "/manifest.webmanifest":("manifest.webmanifest",
+                             "application/manifest+json"),
+}
+
 COMMANDS = {
     "briefing":  ["py", "briefing.py"],
     "review":    ["py", "briefing.py", "review"],
     "scheduler": ["py", "outlook_scheduler.py", "dashboard"],
     "preview":   ["py", "outlook_scheduler.py", "preview"],
+    "inbox":     ["py", "inbox_actions.py", "run", "--days", "14"],
+    "inboxlast": ["py", "inbox_actions.py", "review"],
     "rules":     ["OPEN", "scheduling_rules.html"],
     "token":     ["py", "outlook_email.py", "setup"],
 }
@@ -109,6 +122,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._cors_headers()
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(404); self.end_headers()
+
+        elif self.path.split("?")[0] in STATIC:
+            name, ctype = STATIC[self.path.split("?")[0]]
+            f = FOLDER / name
+            if f.exists():
+                body = f.read_bytes()
+                self.send_response(200)
+                self._cors_headers()
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "max-age=86400")
                 self.end_headers()
                 self.wfile.write(body)
             else:

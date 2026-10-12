@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Morning Briefing — Launcher</title>
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-title" content="Briefing">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
@@ -189,6 +196,36 @@ body { background:var(--paper); color:var(--ink); font-family:var(--font-b); fon
         </button>
       </div>
     </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📬</div>
+        <div>
+          <div class="card-title">Extract Inbox Actions → Dashboard</div>
+          <div class="card-desc">Reads the last 14 days of mail, extracts actions and opens its own dashboard in a new tab to review and push to To Do. Stays running until you click Close in that tab.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py inbox_actions.py run --days 14</div>
+        <button class="run-btn secondary" id="btn-inbox" onclick="run('inbox')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Extract actions
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">↩️</div>
+        <div>
+          <div class="card-title">Reopen Last Inbox Run</div>
+          <div class="card-desc">Reopens the dashboard from the last extraction without re-reading mail or re-running the model. Use this if you closed the tab before finishing.</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-cmd">py inbox_actions.py review</div>
+        <button class="run-btn neutral" id="btn-inboxlast" onclick="run('inboxlast')">
+          <div class="spinner"></div><span class="btn-arrow">▶</span>&nbsp;Reopen dashboard
+        </button>
+      </div>
+    </div>
 
   </div>
 
@@ -337,7 +374,9 @@ async function run(key) {
 
 // ── UI HELPERS ─────────────────────────────────────────────────────────────
 
-const BTN_IDS = ['briefing','review','scheduler','preview','rules','token'];
+// Derived from the DOM so a new launcher card needs no edit here.
+const BTN_IDS = Array.from(document.querySelectorAll('button.run-btn[id^="btn-"]'))
+                     .map(b => b.id.slice(4));
 
 function updateButtons() {
   BTN_IDS.forEach(id => {
