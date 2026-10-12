@@ -44,6 +44,7 @@ MAX_FOLDERS      = 20   # never crawl more than this many folders
 # The prompt used to claim "the last 24 hours" while the fetch defaulted to 48,
 # so the model was told one window and handed another. One constant now.
 HOURS_BACK       = 48
+ANALYSIS_MAX_TOKENS = 12000   # see analyse_emails - 4000 truncated the JSON
 
 # Why the last get_email_analysis() came back empty. It has four ways to return
 # {} and used to print the reason to the Actions log only, which can't be read
@@ -336,12 +337,19 @@ EMAILS:
 {emails_text}
 """
 
+    global LAST_ERROR
+    raw, stop = "", ""
     try:
+        # Was 4000. Each action now carries a 2-3 sentence summary, which
+        # pushed the reply past the cap: the JSON was cut off mid-object,
+        # json.loads failed, and the except below returned empty lists - so
+        # every Outlook section vanished with no error anywhere visible.
         message = client.messages.create(
             model      = "claude-haiku-4-5-20251001",
-            max_tokens = 4000,
+            max_tokens = ANALYSIS_MAX_TOKENS,
             messages   = [{"role": "user", "content": prompt}],
         )
+        stop = getattr(message, "stop_reason", "") or ""
         raw = message.content[0].text.strip()
         raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         result = json.loads(raw)
@@ -381,6 +389,10 @@ EMAILS:
             "people":  result.get("people", []),
         }
     except Exception as e:
+        LAST_ERROR = (f"AI analysis failed: {type(e).__name__}: {e}"
+                      f" (stop_reason={stop or 'n/a'}, {len(raw)} chars returned"
+                      + (", reply hit the max_tokens cap" if stop == "max_tokens" else "")
+                      + ")")
         print(f"  ⚠️  Email analysis failed: {e}")
         return {"digest": [], "actions": [], "people": []}
 
