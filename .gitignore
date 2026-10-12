@@ -34,6 +34,10 @@ inbox_decision_log.txt
 inbox_action_report.txt
 inbox_action_summary.md
 duration_history.json
+.duration_history.json
+company_knowledge.json
+context_briefing.txt
+pillar_history.json
 gmail_actions.json
 onenote_transcriptions.json
 scheduling_plan.json
