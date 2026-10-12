@@ -1602,7 +1602,7 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             _mw_label = (f" ({_mw_count}&#9733;{_mw_material})" if _mw_material
                          else (f" ({_mw_count})" if _mw_count else ""))
             market_btn = ('<button class="tab-btn" onclick="showTab(\'market\')" '
-                          f'id="tab-market">&#128200; Market Watch{_mw_label}</button>')
+                          f'id="tab-market">&#128200; Energy Market Watch{_mw_label}</button>')
 
     # ── Global Markets tab ──────────────────────────────────────────────
     global_tab_html, global_btn = "", ""

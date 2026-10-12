@@ -279,7 +279,7 @@
   "market_monitor": {
     "enabled": true,
     "lookback_hours": 30,
-    "max_per_entity": 8,
+    "max_per_entity": 5,
     "use_google_news": true,
     "use_feed_pool": true,
     "include_asx": true,
@@ -1523,7 +1523,8 @@
         ]
       }
     ],
-    "mute": []
+    "mute": [],
+    "north_america_energy_only": true
   },
   "task_lists": [
     "Daily Priorities",

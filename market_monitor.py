@@ -60,7 +60,10 @@ GOOGLE_NEWS = ("https://news.google.com/rss/search?q={query}"
 DEFAULT_CFG = {
     "enabled":         True,
     "lookback_hours":  30,
-    "max_per_entity":  8,
+    "max_per_entity":  5,
+    # Drop North American items that are not about energy. See
+    # _north_american_off_topic().
+    "north_america_energy_only": True,
     "use_google_news": True,
     "use_feed_pool":   True,
     "include_asx":     True,
@@ -194,6 +197,85 @@ def _dedupe_terms(terms: list) -> list:
     return out
 
 
+# North America, for the energy gate. Names that are unambiguous in a headline.
+# Deliberately left out: bare "US" (matches the pronoun once punctuation is
+# stripped), "Washington" (Washington H. Soul Pattinson is an ASX company),
+# "Fed" ("fed up"), "SEC" and "Victoria" (also British Columbia's capital, but
+# far more often the Australian state).
+NA_GEO = [
+    "United States", "U.S.", "USA", "America", "American", "Americans",
+    "Canada", "Canadian", "Mexico", "Mexican", "Wall Street", "Federal Reserve",
+    "Nasdaq", "NYSE", "TSX", "S&P 500", "Dow Jones", "New York", "California",
+    "Texas", "Houston", "Florida", "Ohio", "Pennsylvania", "Illinois", "Chicago",
+    "Louisiana", "Oklahoma", "Colorado", "Denver", "Alaska", "North Dakota",
+    "New Mexico", "Wyoming", "Utah", "Nevada", "Arizona", "Michigan", "Indiana",
+    "Ontario", "Toronto", "Alberta", "Calgary", "British Columbia", "Vancouver",
+    "Quebec", "Montreal", "Saskatchewan",
+]
+
+# Publishers that are North American wire services or outlets. A press release
+# from one of these is North American even when the headline names no place.
+NA_PUBLISHERS = [
+    "Business Wire", "PR Newswire", "GlobeNewswire", "Globe Newswire",
+    "Access Newswire", "ACCESSWIRE", "Newsfile", "CNBC", "Fox Business",
+    "Wall Street Journal", "Globe and Mail", "Financial Post", "Houston Chronicle",
+    "Calgary Herald", "Toronto Star", "CBC", "Benzinga", "Zacks", "Seeking Alpha",
+]
+
+# Broad on purpose - this gate only asks "is it about energy at all", and it
+# runs only on items already identified as North American. Ammonia and
+# fertiliser are here because Dyno Nobel and Orica are on the list as large
+# gas users, and their North American plant news is gas demand news.
+ENERGY_TERMS = [
+    "energy", "oil", "gas", "natural gas", "LNG", "petroleum", "crude",
+    "pipeline", "refinery", "refining", "drilling", "driller", "rig", "rigs",
+    "upstream", "midstream", "downstream", "shale", "fracking", "wellhead",
+    "OPEC", "barrel", "barrels", "power", "electricity", "utility",
+    "utilities", "grid", "renewable", "renewables", "solar", "wind farm",
+    "wind power", "hydrogen", "coal", "uranium", "nuclear", "battery",
+    "batteries", "lithium", "emissions", "carbon", "methane", "fuel", "fuels",
+    "ammonia", "fertiliser", "fertilizer",
+]
+
+
+def _north_american_off_topic(item: dict, entity: dict = None) -> bool:
+    """
+    True for an item that is North American and not about energy.
+
+    The monitored companies are Australian energy names, and several share a
+    name or a word with something in the US or Canada. The per-entity
+    exclusions caught those one at a time - "Ohio" for State Gas, a volleyball
+    game in Oklahoma for Arrow Energy - which only ever fixed the last one seen.
+
+    North American means a North American place or publisher, and no
+    Australian one: an Australian story that mentions a US market is not a US
+    story. Off topic means no energy word anywhere in it. A North American
+    energy story is kept - Santos in Alaska, Woodside in Louisiana, LNG export
+    news out of Texas.
+    """
+    text = _norm("{} {}".format(item.get("headline", ""), item.get("summary", "")))
+    pub  = _norm(item.get("publisher", ""))
+    if not text:
+        return False
+    north_american = (any(_hit(g, text) for g in NA_GEO)
+                      or any(_hit(p, pub) for p in NA_PUBLISHERS))
+    if not north_american:
+        return False
+    if any(_hit(g, text) for g in DEFAULT_GEO):
+        return False
+    # The company's own name doesn't count as evidence of energy. Half the list
+    # is called "X Energy", so without this "Blue Energy Lounge opens third
+    # Chicago location" passed on the word "energy" in the name it matched on.
+    topic = text
+    if entity:
+        for t in (entity.get("terms") or []) + (entity.get("weak_terms") or []):
+            nt = _norm(t)
+            if nt:
+                topic = re.sub(r"(?<![a-z0-9])" + re.escape(nt) + r"(?![a-z0-9])",
+                               " ", topic)
+    return not any(_hit(t, topic) for t in ENERGY_TERMS)
+
+
 def _entities(cfg: dict) -> list:
     """Companies and topics flattened into one list, companies first."""
     out = []
@@ -214,6 +296,7 @@ def _entities(cfg: dict) -> list:
         terms = [t for t in terms if _norm(t) not in {_norm(w) for w in weak}]
         out.append({"kind": "company", "name": name,
                     "code": code,
+                    "na_gate": bool(cfg.get("north_america_energy_only", True)),
                     "terms": terms, "weak_terms": weak,
                     "require": _expand_variants(
                         [r for r in (c.get("require") or []) if str(r).strip()]),
@@ -228,6 +311,7 @@ def _entities(cfg: dict) -> list:
         weak  = _dedupe_terms([w for w in (t.get("weak_keywords") or []) if str(w).strip()])
         terms = [t2 for t2 in terms if _norm(t2) not in {_norm(w) for w in weak}]
         out.append({"kind": "topic", "name": name, "code": "", "terms": terms,
+                    "na_gate": bool(cfg.get("north_america_energy_only", True)),
                     "weak_terms": weak,
                     "require": _expand_variants(
                         [r for r in (t.get("require") or []) if str(r).strip()]),
@@ -290,6 +374,9 @@ def _relevant(item: dict, entity: dict) -> bool:
 
     with_pub = _norm("{} {}".format(text, item.get("publisher", "")))
     if any(_hit(x, with_pub) for x in entity.get("exclude", [])):
+        return False
+
+    if entity.get("na_gate", True) and _north_american_off_topic(item, entity):
         return False
 
     def _also(ok: bool) -> bool:
@@ -382,7 +469,7 @@ def _one_query(terms: list, context: list, entity: dict, cfg: dict) -> tuple:
     cutoff = datetime.datetime.now(AEST_OFFSET) - datetime.timedelta(
         hours=cfg.get("lookback_hours", 30))
     kept, dropped = [], []
-    for entry in feed.entries[: cfg.get("max_per_entity", 8) * 4]:
+    for entry in feed.entries[: max(cfg.get("max_per_entity", 5), 8) * 4]:
         when = _entry_dt(entry)
         if when < cutoff:
             continue
@@ -624,7 +711,7 @@ def collect(cfg: dict = None, pool_items: list = None, client=None,
         merged = [i for i in merged if not _muted(i, mute)]
         merged = _dedupe(merged)
         merged.sort(key=lambda i: (i.get("layer") != "asx", -i["when"].timestamp()))
-        merged = merged[: cfg.get("max_per_entity", 8)]
+        merged = merged[: cfg.get("max_per_entity", 5)]
         total += len(merged)
         out_entities.append({"name": e["name"], "kind": e["kind"],
                              "code": e["code"], "items": merged,
@@ -854,7 +941,7 @@ def build_tab(result: dict, now: datetime.datetime = None) -> str:
     # CSS is concatenated, never formatted - its braces would be read as
     # format fields and blow up on the first selector.
     return CSS + ('<div class="mw-wrap"><div class="mw-head">'
-            '<span class="mw-title">Market Watch</span>'
+            '<span class="mw-title">Energy Market Watch</span>'
             '<span class="mw-sub">{total} item{s} across {n} monitored '
             'compan{ies} and topics &middot; last {hrs} hours</span></div>'
             '{legend}{body}{quiet}{err}</div>').format(
