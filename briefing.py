@@ -1261,7 +1261,7 @@ def _personal_column(actions: list, status: dict = None) -> tuple:
 
 
 def _build_email_tab(analysis: dict, asx_ann_data: dict = None, graph_token_js: str = '""', todo_list_id_js: str = '""', personal_actions: list = None, personal_status: dict = None,
-                     todo_list_name_js: str = None, empty_msg: str = "No email data available. Run: py outlook_email.py setup") -> str:
+                     todo_list_name_js: str = None, empty_msg: str = "No email data this run — see Run status at the foot of the briefing email.") -> str:
     """
     Build the Work Actions email tab.
     Two columns: Priority Digest (read-only) | Actions for Today (checkboxes + Push).
@@ -2937,8 +2937,8 @@ def main():
                 # this happens, and until now nothing said so. Usually the CI
                 # token: the cache in OUTLOOK_TOKEN_CACHE is re-presented every
                 # run and never written back, so it eventually stops working.
-                _diag.fail("Outlook", "returned no digest and no actions "
-                                      "(token expired?)")
+                _diag.fail("Outlook", getattr(_outlook, "LAST_ERROR", "")
+                                      or "analysis returned no digest and no actions")
         except Exception as _oe:
             _diag.fail("Outlook", f"{type(_oe).__name__}: {_oe}")
 

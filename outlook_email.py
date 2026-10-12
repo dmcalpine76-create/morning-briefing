@@ -45,6 +45,11 @@ MAX_FOLDERS      = 20   # never crawl more than this many folders
 # so the model was told one window and handed another. One constant now.
 HOURS_BACK       = 48
 
+# Why the last get_email_analysis() came back empty. It has four ways to return
+# {} and used to print the reason to the Actions log only, which can't be read
+# from outside CI. briefing.py puts this in the email's run-status block.
+LAST_ERROR = ""
+
 
 # ─────────────────────────────────────────────
 # AUTH
@@ -400,17 +405,25 @@ def get_email_analysis(client: anthropic.Anthropic) -> dict:
             print(f"   First 100 chars: {content[:100]!r}")
     else:
         print(f"   ⚠️  Token cache file not found: {CACHE_FILE}")
+    global LAST_ERROR
+    LAST_ERROR = ""
     if not CLIENT_ID:
+        LAST_ERROR = "OUTLOOK_CLIENT_ID not set"
         return {}
+    stage = "sign-in"
     try:
         token  = get_access_token()
+        stage  = "reading mail"
         print(f"   Scanning folders…")
         emails = fetch_recent_emails(token)
         sent   = sum(1 for e in emails if e["is_sent"])
         recvd  = len(emails) - sent
         print(f"   📬  {recvd} received + {sent} sent = {len(emails)} total")
         if not emails:
+            LAST_ERROR = (f"signed in, but found 0 emails in the last "
+                          f"{HOURS_BACK}h")
             return {}
+        stage  = f"AI analysis of {len(emails)} emails"
         print(f"   🤖  Running AI analysis…")
         result = analyse_emails(client, emails)
         print(f"   ✓   {len(result['digest'])} priority · "
@@ -436,9 +449,11 @@ def get_email_analysis(client: anthropic.Anthropic) -> dict:
 
         return result
     except RuntimeError as e:
+        LAST_ERROR = f"{stage} failed: {e}"
         print(f"  ⚠️  Outlook: {e}")
         return {}
     except Exception as e:
+        LAST_ERROR = f"{stage} failed: {type(e).__name__}: {e}"
         print(f"  ⚠️  Outlook error: {e}")
         return {}
 
