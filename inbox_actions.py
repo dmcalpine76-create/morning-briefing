@@ -138,6 +138,7 @@ RESPOND ONLY WITH VALID JSON — a single array of action_group objects
         "detail": "One or two sentences of context — who asked, what for, any deadline",
         "summary": "2-3 sentences: what the issue actually is, who wants what, and why it matters — written so it still makes sense read cold in three weeks with the email long gone. State only what the email supports.",
         "from_name": "Name of person who triggered this",
+        "email_number": "The EMAIL n number of the source email, exactly as labelled below",
         "email_subject": "Subject of the source email",
         "email_date": "YYYY-MM-DD",
         "priority": "high | normal | low",
@@ -164,10 +165,46 @@ EMAILS ({len(emails)} in this batch):
         groups = groups.get("action_groups", [])
     if not isinstance(groups, list):
         return []
+    _attach_sources(groups, emails)
     total = sum(len(g.get("actions", [])) for g in groups)
     print(f"       ✅  Batch {batch_num}/{total_batches}: "
           f"{total} actions across {len(groups)} topics")
     return groups
+
+
+def _owa_link(msg_id: str) -> str:
+    """Outlook on the web link to a message, in the form Graph's webLink uses."""
+    if not msg_id:
+        return ""
+    from urllib.parse import quote
+    return ("https://outlook.office365.com/owa/?ItemID=" + quote(msg_id, safe="")
+            + "&exvsurl=1&viewmodel=ReadMessageItem")
+
+
+def _attach_sources(groups: list, emails: list) -> None:
+    """
+    Tie each action to the email it came from, by the EMAIL n number the
+    model was shown. The model never sees message ids; it returns the number
+    and the real identifiers are looked up here. That id is what lets an
+    action be recognised again - in To Do, after a push, after a dismiss -
+    however differently the model words it next time.
+    """
+    for g in groups or []:
+        for a in g.get("actions", []) or []:
+            m = re.search(r"\d+", str(a.get("email_number", "") or ""))
+            if not m:
+                continue
+            i = int(m.group(0)) - 1
+            if not (0 <= i < len(emails)):
+                continue
+            src = emails[i]
+            a["msg_id"]   = src.get("id", "")
+            a["web_link"] = _owa_link(a["msg_id"])
+            a.setdefault("email_subject", src.get("subject", ""))
+            if not a.get("email_subject"):
+                a["email_subject"] = src.get("subject", "")
+            if not a.get("email_date"):
+                a["email_date"] = (src.get("datetime", "") or "")[:10]
 
 
 def _merge_action_groups(all_groups: list) -> list:
@@ -180,7 +217,8 @@ def _merge_action_groups(all_groups: list) -> list:
                              "theme_summary": g.get("theme_summary", ""),
                              "actions": [], "_seen": set()}
         for a in g.get("actions", []):
-            key = (a.get("title", "").lower(), a.get("email_subject", "").lower())
+            key = ((a.get("msg_id") or a.get("email_subject", "").lower()),
+                   a.get("title", "").lower())
             if key not in merged[topic]["_seen"]:
                 merged[topic]["_seen"].add(key)
                 merged[topic]["actions"].append(a)
@@ -329,6 +367,11 @@ def post_run_update(state: InboxState, ck: CompanyKnowledge, data: dict,
     today  = datetime.date.today().isoformat()
     groups = data.get("action_groups", [])
 
+    _flat = [dict(a, topic=g.get("topic", "")) for g in groups
+             for a in g.get("actions", [])]
+    _added = state.add_new_actions(_flat)
+    print(f"  📌  Recorded {len(_added)} new open action(s) with their source emails")
+
     run_lines = [
         f"RUN DATE: {today}", f"LOOKBACK: {lookback_days} days",
         f"EMAILS REVIEWED: {data.get('total_emails_reviewed', len(emails))}",
@@ -404,9 +447,8 @@ INSTRUCTIONS
 ═══════════════════════════════════════════════════════
 
 STATE_PATCH — personal task tracking:
-1. new_open_actions: every action in this run's groups NOT already in
-   open_actions (match by title similarity). Assign ids "act-NNN"
-   incrementing from the highest existing id.
+1. new_open_actions: return an empty array []. This run's actions have
+   already been recorded, with their source emails.
 2. resolve_action_ids: previously open actions that appear addressed
    (a reply confirms it, or absent from this window AND >14 days old).
    Be conservative — when in doubt, leave open.
@@ -471,7 +513,7 @@ RESPOND ONLY WITH VALID JSON (no markdown, no preamble):
     if patch:
         sp = patch.get("state_patch") or {}
         state.apply_patch(sp)
-        print(f"       ✅  State: +{len(sp.get('new_open_actions', []))} actions, "
+        print(f"       ✅  State: +{len(_added)} actions, "
               f"{len(sp.get('resolve_action_ids', []))} resolved, "
               f"{len(sp.get('topic_updates', []))} topics, "
               f"{len(sp.get('people_updates', []))} people")
@@ -780,6 +822,8 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
                 "email_subject": a.get("email_subject", ""),
                 "email_date":    a.get("email_date", ""),
                 "topic":         g.get("topic", ""),
+                "msg_id":        a.get("msg_id", ""),
+                "web_link":      a.get("web_link", ""),
                 "due":      a.get("suggested_due", datetime.date.today().isoformat()),
                 "priority": pri,
                 # Low-priority items are usually two-minute replies — blocking
@@ -812,9 +856,9 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
           <div class="card-title">{html.escape(a.get("title", ""))}</div>
           <div class="card-detail">{html.escape(a.get("detail", ""))}</div>
           <div class="card-meta">
-            <span class="meta-pill">&#128100; {html.escape(a.get("from_name", ""))}</span>
-            <span class="meta-pill">&#9993; {html.escape(a.get("email_subject", ""))}</span>
-            <span class="meta-pill">&#128197; {html.escape(a.get("suggested_due", ""))}</span>
+            {f'<span class="meta-pill">&#128100; {html.escape(a.get("from_name", ""))}</span>' if a.get("from_name") else ""}
+            {(f'<a class="meta-pill src-link" href="{html.escape(a["web_link"])}" target="_blank" rel="noopener">&#9993; {html.escape(a.get("email_subject", "") or "Open email")}</a>') if a.get("web_link") else f'<span class="meta-pill">&#9993; {html.escape(a.get("email_subject", ""))}</span>'}
+            {f'<span class="meta-pill">&#128197; due {html.escape(a.get("suggested_due", ""))}</span>' if a.get("suggested_due") else ""}
             <span class="pri-badge {pri_cls}">{pri.upper()}</span>
             <label class="block-lbl" title="Also block time in the diary for this task">
               <input type="checkbox" class="block-cb" data-id="{tid}" onchange="toggleFields('{tid}')" {"checked" if pri != "low" else ""}> &#128197; block time
@@ -856,7 +900,10 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
             </div>
           </div>
         </div>
-        <div class="card-result" id="result-{tid}"></div>
+        <div class="card-side">
+          <div class="card-result" id="result-{tid}"></div>
+          <button class="dismiss-btn" id="dismiss-{tid}" onclick="dismissOne('{tid}')" title="Not an action - don't offer this email again">Dismiss</button>
+        </div>
       </div>"""
         theme_html = f'<p class="topic-theme">{theme}</p>' if theme else ""
         n = len(actions)
@@ -879,8 +926,18 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
     # Prior open actions panel
     prior_panel = ""
     if state:
+        # Carried forward means from an earlier run and still open. Items on
+        # the cards below are this run's - they were showing up here too,
+        # "raised 0d ago", because state is written before the page is built.
+        # Pushed items live in To Do and are no longer listed here at all.
+        _card_ids    = {a.get("msg_id") for g in groups for a in g.get("actions", [])
+                        if a.get("msg_id")}
+        _card_titles = {(a.get("title") or "").strip().lower()
+                        for g in groups for a in g.get("actions", [])}
         open_prior = [a for a in state.data.get("open_actions", [])
-                      if a.get("status") in ("open", "pushed_to_todo")]
+                      if a.get("status") == "open"
+                      and not (a.get("msg_id") and a["msg_id"] in _card_ids)
+                      and (a.get("title") or "").strip().lower() not in _card_titles]
         if open_prior:
             open_prior.sort(key=lambda a: (
                 0 if a.get("priority") == "high" else 1,
@@ -896,9 +953,10 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
                 pri     = a.get("priority", "normal")
                 pri_cls = {"high": "pri-high", "normal": "pri-normal",
                            "low": "pri-low"}.get(pri, "pri-normal")
-                status_badge = ('<span class="status-pushed">In To Do</span>'
-                                if a.get("status") == "pushed_to_todo"
-                                else '<span class="status-open">Open</span>')
+                status_badge = ""
+                if a.get("web_link"):
+                    status_badge = (f'<a class="src-link meta-pill" href="{html.escape(a["web_link"])}" '
+                                    f'target="_blank" rel="noopener">&#9993; Open email</a>')
                 aid    = html.escape(a.get("id", ""))
                 detail = html.escape(a.get("detail", ""))
                 rows += f"""
@@ -911,9 +969,9 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
               {status_badge}
             </div>
             <div class="prior-meta">
-              <span class="meta-pill">&#128193; {html.escape(a.get("topic", ""))}</span>
-              <span class="meta-pill">&#128100; {html.escape(a.get("from_name", ""))}</span>
-              <span class="meta-pill">&#128197; due {html.escape(a.get("suggested_due", ""))}</span>
+              {f'<span class="meta-pill">&#128193; {html.escape(a.get("topic", ""))}</span>' if a.get("topic") else ""}
+              {f'<span class="meta-pill">&#128100; {html.escape(a.get("from_name", ""))}</span>' if a.get("from_name") else ""}
+              {f'<span class="meta-pill">&#128197; due {html.escape(a.get("suggested_due", ""))}</span>' if a.get("suggested_due") else ""}
               <span class="meta-pill">&#9203; raised {age}d ago</span>
               <span class="meta-pill prior-id">{aid}</span>
             </div>
@@ -929,13 +987,14 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
         <span class="topic-name prior-title-hdr">&#129300; Prior Open Actions</span>
         <span class="topic-badge prior-badge">{len(open_prior)} carried forward</span>
       </div>
-      <p class="topic-theme">Actions from previous runs not yet confirmed resolved.
-      Tick any that are done and click <strong>Resolve Selected</strong>.
-      Memory built across {state.data.get("run_count", 0)} run(s).</p>
-      <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
+      <p class="topic-theme">From earlier runs, not pushed to To Do and not yet resolved.
+      Tick any that are done and click <strong>Resolve Selected</strong> &mdash; the
+      email won't be offered again. Normal and low priority items close themselves
+      after {state.CARRY_EXPIRY_DAYS} days.</p>
+      <div style="display:flex;align-items:center;gap:.9rem;margin-top:.45rem">
         <label class="sel-all-lbl"><input type="checkbox" onchange="toggleAllPrior(this.checked)"> Select all prior</label>
         <button class="resolve-btn" id="resolve-btn" onclick="resolvePrior()" disabled>&#10003; Resolve Selected</button>
-        <span class="resolve-info" id="resolve-info" style="font-size:13px;color:#64748b"></span>
+        <span class="resolve-info sel-info" id="resolve-info"></span>
       </div>
     </div>
     <div class="prior-list">{rows}
@@ -948,125 +1007,157 @@ def generate_dashboard_html(data: dict, state: "InboxState | None" = None) -> st
     if state and state.data.get("run_count"):
         na = len([a for a in state.data.get("open_actions", [])
                   if a.get("status") == "open"])
-        state_pill = (f'<span class="stat-pill">&#129504; Run '
-                      f'#{state.data["run_count"]+1} &middot; {na} prior open</span>')
+        state_pill = (f'<span class="stat-pill">Run #{state.data["run_count"]} '
+                      f'&middot; {len(open_prior) if state else na} carried forward</span>')
+    if data.get("hidden_handled"):
+        state_pill += (f'<span class="stat-pill" title="Their source email is already pushed, '
+                       f'resolved, dismissed or in To Do">{data["hidden_handled"]} already handled, hidden</span>')
+    if data.get("expired_carried"):
+        state_pill += (f'<span class="stat-pill">{data["expired_carried"]} stale item(s) '
+                       f'expired</span>')
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Inbox Action Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f1f5f9;color:#1e293b;padding-bottom:90px}}
-.page-header{{background:#1d4ed8;color:#fff;padding:20px 28px 16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}}
-.hdr-top{{display:flex;justify-content:space-between;align-items:baseline}}
-.hdr-title{{font-size:20px;font-weight:700}}
-.hdr-date{{font-size:13px;opacity:.75}}
-.hdr-stats{{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}}
-.stat-pill{{background:rgba(255,255,255,.18);border-radius:20px;padding:3px 12px;font-size:13px}}
-.header-summary{{margin-top:10px;font-size:13px;opacity:.88;border-left:3px solid rgba(255,255,255,.4);padding-left:10px;font-style:italic}}
-.main{{max-width:880px;margin:0 auto;padding:20px 16px}}
-.topic-block{{background:#fff;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:18px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}}
-.topic-head{{padding:16px 18px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc}}
-.topic-row{{display:flex;align-items:center;gap:10px;margin-bottom:6px}}
-.topic-name{{font-size:16px;font-weight:700;color:#1d4ed8}}
-.topic-badge{{background:#dbeafe;color:#1d4ed8;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:600}}
-.topic-theme{{font-size:13px;color:#64748b;margin-bottom:8px;line-height:1.5}}
-.sel-all-lbl{{font-size:13px;color:#64748b;cursor:pointer;display:flex;align-items:center;gap:6px}}
-.cards{{padding:10px 14px;display:flex;flex-direction:column;gap:8px}}
-.card{{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fdfdfd;position:relative;transition:border-color .15s,background .15s}}
-.card:has(.action-cb:checked){{border-color:#1d4ed8;background:#eff6ff}}
-.card-check{{padding-top:2px;flex-shrink:0}}
-.action-cb{{width:18px;height:18px;cursor:pointer;accent-color:#1d4ed8}}
-.card-body{{flex:1;min-width:0}}
-.card-title{{font-size:14px;font-weight:600;margin-bottom:4px;line-height:1.4}}
-.card-detail{{font-size:13px;color:#64748b;margin-bottom:9px;line-height:1.5}}
-.card-meta{{display:flex;flex-wrap:wrap;gap:6px;align-items:center}}
-.meta-pill{{font-size:12px;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:4px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
-.pri-badge{{font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px}}
-.pri-high{{background:#fee2e2;color:#dc2626}}
-.pri-normal{{background:#fef3c7;color:#d97706}}
-.pri-low{{background:#d1fae5;color:#059669}}
-.card-result{{position:absolute;top:10px;right:12px;font-size:13px;font-weight:600}}
-.result-ok{{color:#059669}}
-.result-fail{{color:#dc2626}}
-.prior-block{{border-color:#e0e7ff}}
-.prior-head{{background:#eef2ff}}
-.prior-title-hdr{{color:#4338ca}}
-.prior-badge{{background:#e0e7ff;color:#4338ca}}
-.prior-list{{padding:10px 14px;display:flex;flex-direction:column;gap:8px}}
-.prior-row{{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:8px;border:1px solid #e0e7ff;background:#f5f7ff;transition:border-color .15s,background .15s}}
-.prior-row:has(.resolve-cb:checked){{border-color:#4338ca;background:#eef2ff}}
-.prior-check{{padding-top:2px;flex-shrink:0}}
-.resolve-cb{{width:17px;height:17px;cursor:pointer;accent-color:#4338ca}}
-.prior-body{{flex:1;min-width:0}}
-.prior-left{{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}}
-.prior-title{{font-size:13px;font-weight:600;color:#1e293b}}
-.prior-meta{{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}}
-.prior-detail{{font-size:12px;color:#64748b;margin-top:4px;line-height:1.4}}
-.prior-id{{font-family:monospace;font-size:11px;color:#94a3b8}}
-.prior-result{{font-size:12px;font-weight:600;flex-shrink:0;padding-top:2px;min-width:60px;text-align:right}}
-.status-open{{font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:#fef3c7;color:#d97706}}
-.status-pushed{{font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:#d1fae5;color:#059669}}
-.resolve-btn{{background:#4338ca;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s}}
-.resolve-btn:hover{{background:#3730a3}}
-.resolve-btn:disabled{{opacity:.4;cursor:not-allowed}}
-.resolve-btn.done{{background:#059669}}
-.footer{{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;padding:13px 28px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 -2px 8px rgba(0,0,0,.08);z-index:100;flex-wrap:wrap}}
-.sel-info{{font-size:14px;color:#64748b}}
-.sel-info strong{{color:#1e293b}}
-.push-btn{{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 24px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s}}
-.push-btn:hover{{background:#1e40af}}
-.push-btn:disabled{{opacity:.45;cursor:not-allowed}}
-.push-btn.done{{background:#059669}}
-.close-lnk{{font-size:13px;color:#94a3b8;margin-left:16px;text-decoration:none}}
-.close-lnk:hover{{color:#64748b}}
-.srv-note{{font-size:12px;color:#94a3b8;width:100%;text-align:center;margin-top:4px}}
-.block-lbl{{font-size:12px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;user-select:none}}
-.block-cb{{width:14px;height:14px;cursor:pointer;accent-color:#0369a1;margin:0}}
-.task-fields{{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:11px;padding-top:11px;border-top:1px dashed #e2e8f0}}
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+:root{{
+  --ink:#1a1a1a;--ink-light:#666;--paper:#f5f2eb;--paper-2:#edeae0;
+  --rule:#cdc8b5;--accent:#c0392b;--white:#fff;--green:#27ae60;--blue:#2471a3;
+  --amber:#b7791f;
+  --font-d:'Playfair Display',Georgia,serif;
+  --font-b:'Source Sans 3','Helvetica Neue',sans-serif;
+  --font-m:'Courier New',monospace;
+}}
+body{{font-family:var(--font-b);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.55;padding-bottom:96px}}
+a{{color:inherit}}
+
+/* masthead - same as the control room */
+.page-header{{background:var(--ink);color:var(--white);padding:.9rem 1.5rem .8rem;border-bottom:3px solid var(--accent);position:sticky;top:0;z-index:100}}
+.hdr-top{{display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap}}
+.hdr-title{{font-family:var(--font-d);font-size:1.25rem;font-weight:900;letter-spacing:-.02em}}
+.hdr-sub{{font-family:var(--font-d);font-style:italic;font-size:.75rem;color:rgba(255,255,255,.45)}}
+.hdr-date{{margin-left:auto;font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.45)}}
+.hdr-stats{{display:flex;gap:.45rem;margin-top:.6rem;flex-wrap:wrap}}
+.stat-pill{{font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);border-radius:3px;padding:.15rem .55rem}}
+.stat-pill.build{{color:rgba(255,255,255,.3);border-color:rgba(255,255,255,.1)}}
+.header-summary{{margin-top:.6rem;font-family:var(--font-d);font-style:italic;font-size:.82rem;color:rgba(255,255,255,.6)}}
+
+.main{{max-width:940px;margin:0 auto;padding:1.5rem 1.5rem 3rem}}
+
+/* topic blocks read as control-room cards */
+.topic-block{{background:var(--white);border:1px solid var(--rule);border-radius:5px;margin-bottom:1.25rem;overflow:hidden}}
+.topic-head{{padding:.85rem 1.1rem .75rem;border-bottom:1px solid var(--paper-2)}}
+.topic-row{{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.3rem}}
+.topic-name{{font-family:var(--font-d);font-size:1.02rem;font-weight:700;line-height:1.25}}
+.topic-badge{{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}}
+.topic-theme{{font-size:.8rem;color:var(--ink-light);margin-bottom:.45rem;line-height:1.5}}
+.sel-all-lbl{{font-size:.72rem;color:var(--ink-light);cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}}
+
+.cards,.prior-list,.sched-list{{padding:.7rem .9rem;display:flex;flex-direction:column;gap:.55rem}}
+.card{{display:flex;align-items:flex-start;gap:.75rem;padding:.8rem .9rem;border:1px solid var(--paper-2);border-radius:4px;background:var(--white);transition:border-color .15s,background .15s,opacity .15s}}
+.card:hover{{border-color:var(--rule)}}
+.card:has(.action-cb:checked){{border-color:var(--ink);background:#faf8f3}}
+.card.is-dismissed{{opacity:.4}}
+.card-check,.prior-check{{padding-top:.15rem;flex-shrink:0}}
+.action-cb,.resolve-cb{{width:17px;height:17px;cursor:pointer;accent-color:var(--ink)}}
+.card-body,.prior-body,.sched-body{{flex:1;min-width:0}}
+.card-title{{font-size:.95rem;font-weight:600;line-height:1.35;margin-bottom:.2rem}}
+.card-detail{{font-size:.8rem;color:var(--ink-light);line-height:1.5;margin-bottom:.5rem}}
+.card-meta,.prior-meta{{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}}
+.meta-pill{{font-size:.7rem;color:var(--ink-light);background:var(--paper);border:1px solid var(--paper-2);padding:.08rem .45rem;border-radius:3px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}}
+a.src-link:hover{{color:var(--ink);border-color:var(--rule)}}
+.pri-badge{{font-size:.6rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:.1rem .45rem;border-radius:3px}}
+.pri-high{{background:#f6e3e1;color:var(--accent)}}
+.pri-normal{{background:#f5ecd9;color:var(--amber)}}
+.pri-low{{background:#e3f1e8;color:var(--green)}}
+.card-side{{display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;flex-shrink:0;min-width:84px}}
+.card-result,.prior-result,.sched-result{{font-size:.72rem;font-weight:700;text-align:right}}
+.result-ok{{color:var(--green)}}
+.result-fail{{color:var(--accent)}}
+
+/* buttons - the control room's uppercase run buttons */
+.push-btn,.resolve-btn,.sched-btn,.dismiss-btn,.dismiss-sel-btn{{font-family:var(--font-b);font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:background .15s,opacity .15s,color .15s,border-color .15s}}
+.push-btn{{background:var(--accent);color:var(--white);border:none;padding:.65rem 1.3rem}}
+.push-btn:hover{{background:#a93226}}
+.resolve-btn{{background:var(--ink);color:var(--white);border:none;padding:.45rem 1rem}}
+.resolve-btn:hover{{background:#000}}
+.sched-btn{{background:var(--green);color:var(--white);border:none;padding:.45rem 1rem}}
+.sched-btn:hover{{background:#1e8449}}
+.dismiss-btn{{background:none;border:1px solid var(--paper-2);color:var(--ink-light);padding:.2rem .55rem;font-size:.6rem}}
+.dismiss-btn:hover{{border-color:var(--rule);color:var(--ink)}}
+.dismiss-sel-btn{{background:var(--white);border:1px solid var(--rule);color:var(--ink-light);padding:.62rem 1rem}}
+.dismiss-sel-btn:hover{{color:var(--ink);border-color:var(--ink)}}
+.push-btn:disabled,.resolve-btn:disabled,.sched-btn:disabled,.dismiss-btn:disabled,.dismiss-sel-btn:disabled{{opacity:.4;cursor:not-allowed}}
+.push-btn.done,.resolve-btn.done,.sched-btn.done{{background:var(--green)}}
+
+/* carried forward */
+.prior-block .topic-head{{background:var(--paper)}}
+.prior-title-hdr{{font-family:var(--font-d);font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-light)}}
+.prior-row{{display:flex;align-items:flex-start;gap:.65rem;padding:.65rem .8rem;border:1px solid var(--paper-2);border-radius:4px;background:var(--white);transition:border-color .15s,background .15s}}
+.prior-row:has(.resolve-cb:checked){{border-color:var(--ink);background:#faf8f3}}
+.prior-left{{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin-bottom:.35rem}}
+.prior-title{{font-size:.88rem;font-weight:600}}
+.prior-detail{{font-size:.76rem;color:var(--ink-light);line-height:1.45;margin-top:.3rem}}
+.prior-id{{font-family:var(--font-m);font-size:.66rem}}
+.prior-result{{min-width:64px;padding-top:.15rem}}
+
+/* footer */
+.footer{{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:2px solid var(--rule);padding:.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;z-index:100;flex-wrap:wrap}}
+.sel-info{{font-size:.8rem;color:var(--ink-light)}}
+.sel-info strong{{color:var(--ink)}}
+.close-lnk{{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-light);text-decoration:none;margin-left:.4rem}}
+.close-lnk:hover{{color:var(--accent)}}
+.srv-note{{font-size:.7rem;color:var(--ink-light);width:100%;text-align:center}}
+
+/* per-task scheduling fields */
+.block-lbl{{font-size:.7rem;color:var(--blue);border:1px solid #d6e4ef;background:#f2f7fb;padding:.08rem .45rem;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;gap:.3rem;user-select:none}}
+.block-cb{{width:13px;height:13px;cursor:pointer;accent-color:var(--blue);margin:0}}
+.task-fields{{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-top:.65rem;padding-top:.65rem;border-top:1px dashed var(--paper-2)}}
 .task-fields.hidden{{display:none}}
-.field-group{{display:flex;flex-direction:column;gap:3px}}
-.field-group label{{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.3px}}
-.field-group select,.field-group input{{font-family:inherit;font-size:12px;padding:5px 7px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#1e293b;width:100%}}
+.field-group{{display:flex;flex-direction:column;gap:.2rem}}
+.field-group label{{font-size:.6rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-light)}}
+.field-group select,.field-group input{{font-family:inherit;font-size:.78rem;padding:.3rem .45rem;border:1px solid var(--rule);border-radius:3px;background:var(--white);color:var(--ink);width:100%}}
 .field-notes{{grid-column:1/-1}}
-@media(max-width:640px){{.task-fields{{grid-template-columns:1fr}}}}
-.sched-block{{border-color:#bae6fd}}
-.sched-head{{background:#f0f9ff}}
-.sched-title-hdr{{color:#0369a1}}
-.sched-badge{{background:#e0f2fe;color:#0369a1}}
-.sched-list{{padding:10px 14px;display:flex;flex-direction:column;gap:8px}}
-.sched-row{{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:8px;border:1px solid #bae6fd;background:#f8fdff}}
-.sched-body{{flex:1;min-width:0}}
-.sched-name{{font-size:13px;font-weight:600;margin-bottom:6px}}
-.sched-reason{{font-size:12px;color:#64748b;margin-top:5px;line-height:1.4}}
-.sched-inputs{{display:flex;flex-wrap:wrap;gap:8px;align-items:center}}
-.sched-inputs input,.sched-inputs select{{font-family:inherit;font-size:12px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#1e293b}}
-.sched-inputs label{{font-size:12px;color:#64748b;display:flex;align-items:center;gap:5px}}
-.sched-result{{font-size:12px;font-weight:600;flex-shrink:0;padding-top:2px;min-width:70px;text-align:right}}
-.sched-btn{{background:#0369a1;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:13px;font-weight:600;cursor:pointer}}
-.sched-btn:hover{{background:#075985}}
-.sched-btn:disabled{{opacity:.4;cursor:not-allowed}}
-.sched-btn.done{{background:#059669}}
-.sched-warn{{font-size:12px;color:#b45309;background:#fef3c7;padding:6px 10px;border-radius:6px;margin-top:8px}}
+
+/* diary blocks */
+.sched-block .topic-head{{background:#f3f8f5}}
+.sched-title-hdr{{font-family:var(--font-d);font-weight:700}}
+.sched-badge{{color:var(--green)}}
+.sched-row{{display:flex;align-items:flex-start;gap:.65rem;padding:.65rem .8rem;border:1px solid var(--paper-2);border-radius:4px;background:var(--white)}}
+.sched-name{{font-size:.88rem;font-weight:600;margin-bottom:.35rem}}
+.sched-reason{{font-size:.76rem;color:var(--ink-light);margin-top:.3rem;line-height:1.4}}
+.sched-inputs{{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}}
+.sched-inputs input,.sched-inputs select{{font-family:inherit;font-size:.78rem;padding:.25rem .45rem;border:1px solid var(--rule);border-radius:3px;background:var(--white);color:var(--ink)}}
+.sched-inputs label{{font-size:.75rem;color:var(--ink-light);display:flex;align-items:center;gap:.3rem}}
+.sched-warn{{font-size:.76rem;color:var(--amber);background:#f5ecd9;padding:.4rem .65rem;border-radius:3px;margin-top:.5rem}}
+
+.empty-note{{font-family:var(--font-d);font-style:italic;color:var(--ink-light);text-align:center;padding:2rem 1rem}}
+@media(max-width:640px){{.task-fields{{grid-template-columns:1fr}}.main{{padding:1rem}}.footer{{padding:.65rem 1rem}}}}
 </style>
 </head>
 <body>
 <div class="page-header">
-  <div class="hdr-top"><span class="hdr-title">Inbox Action Review</span><span class="hdr-date">{now_str}</span></div>
+  <div class="hdr-top"><span class="hdr-title">Inbox Action Review</span><span class="hdr-sub">Morning Briefing &middot; Control Room</span><span class="hdr-date">{now_str}</span></div>
   <div class="hdr-stats">
-    <span class="stat-pill">&#128236; {total_emails} emails reviewed</span>
-    <span class="stat-pill">&#9989; {total} actions identified</span>
-    <span class="stat-pill">&#128193; {len(groups)} topics</span>
+    <span class="stat-pill">{total_emails} emails reviewed</span>
+    <span class="stat-pill">{total} new actions</span>
+    <span class="stat-pill">{len(groups)} topics</span>
     {state_pill}
-    <span class="stat-pill" title="Build marker — if this is missing you are looking at a cached page">&#9881; v2 &middot; tasks + diary</span>
+    <span class="stat-pill build" title="Build marker — if this is missing you are looking at a cached page">v3 &middot; source-tracked</span>
   </div>
   {summary_html}
 </div>
 <div class="main">
   {prior_panel}
-  {sections}
+  {sections or '<p class="empty-note">No new actions this run.</p>'}
   <div id="sched-panel"></div>
 </div>
 <div class="footer">
@@ -1075,6 +1166,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgro
     <span class="sel-info" id="resolve-footer-info" style="display:none"><strong id="resolve-count">0</strong> prior action(s) selected to resolve</span>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
+    <button class="dismiss-sel-btn" id="dismiss-sel-btn" onclick="dismissSelected()" disabled>Dismiss selected</button>
     <button class="push-btn" id="push-btn" onclick="pushTasks()" disabled>Push to Microsoft To Do</button>
     <a class="close-lnk" href="/shutdown">Close</a>
   </div>
@@ -1090,7 +1182,7 @@ function serverAvailable(){{return location.protocol.startsWith('http');}}
 (function(){{
   if(!serverAvailable()){{
     const n=document.getElementById('srv-note');
-    n.style.color='#dc2626';
+    n.style.color='#c0392b';
     n.textContent='Opened as a file — Push/Resolve disabled. Run: py inbox_actions.py review';
   }}
 }})();
@@ -1104,6 +1196,8 @@ function updateCount(){{
   const n=document.querySelectorAll('.action-cb:checked').length;
   document.getElementById('sel-count').textContent=n;
   document.getElementById('push-btn').disabled=n===0||!serverAvailable();
+  const d=document.getElementById('dismiss-sel-btn');
+  if(d)d.disabled=n===0||!serverAvailable();
 }}
 function updateResolveCount(){{
   const n=document.querySelectorAll('.resolve-cb:checked').length;
@@ -1139,7 +1233,7 @@ async function resolvePrior(){{
         const card=document.getElementById('prior-card-'+aid);
         const el=document.getElementById('prior-result-'+aid);
         if(card) card.style.opacity='0.4';
-        if(el) el.innerHTML='<span style="color:#059669">✓ Resolved</span>';
+        if(el) el.innerHTML='<span class="result-ok">✓ Resolved</span>';
       }});
       btn.textContent='✓ '+ids.length+' resolved';
       btn.classList.add('done');
@@ -1147,6 +1241,32 @@ async function resolvePrior(){{
       updateResolveCount();
     }}else{{btn.textContent='Error — see terminal';btn.disabled=false;}}
   }}catch(e){{btn.textContent='Server error — check terminal';btn.disabled=false;}}
+}}
+async function sendDismiss(ids){{
+  const items=TASKS.filter(t=>ids.includes(t.id))
+    .map(t=>({{id:t.id,msg_id:t.msg_id||'',title:t.title}}));
+  if(!items.length)return;
+  try{{
+    const resp=await fetch('/dismiss',{{method:'POST',
+      headers:{{'Content-Type':'application/json'}},
+      body:JSON.stringify({{items:items}})}});
+    const data=await resp.json();
+    if(!data.ok)throw new Error(data.error||'failed');
+    ids.forEach(id=>{{
+      const card=document.getElementById('card-'+id);
+      if(card)card.classList.add('is-dismissed');
+      const cb=document.querySelector('.action-cb[data-id="'+id+'"]');
+      if(cb){{cb.checked=false;cb.disabled=true;}}
+      const b=document.getElementById('dismiss-'+id);
+      if(b){{b.textContent='Dismissed';b.disabled=true;}}
+    }});
+    updateCount();
+  }}catch(e){{alert('Dismiss failed - check the terminal.');}}
+}}
+function dismissOne(id){{if(serverAvailable())sendDismiss([id]);}}
+function dismissSelected(){{
+  const ids=[...document.querySelectorAll('.action-cb:checked')].map(cb=>cb.dataset.id);
+  sendDismiss(ids);
 }}
 async function pushTasks(){{
   const checked=[...document.querySelectorAll('.action-cb:checked')];
@@ -1256,9 +1376,9 @@ function renderBlocks(data){{
     +'<span class="topic-badge sched-badge">'+BLOCKS.length+' proposed</span></div>'
     +'<p class="topic-theme">Adjust any time or duration, untick anything you do not want, '
     +'then create the blocks in Outlook.</p>'
-    +'<div style="display:flex;align-items:center;gap:16px;margin-top:6px">'
+    +'<div style="display:flex;align-items:center;gap:.9rem;margin-top:.45rem">'
     +'<button class="sched-btn" id="sched-btn" onclick="pushEvents()">&#128197; Create Diary Blocks</button>'
-    +'<span id="sched-info" style="font-size:13px;color:#64748b"></span></div>'
+    +'<span id="sched-info" class="sel-info"></span></div>'
     +warn+'</div><div class="sched-list">'+rows+'</div></div>';
   document.getElementById('sched-panel').scrollIntoView({{behavior:'smooth',block:'start'}});
 }}
@@ -1507,6 +1627,12 @@ def serve_dashboard(state: InboxState, token: str):
             if path == "/":
                 self._respond(dashboard_html.encode("utf-8"),
                               "text/html; charset=utf-8")
+            elif path in ("/icon-180.png", "/icon-192.png"):
+                f = BASE_DIR / path.lstrip("/")
+                if f.exists():
+                    self._respond(f.read_bytes(), "image/png")
+                else:
+                    self.send_response(404); self.end_headers()
             elif path == "/shutdown":
                 self._respond(b"Closing dashboard...", "text/plain")
                 shutdown_event.set()
@@ -1522,7 +1648,7 @@ def serve_dashboard(state: InboxState, token: str):
                 body = {}
 
             if self.path == "/push":
-                results, pushed_titles = [], []
+                results, pushed_titles, pushed_ids = [], [], []
                 for t in body.get("tasks", []):
                     # Shared with the morning briefing so a task created
                     # here and one created there read identically.
@@ -1553,8 +1679,9 @@ def serve_dashboard(state: InboxState, token: str):
                     print(f"     {'✓' if task_id else '✗'}  {t.get('title','')[:60]}")
                     if task_id:
                         pushed_titles.append(t.get("title", ""))
+                        pushed_ids.append(t.get("msg_id", ""))
                 if pushed_titles:
-                    state.mark_pushed(pushed_titles)          # B1 restored
+                    state.mark_pushed(pushed_titles, pushed_ids)
                 self._respond(json.dumps({"results": results}).encode())
 
             elif self.path == "/schedule":
@@ -1566,6 +1693,16 @@ def serve_dashboard(state: InboxState, token: str):
                 # Stage 2 — create the (possibly edited) blocks in Outlook.
                 self._respond(json.dumps(
                     create_blocks(body.get("blocks", []))).encode())
+
+            elif self.path == "/dismiss":
+                items = body.get("items", [])
+                try:
+                    state.mark_dismissed(items)
+                    print(f"     ✓  Dismissed {len(items)} action(s) - won't be offered again")
+                    resp = {"ok": True, "dismissed": len(items)}
+                except Exception as e:
+                    resp = {"ok": False, "error": str(e)}
+                self._respond(json.dumps(resp).encode())
 
             elif self.path == "/resolve":
                 action_ids = body.get("action_ids", [])
@@ -1743,12 +1880,62 @@ def _resolve_days(args, default: int) -> int:
         return default
 
 
+def _todo_sources() -> set:
+    """
+    Source-email ids of everything already in To Do, open or recently
+    completed, read from the [src:...] marker each task body carries. Pushed
+    from here or from the morning briefing, it is already captured.
+    Best effort: if To Do can't be read, the local record still applies.
+    """
+    try:
+        import todo_tasks as _tt
+        out = set(_tt.fetch_recent_completion_sources() or ())
+        lists = _tt.fetch_todo_tasks()
+        tasks = lists.get("tasks", []) if isinstance(lists, dict) else (lists or [])
+        for t in tasks:
+            for m in re.finditer(r"\[src:([^\]]{4,})\]", t.get("detail", "") or ""):
+                out.add(m.group(1).strip())
+        return out
+    except Exception as e:
+        print(f"  ⚠️  Could not read To Do for already-captured actions ({e})")
+        return set()
+
+
+def _filter_handled(data: dict, handled: set) -> int:
+    """
+    Drop actions whose source email has already been dealt with - pushed,
+    resolved, dismissed, or found in To Do. Returns how many were hidden.
+    Empty topic groups are removed.
+    """
+    hidden, groups = 0, []
+    for g in data.get("action_groups", []) or []:
+        keep = [a for a in g.get("actions", [])
+                if not (a.get("msg_id") and a["msg_id"] in handled)]
+        hidden += len(g.get("actions", [])) - len(keep)
+        if keep:
+            groups.append(dict(g, actions=keep))
+    data["action_groups"] = groups
+    data["hidden_handled"] = hidden
+    return hidden
+
+
 def _run_pipeline(args, open_dashboard: bool):
     token    = graph.get_access_token()
     lookback = _resolve_days(args, LOOKBACK_DAYS)
 
     state = InboxState()
     ck    = CompanyKnowledge()
+
+    # Before the model sees the memory: drop anything already in To Do, and
+    # age out carried items nobody has touched.
+    todo_src = _todo_sources()
+    n_todo   = state.sync_with_todo(todo_src)
+    n_exp    = state.expire_stale()
+    state.save()
+    if n_todo or n_exp:
+        print(f"  🧹  Carried forward: {n_todo} closed (already in To Do), "
+              f"{n_exp} expired (over {state.CARRY_EXPIRY_DAYS} days, not high priority)")
+
     state_context   = state.build_context_block()
     knowledge_block = ck.build_prompt_block()               # loaded once (P4)
     briefing_text   = load_context_briefing()
@@ -1772,7 +1959,13 @@ def _run_pipeline(args, open_dashboard: bool):
                            knowledge_block, lookback)
     if not data:
         print("  ⚠️  No actions extracted.")
-        return
+        data = {"summary": "", "total_emails_reviewed": len(emails),
+                "lookback_days": lookback, "action_groups": []}
+    hidden = _filter_handled(data, state.handled_sources() | todo_src)
+    if hidden:
+        print(f"  🙈  {hidden} action(s) hidden - their email is already pushed, "
+              f"resolved, dismissed or in To Do")
+    data["expired_carried"] = n_exp
     save_report(data, emails, lookback)
 
     for g in data.get("action_groups", []):
