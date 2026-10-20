@@ -241,9 +241,10 @@ def fetch_markets() -> dict:
 
 # ── round-up ────────────────────────────────────────────────────────────────
 
-def write_roundup(client, data: dict) -> dict:
+def _write_roundup_basic(client, data: dict) -> dict:
     """
-    One short paragraph per region plus a one-word stance.
+    The original round-up, kept as the fallback for write_roundup(): one short
+    paragraph per region plus a one-word stance, from index numbers only.
 
     Returns {region_id: {"text": str, "stance": str}}. Any failure returns {}
     and the tab renders the numbers without commentary - the prices are the
@@ -315,6 +316,306 @@ Mixed, Neutral). Region ids: {", ".join(r['id'] for r in REGIONS)}"""
     except Exception as e:
         print(f"   !  markets round-up skipped ({e})")
         return {}
+
+
+# ── causal round-up ─────────────────────────────────────────────────────────
+# write_roundup() tries to explain WHY markets moved: it reads the overnight
+# headlines the briefing already collected, a handful of cross-asset prices
+# (rates, volatility, the dollar, copper, Brent, Henry Hub) and a short web
+# search, and every cause it names must point at one of those. If anything
+# fails, or nothing survives the citation check, it falls back to the
+# original numbers-only round-up above, so the tab never loses commentary.
+
+ROUNDUP_MODEL = "claude-sonnet-4-6"
+WEB_SEARCHES  = 4          # cap on web searches per run
+
+# Cross-asset context for the round-up only - not shown in the index table.
+CROSS_ASSET = [
+    {"id": "US10Y",    "sym": "^TNX",     "name": "US 10-year yield", "kind": "yield"},
+    {"id": "VIX",      "sym": "^VIX",     "name": "VIX",              "kind": "level"},
+    {"id": "DXY",      "sym": "DX-Y.NYB", "name": "US dollar index",  "kind": "price"},
+    {"id": "COPPER",   "sym": "HG=F",     "name": "Copper",           "kind": "price"},
+    {"id": "BRENT",    "sym": "BZ=F",     "name": "Brent crude",      "kind": "price"},
+    {"id": "HENRYHUB", "sym": "NG=F",     "name": "Henry Hub gas",    "kind": "price"},
+]
+
+
+def fetch_cross_asset() -> dict:
+    """{id: quote} for CROSS_ASSET; missing symbols are simply absent."""
+    hist = _history([c["sym"] for c in CROSS_ASSET])
+    out = {}
+    for c in CROSS_ASSET:
+        rows = hist.get(c["sym"])
+        if rows:
+            q = _quote(rows)
+            out[c["id"]] = {**c, **q, "change_bp": (q["close"] - q["prev"]) * 100.0}
+    return out
+
+
+def _data_points(data: dict, cross: dict) -> dict:
+    """Citable data points: {"D:SP500": "S&P 500 6,512.30 (-0.84%)", ...}."""
+    pts = {}
+    for k, m in (data.get("indices") or {}).items():
+        if m.get("region") == "_proxy":
+            continue
+        pts[f"D:{k}"] = f"{m['name']} {m['close']:,.2f} ({m['change_pct']:+.2f}%)"
+    for s in data.get("sectors") or []:
+        pts[f"D:{s['code']}"] = f"US {s['name']} sector {s['change_pct']:+.1f}%"
+    for k, c in cross.items():
+        if c["kind"] == "yield":
+            pts[f"D:{k}"] = f"{c['name']} {c['close']:.2f}% ({c['change_bp']:+.0f}bp)"
+        else:
+            pts[f"D:{k}"] = f"{c['name']} {c['close']:,.2f} ({c['change_pct']:+.2f}%)"
+    return pts
+
+
+def _headline_points(headlines, limit: int = 40) -> dict:
+    """
+    Citable headlines: {"H1": "Source: headline - summary", ...}.
+    Accepts the briefing's all_sections ({category: [story, ...]}) or a list.
+    """
+    stories = []
+    if isinstance(headlines, dict):
+        for cat, items in headlines.items():
+            for it in items or []:
+                stories.append((cat, it))
+    elif isinstance(headlines, list):
+        stories = [("", it) for it in headlines]
+    pts = {}
+    for cat, it in stories:
+        if not isinstance(it, dict):
+            continue
+        h = str(it.get("headline") or it.get("title") or "").strip()
+        if not h:
+            continue
+        src = str(it.get("source") or cat or "").strip()
+        summ = str(it.get("summary") or "").strip()
+        pts[f"H{len(pts) + 1}"] = f"{src}: {h}" + (f" - {summ}" if summ else "")
+        if len(pts) >= limit:
+            break
+    return pts
+
+
+def _final_json(msg) -> dict:
+    """The JSON object in the model's last text output (after any web searches)."""
+    texts = [getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text"]
+    raw = "".join(texts).strip()
+    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    i, j = raw.find("{"), raw.rfind("}")
+    if i < 0 or j <= i:
+        raise ValueError("no JSON object in the reply")
+    return json.loads(raw[i:j + 1])
+
+
+def _web_sources(msg) -> dict:
+    """URLs the web search actually returned: {url: title}."""
+    found = {}
+    for b in msg.content:
+        if getattr(b, "type", "") != "web_search_tool_result":
+            continue
+        content = getattr(b, "content", None)
+        for r in content if isinstance(content, list) else []:
+            url = getattr(r, "url", None)
+            if url:
+                found[url] = getattr(r, "title", "") or url
+    return found
+
+
+def _clean_cites(cites, heads: dict, points: dict, web: dict, sources: dict) -> list:
+    """
+    Keep only citations that point at something real: a headline we supplied,
+    a data point we supplied, or a web result the search actually returned.
+    Returns display labels.
+    """
+    out = []
+    for c in cites if isinstance(cites, list) else []:
+        c = str(c).strip()
+        if c in heads:
+            out.append(heads[c].split(" - ")[0])
+        elif c in points:
+            out.append(points[c])
+        elif c in sources:
+            url, title = sources[c]
+            out.append({"web": title or url, "url": url})
+        elif c.startswith("http") and c in web:
+            out.append({"web": web[c] or c, "url": c})
+    seen, uniq = set(), []
+    for o in out:
+        k = json.dumps(o, sort_keys=True) if isinstance(o, dict) else o
+        if k not in seen:
+            seen.add(k)
+            uniq.append(o)
+    return uniq[:6]
+
+
+def _write_roundup_causal(client, data: dict, headlines=None) -> dict:
+    idx = data.get("indices") or {}
+    if not client or not idx:
+        return {}
+    try:
+        cross = fetch_cross_asset()
+    except Exception as e:
+        print(f"   !  cross-asset prices unavailable ({e})")
+        cross = {}
+    points = _data_points(data, cross)
+    heads = _headline_points(headlines)
+    regions = [r for r in REGIONS if any(v["region"] == r["id"] for v in idx.values())]
+
+    prompt = f"""You are writing the Global Markets commentary in a morning briefing for the
+Managing Director of State Gas Limited (ASX: GAS), a Queensland coal seam gas developer, reading
+before the ASX opens. Explain WHY markets moved, not just what they did.
+
+DATA POINTS (last completed session; cite by id):
+{chr(10).join(f"[{k}] {v}" for k, v in points.items())}
+
+OVERNIGHT HEADLINES already in the briefing (cite by id):
+{chr(10).join(f"[{k}] {v}" for k, v in heads.items()) or "(none supplied)"}
+
+You may also use the web_search tool (at most {WEB_SEARCHES} searches) for overnight market wraps
+that explain the moves - e.g. "stock market today why", "Wall Street close", "oil prices",
+"Henry Hub natural gas". Prefer reputable outlets (Reuters, Bloomberg, AP, CNBC, FT, WSJ, AFR).
+
+Australia is yesterday's completed ASX session, written in the past tense; everything else
+closed overnight.
+
+Write:
+- "drivers": 2-4 sentences on what drove markets overall (rates, inflation/central banks,
+  earnings, geopolitics, commodities, the dollar) and how the pieces connect.
+- "regions": for each region id ({", ".join(r["id"] for r in regions)}): 1-2 sentences - the move
+  with its numbers and the most likely cause - plus a stance (Bullish, Bearish, Mixed, Neutral).
+- "asx_open": 1-2 sentences on what this means for the ASX open today (sectors likely to lead
+  or lag, e.g. miners from copper/iron ore, energy from oil, banks from yields).
+- "energy_gas": 1-2 sentences on what it means for energy and east-coast / LNG-linked gas
+  (Brent, Henry Hub, LNG, the AUD) and so for a Queensland gas developer.
+
+CITATION RULES - strict:
+- Every claimed cause must be backed by at least one citation in that item's "cites" list:
+  a data point id (e.g. "D:US10Y"), a headline id (e.g. "H4"), or a web source id ("W1"...)
+  that you list in "sources" with the exact URL the search returned.
+- If you cannot support a cause, do not state it - say what moved and stop.
+- Numbers must match the data points exactly. No advice, no disclaimers, no markdown.
+
+Return ONLY one JSON object:
+{{"drivers": {{"text": "", "cites": []}},
+ "regions": {{"<region id>": {{"text": "", "stance": "", "cites": []}}}},
+ "asx_open": {{"text": "", "cites": []}},
+ "energy_gas": {{"text": "", "cites": []}},
+ "sources": [{{"id": "W1", "title": "", "url": ""}}]}}"""
+
+    kw = dict(model=ROUNDUP_MODEL, max_tokens=3000, timeout=180,
+              messages=[{"role": "user", "content": prompt}])
+    if WEB_SEARCHES:
+        kw["tools"] = [{"type": "web_search_20250305", "name": "web_search",
+                        "max_uses": WEB_SEARCHES}]
+    try:
+        msg = client.messages.create(**kw)
+    except Exception as e:
+        if "tools" not in kw:
+            raise
+        # web search not enabled for this key/organisation: headlines and data only
+        print(f"   !  web search unavailable ({type(e).__name__}) - using headlines and data only")
+        kw.pop("tools")
+        msg = client.messages.create(**kw)
+    got = _final_json(msg)
+    web = _web_sources(msg)
+    sources = {}
+    for s in got.get("sources") or []:
+        if isinstance(s, dict) and s.get("id") and s.get("url") in web:
+            sources[str(s["id"])] = (s["url"], s.get("title") or web.get(s["url"], ""))
+
+    def item(v):
+        if not isinstance(v, dict):
+            return None
+        text = str(v.get("text", "")).strip()
+        cites = _clean_cites(v.get("cites"), heads, points, web, sources)
+        if not text or not cites:          # no evidence, no claim
+            return None
+        return {"text": text[:900], "cites": cites}
+
+    out = {}
+    for r in regions:
+        v = (got.get("regions") or {}).get(r["id"])
+        it = item(v)
+        if it:
+            stance = str(v.get("stance", "")).strip().title()
+            it["stance"] = stance if stance in ("Bullish", "Bearish", "Mixed", "Neutral") else "Mixed"
+            out[r["id"]] = it
+    top = {k: item(got.get(k)) for k in ("drivers", "asx_open", "energy_gas")}
+    if any(top.values()):
+        out["_drivers"] = {k: v for k, v in top.items() if v}
+    out["_meta"] = {"model": ROUNDUP_MODEL, "headlines": len(heads), "web": len(sources),
+                    "cross": sorted(cross)}
+    return out
+
+
+def write_roundup(client, data: dict, headlines=None) -> dict:
+    """
+    The Global Markets commentary. Returns {region_id: {"text", "stance"[, "cites"]}}
+    plus, when the causal read works, "_drivers" ({"drivers", "asx_open", "energy_gas"}).
+
+    Tries the causal round-up first; any region it could not support with a
+    citation, or any failure at all, falls back to the original numbers-only
+    round-up, so the tab is never worse than before.
+    """
+    if not client or not (data.get("indices") or {}):
+        return {}
+    causal = {}
+    try:
+        causal = _write_roundup_causal(client, data, headlines)
+    except Exception as e:
+        print(f"   !  causal markets round-up failed ({type(e).__name__}: {e}) - using the basic one")
+        causal = {}
+    have = [r["id"] for r in REGIONS if r["id"] in causal]
+    need = [r["id"] for r in REGIONS if any(v["region"] == r["id"] for v in data["indices"].values())]
+    if causal and all(r in have for r in need):
+        return causal
+    basic = _write_roundup_basic(client, data)
+    for rid in need:
+        if rid not in causal and rid in basic:
+            causal[rid] = basic[rid]
+    return causal if any(r in causal for r in need) else basic
+
+
+def _cites_html(cites) -> str:
+    if not cites:
+        return ""
+    parts = []
+    for c in cites:
+        if isinstance(c, dict):
+            parts.append(f'<a href="{_esc(c.get("url", ""))}" target="_blank" rel="noopener">'
+                         f'{_esc(c.get("web", ""))}</a>')
+        else:
+            parts.append(_esc(c))
+    return f'<div class="gm-cite">Based on: {" &middot; ".join(parts)}</div>'
+
+
+def _drivers_html(roundup: dict) -> str:
+    d = (roundup or {}).get("_drivers") or {}
+    if not d:
+        return ""
+    blocks = []
+    for key, title in (("drivers", "What&rsquo;s driving markets"),
+                       ("asx_open", "So what for the ASX open"),
+                       ("energy_gas", "So what for energy and gas")):
+        v = d.get(key)
+        if v and v.get("text"):
+            blocks.append(f'<div class="gm-drv-b"><div class="gm-drv-t">{title}</div>'
+                          f'<div class="gm-drv-x">{_esc(v["text"])}</div>{_cites_html(v.get("cites"))}</div>')
+    if not blocks:
+        return ""
+    return f'<div class="gm-drv">{"".join(blocks)}</div>'
+
+
+CAUSAL_CSS = """<style>
+.gm-drv{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin:0 0 1.6rem}
+.gm-drv-b{background:#fff;border:1px solid var(--rule,#e4e1d8);border-top:3px solid var(--accent,#c0392b);
+  border-radius:3px;padding:.8rem 1rem}
+.gm-drv-t{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-light,#6b6862);margin-bottom:.35rem}
+.gm-drv-x{font-size:.85rem;line-height:1.6;color:#2f2d29}
+.gm-cite{font-size:.64rem;color:var(--ink-light,#8c887b);margin-top:.45rem;line-height:1.45}
+.gm-cite a{color:inherit;text-decoration:underline dotted}
+</style>"""
 
 
 # ── render ──────────────────────────────────────────────────────────────────
@@ -412,7 +713,8 @@ def build_tab(data: dict, roundup: dict = None, now: datetime.datetime = None) -
                 "Mixed": "#8a5a1f", "Neutral": "#5c5a52"}.get(stance, "#8c887b")
         chip = (f'<span class="gm-stance" style="background:{scol}">{_esc(stance)}</span>'
                 if stance else "")
-        prose = f'<div class="gm-say">{_esc(say["text"])}</div>' if say.get("text") else ""
+        prose = (f'<div class="gm-say">{_esc(say["text"])}{_cites_html(say.get("cites"))}</div>'
+                 if say.get("text") else "")
         cards.append(f'<div class="gm-card"><div class="gm-card-h">'
                      f'<span class="gm-card-t">{_esc(r["flag"])} {_esc(r["name"])}</span>{chip}</div>'
                      f'{rows}{prose}</div>')
@@ -461,13 +763,15 @@ def build_tab(data: dict, roundup: dict = None, now: datetime.datetime = None) -
     miss = (f'<div class="gm-miss">{len(missing)} symbol(s) returned no data this run: '
             f'{_esc(", ".join(missing[:12]))}.</div>') if missing else ""
 
-    return (CSS + '<div class="gm-wrap">'
+    return (CSS + (CAUSAL_CSS if roundup.get("_drivers") or roundup.get("_meta") else "")
+            + '<div class="gm-wrap">'
             f'<div class="gm-sec">Overnight round-up'
             f'<span class="gm-note">{_esc(asof_txt)}</span></div>'
             '<div class="gm-lead">The last completed session on each exchange. Australia is '
             'yesterday&rsquo;s ASX close; everything else closed overnight. Note the US figures '
             'in the 5:17 briefing are taken before Wall Street shuts &mdash; the 8:15 run has '
             'the settled close.</div>'
+            f'{_drivers_html(roundup)}'
             f'<div class="gm-grid">{"".join(cards)}</div>'
             f'{heat}{etf_block}{miss}</div>')
 
@@ -522,6 +826,7 @@ def _test():
     except Exception:
         pass
     roundup = write_roundup(client, data)
+    print("round-up:", (roundup.get("_meta") or "basic (numbers only)"))
     html = build_tab(data, roundup)
     from pathlib import Path
     out = Path(__file__).parent / "global_markets_preview.html"

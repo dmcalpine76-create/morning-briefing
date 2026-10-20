@@ -3235,9 +3235,14 @@ def main():
             _groundup = {}
             try:
                 _gclient = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-                _groundup = _intl.write_roundup(_gclient, _gdata)
+                _groundup = _intl.write_roundup(_gclient, _gdata, headlines=all_sections)
                 if _groundup:
-                    print(f"   OK round-up written for {len(_groundup)} region(s)")
+                    _gmeta = _groundup.get("_meta")
+                    print(f"   OK round-up written for "
+                          f"{len([k for k in _groundup if not k.startswith('_')])} region(s)"
+                          + (f" - causal ({_gmeta['headlines']} headlines, {_gmeta['web']} web "
+                             f"sources, {len(_gmeta['cross'])} cross-asset prices)" if _gmeta
+                             else " - basic"))
             except Exception:
                 pass
             globalmkt = {"data": _gdata, "roundup": _groundup}
