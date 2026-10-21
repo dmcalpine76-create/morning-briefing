@@ -448,6 +448,15 @@ def _clean_cites(cites, heads: dict, points: dict, web: dict, sources: dict) -> 
     return uniq[:6]
 
 
+def _trim(text: str, limit: int = 1200) -> str:
+    """Cap long text at a sentence boundary rather than mid-word."""
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    end = max(cut.rfind(". "), cut.rfind("; "))
+    return (cut[:end + 1] if end > limit // 2 else cut.rsplit(" ", 1)[0] + "…").strip()
+
+
 def _write_roundup_causal(client, data: dict, headlines=None) -> dict:
     idx = data.get("indices") or {}
     if not client or not idx:
@@ -479,13 +488,15 @@ Australia is yesterday's completed ASX session, written in the past tense; every
 closed overnight.
 
 Write:
-- "drivers": 2-4 sentences on what drove markets overall (rates, inflation/central banks,
+Keep it tight - a director reads this on a phone.
+- "drivers": 2-3 sentences, at most 90 words, on what drove markets overall (rates, inflation/central banks,
   earnings, geopolitics, commodities, the dollar) and how the pieces connect.
-- "regions": for each region id ({", ".join(r["id"] for r in regions)}): 1-2 sentences - the move
+- "regions": for each region id ({", ".join(r["id"] for r in regions)}): 1-2 sentences, at most
+  60 words - the move
   with its numbers and the most likely cause - plus a stance (Bullish, Bearish, Mixed, Neutral).
-- "asx_open": 1-2 sentences on what this means for the ASX open today (sectors likely to lead
+- "asx_open": 1-2 sentences, at most 60 words, on what this means for the ASX open today (sectors likely to lead
   or lag, e.g. miners from copper/iron ore, energy from oil, banks from yields).
-- "energy_gas": 1-2 sentences on what it means for energy and east-coast / LNG-linked gas
+- "energy_gas": 1-2 sentences, at most 60 words, on what it means for energy and east-coast / LNG-linked gas
   (Brent, Henry Hub, LNG, the AUD) and so for a Queensland gas developer.
 
 CITATION RULES - strict:
@@ -530,7 +541,7 @@ Return ONLY one JSON object:
         cites = _clean_cites(v.get("cites"), heads, points, web, sources)
         if not text or not cites:          # no evidence, no claim
             return None
-        return {"text": text[:900], "cites": cites}
+        return {"text": _trim(text), "cites": cites}
 
     out = {}
     for r in regions:
