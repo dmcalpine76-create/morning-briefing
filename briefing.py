@@ -1627,9 +1627,8 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
     # topic_tabs_html produces a single #view-topics div
     # Build topic tab buttons for masthead
     has_topics     = bool(active_topics)
-    topic_emojis   = " ".join(t["emoji"] for t in (active_topics or []))
     topic_tab_btns = (
-        f'<button class="tab-btn" onclick="showTab(\'topics\')" id="tab-topics">📌 My Topics {topic_emojis}</button>'
+        f'<button class="tab-btn" onclick="showTab(\'topics\')" id="tab-topics">📌 My Topics</button>'
         if has_topics else ""
     )
 
