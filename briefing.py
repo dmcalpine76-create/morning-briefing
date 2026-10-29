@@ -1739,6 +1739,15 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             .page-head {{ position: static; box-shadow: none; }}
             :root {{ --head-h: 0px; }}
         }}
+        /* Phones: freeze just the masthead (title + tabs) so the tabs stay
+           reachable; the widget and weather bars scroll away underneath.
+           display:contents lifts the masthead out of the wrapper so it can
+           stick against the page itself (works on iOS Safari and Android). */
+        @media (max-width: 900px) {{
+            .page-head {{ display: contents; }}
+            .masthead {{ position: sticky; top: 0; z-index: 50;
+                         box-shadow: 0 2px 8px rgba(0,0,0,0.18); }}
+        }}
 
         /* ── WEATHER / INFO BAR ── */
         .weather-bar {{
@@ -1805,9 +1814,17 @@ def generate_html(sections: dict, generated_at: datetime.datetime,
             background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55);
             transition: all 0.15s; white-space: nowrap;
         }}
+        /* Phones: tabs sit on their own full-width row that swipes sideways
+           rather than stacking one per line beside the title. */
         @media (max-width: 600px) {{
-            .masthead-tabs {{ justify-content: flex-start; width: 100%; }}
-            .tab-btn {{ font-size: 0.58rem; padding: 0.2rem 0.4rem; }}
+            .masthead {{ padding: 0.5rem 0.9rem 0.45rem; row-gap: 0.4rem; }}
+            .masthead-left {{ flex-direction: row; align-items: baseline; gap: 0.5rem; flex: 0 0 100%; }}
+            .masthead-date {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }}
+            .masthead-tabs {{ flex: 0 0 100%; justify-content: flex-start; flex-wrap: nowrap;
+                              overflow-x: auto; -webkit-overflow-scrolling: touch;
+                              scrollbar-width: none; position: relative; margin: 0 -0.9rem; padding: 0 0.9rem; }}
+            .masthead-tabs::-webkit-scrollbar {{ display: none; }}
+            .tab-btn {{ font-size: 0.6rem; padding: 0.3rem 0.5rem; flex-shrink: 0; }}
         }}
         .tab-btn:hover {{ background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.9); }}
         .tab-active {{ background: var(--accent) !important; color: var(--white) !important; border-color: var(--accent) !important; }}
@@ -2209,6 +2226,9 @@ const BRIEFING_DATE_ISO = "{generated_at.strftime('%Y-%m-%d')}";
 function measureHead() {{
     var el = document.getElementById('page-head');
     if (!el) return;
+    // On phones the wrapper is display:contents and the masthead sticks alone.
+    if (getComputedStyle(el).display === 'contents') el = el.querySelector('.masthead');
+    if (!el) return;
     var stuck = getComputedStyle(el).position === 'sticky';
     document.documentElement.style.setProperty(
         '--head-h', stuck ? Math.round(el.getBoundingClientRect().height) + 'px' : '0px');
@@ -2232,6 +2252,11 @@ function showTab(tab) {{
     if (view) view.style.display = '';
     const btn = document.getElementById('tab-' + tab);
     if (btn) btn.classList.add('tab-active');
+    // Keep the chosen tab in view when the tab row scrolls sideways (phones).
+    if (btn && btn.parentElement && btn.parentElement.scrollWidth > btn.parentElement.clientWidth) {{
+        var row = btn.parentElement;
+        row.scrollTo({{ left: btn.offsetLeft - (row.clientWidth - btn.offsetWidth) / 2, behavior: 'smooth' }});
+    }}
     measureHead();
     // Show To Do footer only on email tab AND only on local review server
     var _h = window.location.hostname, _p = window.location.port;
