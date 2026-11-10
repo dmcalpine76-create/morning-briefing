@@ -80,7 +80,11 @@
     "https://www.offshore-energy.biz/feed/",
     "https://www.energyvoice.com/feed/",
     "https://www.rigzone.com/news/rss/rigzone_latest.aspx",
-    "https://www.mining.com/feed/"
+    "https://www.mining.com/feed/",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml",
+    "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml",
+    "https://www.theguardian.com/us-news/us-politics/rss",
+    "https://www.gamespot.com/feeds/news/"
   ],
   "market_tickers": [
     {

@@ -89,7 +89,7 @@
       ],
       "notes": "",
       "added": "2026-06-15",
-      "active": true
+      "active": false
     },
     {
       "id": "ai-data-centres-australia",
@@ -102,8 +102,53 @@
         "firmus"
       ],
       "notes": "",
-      "active": true,
+      "active": false,
       "added": "2026-09-21"
+    },
+    {
+      "id": "gta-v",
+      "name": "GTA V",
+      "emoji": "🚗",
+      "color": "#2a5d2a",
+      "keywords": [
+        "GTA",
+        "GTA V",
+        "GTA 5",
+        "GTA Online",
+        "GTA VI",
+        "GTA 6",
+        "Grand Theft Auto",
+        "Rockstar Games",
+        "Take-Two"
+      ],
+      "notes": "",
+      "added": "2026-11-10",
+      "active": true
+    },
+    {
+      "id": "us-mid-terms",
+      "name": "US Mid Terms",
+      "emoji": "🗳️",
+      "color": "#3c3b6e",
+      "keywords": [
+        "midterm",
+        "midterms",
+        "mid-terms",
+        "midterm elections",
+        "House majority",
+        "Senate majority",
+        "Senate race",
+        "House race",
+        "Congress",
+        "Speaker of the House",
+        "Democrats",
+        "Republicans",
+        "GOP",
+        "election results"
+      ],
+      "notes": "",
+      "added": "2026-11-10",
+      "active": true
     }
   ]
 }
