@@ -3308,7 +3308,7 @@ def main():
                                                  briefings=(calendar_data or {}).get("_briefings") or {})
         if audio_path:
             _mb = audio_path.stat().st_size / 1048576
-            _diag.ok("Audio", f"{_mb:.1f} MB, voice {audio_briefing.VOICE}, "
+            _diag.ok("Audio", f"{getattr(audio_briefing, 'LAST_INFO', '')}, {_mb:.1f} MB, voice {audio_briefing.VOICE}, "
                               f"rate {audio_briefing.RATE}")
             print(f"   ✓ Audio briefing: {audio_path.name}")
         else:

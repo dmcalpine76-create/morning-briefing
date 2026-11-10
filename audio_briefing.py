@@ -85,6 +85,9 @@ MAX_MP3_MB = 8              # sanity cap for the email attachment
 # Why the last generate_mp3() returned None. briefing.py reads this and puts it
 # in the email, because the printed version only reaches the Actions log.
 LAST_ERROR = ""
+LAST_INFO  = ""          # words / seconds / source, shown in the run diagnostics
+MIN_SCRIPT_WORDS = 300   # a real briefing is 600-750; anything under this is a stub
+BYTES_PER_SEC = 6000     # edge-tts default output is 48 kbit/s mono
 # GitHub Actions runners use UTC — the 5am/8am AEST runs are still
 # "yesterday" in UTC, so always take the date from Brisbane time.
 BRISBANE_TZ = datetime.timezone(datetime.timedelta(hours=10))   # QLD has no daylight saving
@@ -320,8 +323,15 @@ Respond with ONLY the script text."""
                 timeout=90,
             )
             script = resp.content[0].text.strip()
-            if len(script) > 200:
+            words = len(script.split())
+            if words >= MIN_SCRIPT_WORDS:
                 return script
+            # A stub (greeting + sign-off, or a "the material is empty" note)
+            # once went out as a 17-second file. Never send that: say why in
+            # the log and read the material out plainly instead.
+            print(f"   ⚠️  Audio script was only {words} words "
+                  f"(material {len(material)} chars) - using plain read-out")
+            print("      Script began: " + script[:200].replace("\n", " "))
         except Exception as e:
             print(f"   ⚠️  Audio script generation failed, using fallback: {e}")
 
@@ -376,7 +386,27 @@ def generate_mp3(sections: dict, analysis: dict, out_dir: Path,
         script = _write_script(material, now, api_key)
         mp3_path = out_dir / "briefing.mp3"
         print(f"   🎙️  Voice: {VOICE}  Rate: {RATE}")
+        global LAST_INFO
+        words = len(script.split())
         asyncio.run(_render(script, mp3_path))
+        # The voice service occasionally returns a truncated stream without
+        # raising. Speech runs at roughly 2.5 words a second, so a file far
+        # shorter than the script implies is retried once.
+        def _secs():
+            return mp3_path.stat().st_size / BYTES_PER_SEC if mp3_path.exists() else 0
+        expected = words / 2.6
+        if _secs() < expected * 0.5:
+            print(f"   ⚠️  Audio came back {_secs():.0f}s for a {words}-word script "
+                  f"(expected ~{expected:.0f}s) - rendering again")
+            mp3_path.unlink(missing_ok=True)
+            asyncio.run(_render(script, mp3_path))
+        LAST_INFO = f"{words} words, {_secs()/60:.1f} min"
+        print(f"   🎙️  {LAST_INFO}")
+        if _secs() < expected * 0.5:
+            LAST_ERROR = (f"voice service returned {_secs():.0f}s of audio for a "
+                          f"{words}-word script")
+            print(f"   ⚠️  {LAST_ERROR} - not attaching")
+            return None
         if not mp3_path.exists() or mp3_path.stat().st_size < 10_000:
             _size = mp3_path.stat().st_size if mp3_path.exists() else 0
             LAST_ERROR = f"render produced no usable file ({_size} bytes)"
